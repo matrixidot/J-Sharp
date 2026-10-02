@@ -15,14 +15,14 @@ public open class Base {
 public class Derived : Base, Runnable, Comparable<Derived> {
     public Derived() { super(1); }
     public override void hook() { }
-    public void run() { }
-    public int compareTo(Derived other) => 0;
+    public override void run() { }
+    public override int compareTo(Derived other) => 0;
 }
 
 public interface Greeter {
     String greet(String name);
     default String hi() => greet("hi");
-    static Greeter polite() => null!;
+    static Greeter polite() => new Polite();
     private String helper() => "x";
 }
 
@@ -34,5 +34,6 @@ public class Outer {
 }
 
 class NoCtor { }
+class Polite : Greeter { public override String greet(String name) => "Hello " + name; }
 public open class PublicNoCtor { }
 public abstract class AbstractNoCtor { }

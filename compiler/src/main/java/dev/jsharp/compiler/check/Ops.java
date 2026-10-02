@@ -57,9 +57,13 @@ final class Ops {
           return e;
         }
         PrimType p = types().primitiveView(e.type());
-        boolean ok = p != null && p.isNumeric() && (u.op() != Expr.UnaryOp.BIT_NOT || p.isIntegral());
+        boolean ok =
+            p != null && p.isNumeric() && (u.op() != Expr.UnaryOp.BIT_NOT || p.isIntegral());
         if (!ok) {
-          a.error(Code.BAD_OPERANDS, span, "operator '" + u.op().symbol() + "' cannot be applied to " + e.type().display());
+          a.error(
+              Code.BAD_OPERANDS,
+              span,
+              "operator '" + u.op().symbol() + "' cannot be applied to " + e.type().display());
           return new BExpr.Error(Type.ErrorType.INSTANCE, span);
         }
         PrimType t = Types.promote(p);
@@ -76,7 +80,13 @@ final class Ops {
           }
         }
         if (op == BExpr.UnOp.NEG && a.env.checked && (t == PrimType.INT || t == PrimType.LONG)) {
-          return new BExpr.Binary(BinOp.SUB, new BExpr.Const(t == PrimType.INT ? (Object) 0 : (Object) 0L, t, span), e, t, true, span);
+          return new BExpr.Binary(
+              BinOp.SUB,
+              new BExpr.Const(t == PrimType.INT ? (Object) 0 : (Object) 0L, t, span),
+              e,
+              t,
+              true,
+              span);
         }
         return new BExpr.Unary(op, e, t, span);
       }
@@ -88,7 +98,10 @@ final class Ops {
         }
         PrimType p = types().primitiveView(t);
         if (p == null || !p.isNumeric()) {
-          a.error(Code.BAD_OPERANDS, span, "operator '" + u.op().symbol() + "' cannot be applied to " + t.display());
+          a.error(
+              Code.BAD_OPERANDS,
+              span,
+              "operator '" + u.op().symbol() + "' cannot be applied to " + t.display());
           return new BExpr.Error(Type.ErrorType.INSTANCE, span);
         }
         if (t.nullness() == Nullness.NULLABLE) {
@@ -104,9 +117,13 @@ final class Ops {
         if (t.isError()) {
           return e;
         }
-        if (t instanceof PrimType || t.nullness() == Nullness.NON_NULL && !(t instanceof Type.NullType)) {
+        if (t instanceof PrimType
+            || t.nullness() == Nullness.NON_NULL && !(t instanceof Type.NullType)) {
           if (!a.isSpeculative()) {
-            a.warn(Code.REDUNDANT_NON_NULL_ASSERTION, span, "'!' is redundant: " + t.display() + " is never null");
+            a.warn(
+                Code.REDUNDANT_NON_NULL_ASSERTION,
+                span,
+                "'!' is redundant: " + t.display() + " is never null");
           }
           return e;
         }
@@ -122,7 +139,10 @@ final class Ops {
         return new BExpr.Conv(e, ConvKind.NON_NULL_ASSERT, nn, span);
       }
       case FROM_END -> {
-        a.error(Code.INVALID_RANGE, span, "'^' (index from end) is only valid inside an index, e.g. xs[^1]");
+        a.error(
+            Code.INVALID_RANGE,
+            span,
+            "'^' (index from end) is only valid inside an index, e.g. xs[^1]");
         a.value(u.operand(), null);
         return new BExpr.Error(Type.ErrorType.INSTANCE, span);
       }
@@ -201,7 +221,8 @@ final class Ops {
       List<BExpr> parts = new ArrayList<>();
       addConcatParts(parts, left);
       addConcatParts(parts, right);
-      if (parts.stream().allMatch(ConstFold::isConst) && parts.stream().allMatch(p -> !(p.type() instanceof Type.NullType))) {
+      if (parts.stream().allMatch(ConstFold::isConst)
+          && parts.stream().allMatch(p -> !(p.type() instanceof Type.NullType))) {
         StringBuilder sb = new StringBuilder();
         for (BExpr p : parts) {
           sb.append(ConstFold.valueOf(p));
@@ -217,8 +238,8 @@ final class Ops {
       reportBadOperands(sym, lt, rt, span);
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
-    checkUnboxNullable(lt, ls);
-    checkUnboxNullable(rt, rs);
+    left = checkUnboxNullable(left, ls);
+    right = checkUnboxNullable(right, rs);
     PrimType opType;
     Type result;
     switch (op) {
@@ -267,13 +288,17 @@ final class Ops {
     }
     BExpr l2 = a.coerce(left, opType, ls);
     BExpr r2 = a.coerce(right, opType, rs);
-    boolean checked = a.env.checked && (opType == PrimType.INT || opType == PrimType.LONG) && (op == BinOp.ADD || op == BinOp.SUB || op == BinOp.MUL);
+    boolean checked =
+        a.env.checked
+            && (opType == PrimType.INT || opType == PrimType.LONG)
+            && (op == BinOp.ADD || op == BinOp.SUB || op == BinOp.MUL);
     if (checked && ConstFold.isConst(l2) && ConstFold.isConst(r2)) {
       try {
         Object v = checkedFold(op, ConstFold.valueOf(l2), ConstFold.valueOf(r2), opType);
         return new BExpr.Const(v, result, span);
       } catch (ArithmeticException ex) {
-        a.error(Code.LITERAL_OUT_OF_RANGE, span, "constant expression overflows in a checked context");
+        a.error(
+            Code.LITERAL_OUT_OF_RANGE, span, "constant expression overflows in a checked context");
         return new BExpr.Error(result, span);
       }
     }
@@ -299,12 +324,16 @@ final class Ops {
     };
   }
 
-  private void checkUnboxNullable(Type t, Span s) {
+  /** Reports a nullable operand that must be unboxed; returns it retyped as non-null. */
+  private BExpr checkUnboxNullable(BExpr e, Span s) {
+    Type t = e.type();
     if (t.isReference() && t.nullness() == Nullness.NULLABLE) {
       a.report(
           a.err(Code.NULLABILITY_MISMATCH, s, "operand of type " + t.display() + " may be null")
               .help("use '!' or '??' to provide a non-null value"));
+      return new BExpr.Conv(e, ConvKind.RETYPE, t.withNullness(Nullness.NON_NULL), s);
     }
+    return e;
   }
 
   private void addConcatParts(List<BExpr> parts, BExpr e) {
@@ -316,7 +345,10 @@ final class Ops {
   }
 
   private void reportBadOperands(String op, Type l, Type r, Span span) {
-    a.error(Code.BAD_OPERANDS, span, "operator '" + op + "' cannot be applied to " + l.display() + " and " + r.display());
+    a.error(
+        Code.BAD_OPERANDS,
+        span,
+        "operator '" + op + "' cannot be applied to " + l.display() + " and " + r.display());
   }
 
   BExpr fold(BExpr.Binary b) {
@@ -325,7 +357,10 @@ final class Ops {
     if (l != null && r != null && !b.checked()) {
       Object v = ConstFold.binary(b.op(), l, r, b.left().type());
       if (v != null) {
-        return new BExpr.Const(v instanceof Boolean ? v : ConstFold.convert(v, (PrimType) b.type()), b.type(), b.span());
+        return new BExpr.Const(
+            v instanceof Boolean ? v : ConstFold.convert(v, (PrimType) b.type()),
+            b.type(),
+            b.span());
       }
     }
     return b;
@@ -350,10 +385,15 @@ final class Ops {
     if (lnull || rnull) {
       BExpr other = lnull ? right : left;
       if (other.type() instanceof PrimType) {
-        a.error(Code.BAD_OPERANDS, span, "a value of primitive type " + other.type().display() + " is never null");
+        a.error(
+            Code.BAD_OPERANDS,
+            span,
+            "a value of primitive type " + other.type().display() + " is never null");
         return new BExpr.Error(PrimType.BOOLEAN, span);
       }
-      BExpr cmp = new BExpr.Binary(negate ? BinOp.REF_NE : BinOp.REF_EQ, left, right, PrimType.BOOLEAN, false, span);
+      BExpr cmp =
+          new BExpr.Binary(
+              negate ? BinOp.REF_NE : BinOp.REF_EQ, left, right, PrimType.BOOLEAN, false, span);
       VarSymbol v = Attr.localOf(other);
       FlowState t = a.env.flow.copy();
       FlowState f = a.env.flow.copy();
@@ -368,15 +408,27 @@ final class Ops {
     PrimType rp = types().primitiveView(rt);
     if (identity) {
       if (lt instanceof PrimType || rt instanceof PrimType) {
-        a.report(a.err(Code.BAD_OPERANDS, span, "'" + b.op().symbol() + "' compares references; use '" + (negate ? "!=" : "==") + "' for primitive values"));
+        a.report(
+            a.err(
+                Code.BAD_OPERANDS,
+                span,
+                "'"
+                    + b.op().symbol()
+                    + "' compares references; use '"
+                    + (negate ? "!=" : "==")
+                    + "' for primitive values"));
         return new BExpr.Error(PrimType.BOOLEAN, span);
       }
       checkComparable(lt, rt, span, b.op().symbol());
-      return new BExpr.Binary(negate ? BinOp.REF_NE : BinOp.REF_EQ, left, right, PrimType.BOOLEAN, false, span);
+      return new BExpr.Binary(
+          negate ? BinOp.REF_NE : BinOp.REF_EQ, left, right, PrimType.BOOLEAN, false, span);
     }
     // Numeric/boolean comparison when at least one side is primitive and both have primitive views.
-    boolean primitiveCompare = (lt instanceof PrimType || rt instanceof PrimType) && lp != null && rp != null
-        && !(lt.nullness() == Nullness.NULLABLE || rt.nullness() == Nullness.NULLABLE);
+    boolean primitiveCompare =
+        (lt instanceof PrimType || rt instanceof PrimType)
+            && lp != null
+            && rp != null
+            && !(lt.nullness() == Nullness.NULLABLE || rt.nullness() == Nullness.NULLABLE);
     if (primitiveCompare) {
       PrimType opType;
       if (lp == PrimType.BOOLEAN || rp == PrimType.BOOLEAN) {
@@ -390,7 +442,8 @@ final class Ops {
       }
       BExpr l2 = a.coerce(left, opType, b.left().span());
       BExpr r2 = a.coerce(right, opType, b.right().span());
-      return fold(new BExpr.Binary(negate ? BinOp.NE : BinOp.EQ, l2, r2, PrimType.BOOLEAN, false, span));
+      return fold(
+          new BExpr.Binary(negate ? BinOp.NE : BinOp.EQ, l2, r2, PrimType.BOOLEAN, false, span));
     }
     // Value equality on references (null-safe equals); box a primitive side.
     if (lt instanceof PrimType p) {
@@ -414,7 +467,16 @@ final class Ops {
     Type r = types().boxIfPrimitive(rt);
     if (!types().isCastable(l, r) && !types().isCastable(r, l)) {
       a.report(
-          a.err(Code.BAD_OPERANDS, span, "'" + op + "' between unrelated types " + lt.display() + " and " + rt.display() + " is always false"));
+          a.err(
+              Code.BAD_OPERANDS,
+              span,
+              "'"
+                  + op
+                  + "' between unrelated types "
+                  + lt.display()
+                  + " and "
+                  + rt.display()
+                  + " is always false"));
     }
   }
 
@@ -429,11 +491,17 @@ final class Ops {
       return left;
     }
     if (lt instanceof PrimType) {
-      a.error(Code.BAD_OPERANDS, span, "'??' needs a nullable left operand, but " + lt.display() + " is never null");
+      a.error(
+          Code.BAD_OPERANDS,
+          span,
+          "'??' needs a nullable left operand, but " + lt.display() + " is never null");
       return left;
     }
-    if (lt.nullness() == Nullness.NON_NULL && !(lt instanceof Type.NullType) && !a.isSpeculative()) {
-      a.warn(Code.REDUNDANT_NON_NULL_ASSERTION, b.left().span(), "left operand of '??' is never null");
+    if (lt.nullness() == Nullness.NON_NULL
+        && !(lt instanceof Type.NullType)
+        && !a.isSpeculative()) {
+      a.warn(
+          Code.REDUNDANT_NON_NULL_ASSERTION, b.left().span(), "left operand of '??' is never null");
     }
     FlowState before = a.env.flow.copy();
     Type nonNullLeft = lt instanceof Type.NullType ? null : lt.withNullness(Nullness.NON_NULL);
@@ -455,13 +523,25 @@ final class Ops {
         result = types().lub(List.of(nonNullLeft, rt));
       }
     }
-    VarSymbol tmp = a.env.newVar("$coalesce", lt, Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.LOCAL, span);
+    VarSymbol tmp =
+        a.env.newVar("$coalesce", lt, Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.LOCAL, span);
     BExpr tmpRef = new BExpr.Local(tmp, span);
-    BExpr present = nonNullLeft == null ? new BExpr.Error(result, span) : new BExpr.Conv(tmpRef, ConvKind.RETYPE, nonNullLeft, span);
+    BExpr present =
+        nonNullLeft == null
+            ? new BExpr.Error(result, span)
+            : new BExpr.Conv(tmpRef, ConvKind.RETYPE, nonNullLeft, span);
     present = a.coerce(present, result, b.left().span());
     BExpr fallback = a.coerce(right, result, b.right().span());
-    BExpr test = new BExpr.Binary(BinOp.REF_NE, tmpRef, new BExpr.Const(null, Type.NullType.INSTANCE, span), PrimType.BOOLEAN, false, span);
-    return new BExpr.Let(tmp, left, new BExpr.Conditional(test, present, fallback, result, span), span);
+    BExpr test =
+        new BExpr.Binary(
+            BinOp.REF_NE,
+            tmpRef,
+            new BExpr.Const(null, Type.NullType.INSTANCE, span),
+            PrimType.BOOLEAN,
+            false,
+            span);
+    return new BExpr.Let(
+        tmp, left, new BExpr.Conditional(test, present, fallback, result, span), span);
   }
 
   // ------------------------------------------------------------------ assignment
@@ -496,8 +576,15 @@ final class Ops {
       reportBadOperands(as.op().symbol(), t, rhs.type(), span);
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
-    checkUnboxNullable(t, as.target().span());
-    checkUnboxNullable(rhs.type(), as.value().span());
+    if (t.isReference() && t.nullness() == Nullness.NULLABLE) {
+      a.report(
+          a.err(
+                  Code.NULLABILITY_MISMATCH,
+                  as.target().span(),
+                  "operand of type " + t.display() + " may be null")
+              .help("use '!' or '??' to provide a non-null value"));
+    }
+    rhs = checkUnboxNullable(rhs, as.value().span());
     PrimType opType;
     switch (op) {
       case SHL, SHR, USHR -> {
@@ -533,7 +620,10 @@ final class Ops {
     }
     rhs = a.coerce(rhs, opType, as.value().span());
     afterAssign(lv, null);
-    boolean checked = a.env.checked && (opType == PrimType.INT || opType == PrimType.LONG) && (op == BinOp.ADD || op == BinOp.SUB || op == BinOp.MUL);
+    boolean checked =
+        a.env.checked
+            && (opType == PrimType.INT || opType == PrimType.LONG)
+            && (op == BinOp.ADD || op == BinOp.SUB || op == BinOp.MUL);
     return new BExpr.CompoundAssign(lv, op, rhs, opType, t, checked, span);
   }
 
@@ -547,7 +637,10 @@ final class Ops {
       return new BExpr.Error(t, span);
     }
     if (t instanceof PrimType) {
-      a.error(Code.BAD_OPERANDS, span, "'??=' needs a nullable target, but " + t.display() + " is never null");
+      a.error(
+          Code.BAD_OPERANDS,
+          span,
+          "'??=' needs a nullable target, but " + t.display() + " is never null");
       return new BExpr.Error(t, span);
     }
     Type nn = t.withNullness(Nullness.NON_NULL);
@@ -555,10 +648,22 @@ final class Ops {
     if (lv instanceof BLValue.LocalLV l) {
       // x = x ?? v, written only when null:  x != null ? x : (x = v)
       BExpr read = new BExpr.Local(l.var(), span);
-      BExpr test = new BExpr.Binary(BinOp.REF_NE, read, new BExpr.Const(null, Type.NullType.INSTANCE, span), PrimType.BOOLEAN, false, span);
+      BExpr test =
+          new BExpr.Binary(
+              BinOp.REF_NE,
+              read,
+              new BExpr.Const(null, Type.NullType.INSTANCE, span),
+              PrimType.BOOLEAN,
+              false,
+              span);
       BExpr assign = new BExpr.Assign(lv, v, t, span);
       afterAssign(lv, v);
-      return new BExpr.Conditional(test, new BExpr.Conv(read, ConvKind.RETYPE, nn, span), new BExpr.Conv(assign, ConvKind.RETYPE, nn, span), nn, span);
+      return new BExpr.Conditional(
+          test,
+          new BExpr.Conv(read, ConvKind.RETYPE, nn, span),
+          new BExpr.Conv(assign, ConvKind.RETYPE, nn, span),
+          nn,
+          span);
     }
     // Fields/properties/indexers: evaluate the location's receiver once via a compound node.
     afterAssign(lv, null);
@@ -570,8 +675,11 @@ final class Ops {
     if (lv instanceof BLValue.LocalLV l) {
       VarSymbol v = l.var();
       a.env.flow.narrowed.remove(v);
-      if (value != null && v.type().nullness() != Nullness.NON_NULL && value.type().isReference()
-          && value.type().nullness() == Nullness.NON_NULL && !(value.type() instanceof Type.NullType)) {
+      if (value != null
+          && v.type().nullness() != Nullness.NON_NULL
+          && value.type().isReference()
+          && value.type().nullness() == Nullness.NON_NULL
+          && !(value.type() instanceof Type.NullType)) {
         a.env.flow.narrowed.put(v, v.type().withNullness(Nullness.NON_NULL));
       }
     }
@@ -593,9 +701,11 @@ final class Ops {
         return switch (q) {
           case Attr.ValueTarget v -> memberLValue(v.expr(), m.name(), m.nameSpan(), false);
           case Attr.TypeTarget tt -> staticLValue(tt.type(), m.name(), m.nameSpan());
-          case Attr.SuperTarget s -> memberLValue(new BExpr.This(s.superType(), s.span()), m.name(), m.nameSpan(), true);
+          case Attr.SuperTarget s ->
+              memberLValue(new BExpr.This(s.superType(), s.span()), m.name(), m.nameSpan(), true);
           case Attr.PackageTarget p -> {
-            a.error(Code.NOT_ASSIGNABLE, span, "cannot assign to package member '" + m.name() + "'");
+            a.error(
+                Code.NOT_ASSIGNABLE, span, "cannot assign to package member '" + m.name() + "'");
             yield errorLV();
           }
         };
@@ -619,11 +729,20 @@ final class Ops {
         if (acc.setter().name().equals("put")) {
           elem = elem.withNullness(Nullness.NON_NULL); // writes into a Map use the value type
           ClassType asMap = a.types.asSuper(recv.type(), a.syms.lookup("java/util/Map"));
-          if (asMap != null && asMap.args().size() == 2 && !(asMap.args().get(1) instanceof Type.WildcardType)) {
+          if (asMap != null
+              && asMap.args().size() == 2
+              && !(asMap.args().get(1) instanceof Type.WildcardType)) {
             elem = asMap.args().get(1);
           }
         }
-        return new BLValue.PropertyLV(recv, null, acc.getter(), acc.setter(), List.of(acc.index()), elem, Attr.callKind(acc.setter(), recv, false));
+        return new BLValue.PropertyLV(
+            recv,
+            null,
+            acc.getter(),
+            acc.setter(),
+            List.of(acc.index()),
+            elem,
+            Attr.callKind(acc.setter(), recv, false));
       }
       default -> {
         a.error(Code.NOT_ASSIGNABLE, span, "this expression cannot be assigned to");
@@ -634,7 +753,8 @@ final class Ops {
   }
 
   private static BLValue errorLV() {
-    return new BLValue.LocalLV(new VarSymbol("<error>", Type.ErrorType.INSTANCE, 0, VarSymbol.Kind.LOCAL, Span.NONE, -1));
+    return new BLValue.LocalLV(
+        new VarSymbol("<error>", Type.ErrorType.INSTANCE, 0, VarSymbol.Kind.LOCAL, Span.NONE, -1));
   }
 
   private BLValue nameLValue(Expr.Name n) {
@@ -651,16 +771,28 @@ final class Ops {
       VarSymbol v = found.var();
       if (!found.crossed().isEmpty()) {
         a.report(
-            a.err(Code.CAPTURED_NOT_FINAL, span, "cannot assign to '" + name + "' inside a lambda or local class")
+            a.err(
+                    Code.CAPTURED_NOT_FINAL,
+                    span,
+                    "cannot assign to '" + name + "' inside a lambda or local class")
                 .note("captured variables must be effectively final, as in Java"));
         return new BLValue.LocalLV(v);
       }
       boolean definitelyAssigned = env.flow.assigned.get(v.id());
       if (v.isFinal() && (definitelyAssigned || v.kind() != VarSymbol.Kind.LOCAL)) {
         a.report(
-            a.err(Code.FINAL_REASSIGNED, span, (v.kind() == VarSymbol.Kind.PARAM ? "parameter" : "val") + " '" + name + "' cannot be reassigned")
+            a.err(
+                    Code.FINAL_REASSIGNED,
+                    span,
+                    (v.kind() == VarSymbol.Kind.PARAM ? "parameter" : "val")
+                        + " '"
+                        + name
+                        + "' cannot be reassigned")
                 .note("declared here", a.file(), v.span())
-                .help(v.kind() == VarSymbol.Kind.PARAM ? "copy it into a local 'var'" : "declare it with 'var' instead of 'val'"));
+                .help(
+                    v.kind() == VarSymbol.Kind.PARAM
+                        ? "copy it into a local 'var'"
+                        : "declare it with 'var' instead of 'val'"));
       } else if (v.isFinal() && !definitelyAssigned && !isDefinitelyUnassigned(v)) {
         a.error(Code.FINAL_REASSIGNED, span, "val '" + name + "' might already have been assigned");
       }
@@ -678,7 +810,7 @@ final class Ops {
       if (lv != null) {
         return lv;
       }
-      if (!c.has(Flags.LOCAL) && !c.has(Flags.ANONYMOUS)) {
+      if (!c.has(Flags.LOCAL) && !c.has(Flags.ANONYMOUS) || c.has(Flags.STATIC)) {
         throughStatic = true;
       }
       first = false;
@@ -706,11 +838,13 @@ final class Ops {
     return !v.reassigned();
   }
 
-  private BLValue memberLValueOfClass(ClassSymbol c, String name, Span span, boolean isCurrent, boolean staticOnly) {
+  private BLValue memberLValueOfClass(
+      ClassSymbol c, String name, Span span, boolean isCurrent, boolean staticOnly) {
     ClassType site = c.thisType();
     PropertySymbol p = a.lookup.findProperty(site, name);
     FieldSymbol f = p == null ? a.lookup.findField(site, name) : null;
-    MethodSymbol setter = p == null && f == null && !c.has(Flags.MODULE) ? a.lookup.findSetter(site, name) : null;
+    MethodSymbol setter =
+        p == null && f == null && !c.has(Flags.MODULE) ? a.lookup.findSetter(site, name) : null;
     if (p == null && f == null && setter == null) {
       return null;
     }
@@ -718,7 +852,10 @@ final class Ops {
     BExpr recv = null;
     if (!isStatic) {
       if (staticOnly) {
-        a.error(Code.STATIC_CONTEXT, span, "instance member '" + name + "' cannot be used in a static context");
+        a.error(
+            Code.STATIC_CONTEXT,
+            span,
+            "instance member '" + name + "' cannot be used in a static context");
         return errorLV();
       }
       recv = isCurrent ? a.thisValue(span) : new BExpr.OuterThis(c, c.thisType(), span);
@@ -755,7 +892,8 @@ final class Ops {
       a.error(Code.NOT_ASSIGNABLE, span, "the length of an array cannot be assigned");
       return errorLV();
     }
-    if (a.lookup.findGetter(site, name) != null || a.lookup.findRecordAccessor(site, name) != null) {
+    if (a.lookup.findGetter(site, name) != null
+        || a.lookup.findRecordAccessor(site, name) != null) {
       a.error(Code.NOT_ASSIGNABLE, span, "'" + name + "' of " + site.display() + " is read-only");
       return errorLV();
     }
@@ -783,14 +921,30 @@ final class Ops {
     a.checkAccess(f, f.owner(), recv == null ? null : site, span);
     Env env = a.env;
     if (f.has(Flags.FINAL)) {
-      boolean inInit = f.owner() == env.cls && (f.isStatic() ? env.isStatic && env.method == null || isStaticInitializer() : env.inConstructor && onThis);
+      boolean inInit =
+          f.owner() == env.cls
+              && (f.isStatic()
+                  ? env.isStatic && env.method == null || isStaticInitializer()
+                  : env.inConstructor && onThis);
       if (!inInit) {
         a.report(
-            a.err(Code.NOT_ASSIGNABLE, span, (f.has(Flags.ENUM_CONSTANT) ? "enum constant" : "final field") + " '" + f.name() + "' cannot be assigned")
-                .help(f.owner().isSource() && !f.has(Flags.ENUM_CONSTANT) ? "declare it with 'var' (or without 'final') to make it mutable" : null));
+            a.err(
+                    Code.NOT_ASSIGNABLE,
+                    span,
+                    (f.has(Flags.ENUM_CONSTANT) ? "enum constant" : "final field")
+                        + " '"
+                        + f.name()
+                        + "' cannot be assigned")
+                .help(
+                    f.owner().isSource() && !f.has(Flags.ENUM_CONSTANT)
+                        ? "declare it with 'var' (or without 'final') to make it mutable"
+                        : null));
       } else {
         if (env.flow.assignedFields.contains(f) && env.flow.alive) {
-          a.error(Code.FINAL_REASSIGNED, span, "final field '" + f.name() + "' may already have been assigned");
+          a.error(
+              Code.FINAL_REASSIGNED,
+              span,
+              "final field '" + f.name() + "' may already have been assigned");
         }
         env.flow.assignedFields.add(f);
       }
@@ -806,7 +960,10 @@ final class Ops {
   BLValue propertyLValue(BExpr recv, Type site, PropertySymbol p, Span span, boolean onThis) {
     Env env = a.env;
     Type t = a.memberType(a.captureSite(site), p.owner(), p.type());
-    boolean inOwnInit = p.owner() == env.cls && onThis && (env.inConstructor || p.isStatic() && isStaticInitializer());
+    boolean inOwnInit =
+        p.owner() == env.cls
+            && onThis
+            && (env.inConstructor || p.isStatic() && isStaticInitializer());
     if (p.setter() == null || p.isInitOnly()) {
       if (inOwnInit && p.backingField() != null) {
         // Get-only and init-only auto-properties are assigned through the backing field during
@@ -817,22 +974,49 @@ final class Ops {
       if (p.setter() == null) {
         a.report(
             a.err(Code.NOT_ASSIGNABLE, span, "property '" + p.name() + "' is read-only")
-                .help(p.owner().isSource() ? "add a 'set' accessor, or assign it in a constructor" : null));
+                .help(
+                    p.owner().isSource()
+                        ? "add a 'set' accessor, or assign it in a constructor"
+                        : null));
         return errorLV();
       }
       a.report(
-          a.err(Code.INIT_ONLY_ASSIGNMENT, span, "init-only property '" + p.name() + "' can only be set in an object initializer or constructor")
-              .help("use 'new " + p.owner().name() + "(...) { " + p.name() + " = ... }' or a 'with' expression"));
+          a.err(
+                  Code.INIT_ONLY_ASSIGNMENT,
+                  span,
+                  "init-only property '"
+                      + p.name()
+                      + "' can only be set in an object initializer or constructor")
+              .help(
+                  "use 'new "
+                      + p.owner().name()
+                      + "(...) { "
+                      + p.name()
+                      + " = ... }' or a 'with' expression"));
       return errorLV();
     }
     a.checkAccess(p.setter(), p.owner(), recv == null ? null : site, span);
-    return new BLValue.PropertyLV(p.isStatic() ? null : recv, p, p.getter(), p.setter(), List.of(), t, Attr.callKind(p.setter(), recv, false));
+    return new BLValue.PropertyLV(
+        p.isStatic() ? null : recv,
+        p,
+        p.getter(),
+        p.setter(),
+        List.of(),
+        t,
+        Attr.callKind(p.setter(), recv, false));
   }
 
   private BLValue beanLValue(BExpr recv, Type site, MethodSymbol setter, String name, Span span) {
     a.checkAccess(setter, setter.owner(), recv == null ? null : site, span);
     MethodSymbol getter = a.lookup.findGetter(site, name);
     Type t = a.memberType(a.captureSite(site), setter.owner(), setter.params().getFirst().type());
-    return new BLValue.PropertyLV(setter.isStatic() ? null : recv, null, getter, setter, List.of(), t, Attr.callKind(setter, recv, false));
+    return new BLValue.PropertyLV(
+        setter.isStatic() ? null : recv,
+        null,
+        getter,
+        setter,
+        List.of(),
+        t,
+        Attr.callKind(setter, recv, false));
   }
 }

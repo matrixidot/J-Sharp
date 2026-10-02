@@ -1,0 +1,72 @@
+public open class Animal {
+    protected String name;
+    public Animal(String name) { this.name = name; }
+    public open String sound() => "...";
+    public String describe() => name + " says " + sound();
+}
+
+public class Dog : Animal {
+    public Dog(String name) { super(name); }
+    public override String sound() => "Woof";
+}
+
+public interface Shape {
+    double area();
+    default String label() => "shape with area " + area();
+}
+
+public record Circle(double r) : Shape {
+    public override double area() => Math.PI * r * r;
+}
+
+public record Rect(double w, double h) : Shape {
+    public override double area() => w * h;
+    public boolean isSquare => w == h;
+}
+
+public class Counter {
+    private int count;
+    public int value => count;
+    public void increment() { count++; }
+    public static Counter create() => new Counter();
+}
+
+public class Person {
+    public String name { get; set; } = "";
+    public int age { get; init; }
+    public required String id { get; init; }
+    public String upper { get => field; set { field = value.toUpperCase(); } }
+}
+
+public enum Color { Red, Green, Blue }
+
+public enum Planet(double mass, double radius) {
+    Earth(5.97e24, 6.37e6), Mars(6.42e23, 3.39e6);
+    public double gravity() => 6.67e-11 * mass / (radius * radius);
+}
+
+void main2() {
+    var d = new Dog("Rex");
+    println(d.describe());
+    Animal a = d;
+    Shape s = new Circle(2.0);
+    println(s.area());
+    println(s.label());
+    var r = new Rect(2, 3);
+    println(r.w * r.h);
+    println(r.isSquare);
+    var c = Counter.create();
+    c.increment();
+    println(c.value);
+    var p = new Person { name = "Ann", age = 30, id = "a1" };
+    p.name = "Bob";
+    println(p.name + p.age);
+    p.upper = "x";
+    var col = Color.Red;
+    println(col.ordinal());
+    println(Color.values().length);
+    println(Planet.Earth.gravity());
+    println(Planet.Mars.mass);
+    var r2 = r with { w = 10 };
+    println(r2.w);
+}

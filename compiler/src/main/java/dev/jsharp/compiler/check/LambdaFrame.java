@@ -11,7 +11,9 @@ import java.util.Set;
 final class LambdaFrame {
   final Set<VarSymbol> captures = new LinkedHashSet<>();
   boolean capturesThis;
+
   /** Types of {@code return} expressions (for inferring the lambda's result type). */
   final List<Type> returnTypes = new ArrayList<>();
+
   boolean returnsVoid;
 }

@@ -1,0 +1,50 @@
+import java.util.*;
+
+int square(int x) => x * x;
+long widen(int x) => x;
+double mix(int a, long b, float c) => a + b + c;
+String greet(String name) => "Hello, " + name + "!";
+boolean even(int n) => n % 2 == 0;
+char next(char c) => (char) (c + 1);
+byte small() { byte b = 10; b += 5; return b; }
+
+var a = 5;
+val b = a * 2 + 1;
+int c = square(b);
+long big = 3_000_000_000L;
+double d = c / 2.0;
+String s = $"a={a}, b={b}, d={d:F2}";
+println(s);
+println(greet("J#"));
+var list = new ArrayList<String>();
+list.add("x");
+List<int> nums = List.of(1, 2, 3);
+var total = 0;
+foreach (var n in nums) { total += n; }
+for (int i = 0; i < 10; i++) { if (i == 5) break; total += i; }
+while (total > 100) { total -= 10; }
+do { total++; } while (total < 3);
+var m = new HashMap<String, List<Integer>>();
+m.put("k", new ArrayList<>());
+var arr = new int[] { 3, 1, 2 };
+Arrays.sort(arr);
+int first = arr[0];
+String[] words = { "a", "b" };
+println(words.length);
+var cond = a > 3 ? "big" : "small";
+var ifx = if (a > 3) 1 else 2;
+println(Math.max(a, c));
+println(String.valueOf(3.5));
+println(even(4) && !even(3));
+var sb = new StringBuilder();
+sb.append("x").append(1).append('c');
+println(sb.toString().length());
+char ch = 'a';
+int code = ch;
+var shifted = 1 << 4 | 3 & 1 ^ 2;
+long l2 = 1L << 40;
+var neg = -2147483648;
+int hex = 0xFFFFFFFF;
+println(next('a'));
+println(small());
+println(mix(1, 2L, 3f));

@@ -1,0 +1,44 @@
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
+
+Function<int, int> inc = x => x + 1;
+BiFunction<int, int, int> add = (a, b) => a + b;
+Supplier<String> sup = () => "hi";
+Runnable run = () => println("run");
+Predicate<String> empty = String::isEmpty;
+Function<String, Integer> len = String::length;
+Supplier<List<String>> mk = ArrayList::new;
+Consumer<Object> printer = System.out::println;
+println(inc.apply(1));
+println(add.apply(2, 3));
+var names = List.of("bob", "alice", "eve");
+var upper = names.stream().map(n => n.toUpperCase()).collect(Collectors.toList());
+var lengths = names.stream().map(String::length).toList();
+var total = names.stream().mapToInt(String::length).sum();
+var sorted = new ArrayList<String>(names);
+sorted.sort(Comparator.comparing(String::length));
+sorted.sort((x, y) => x.compareTo(y));
+names.forEach(n => println(n));
+var filtered = names.stream().filter(n => n.length() > 3).count();
+Optional<String> firstLong = names.stream().filter(n => n.length() > 4).findFirst();
+println(firstLong.orElse("none"));
+var map = new HashMap<String, Integer>();
+map.merge("a", 1, Integer::sum);
+map.computeIfAbsent("b", k => 2);
+List<String> empty2 = List.of();
+List<String> copy = new ArrayList<>();
+T identity<T>(T x) => x;
+int idn = identity(5);
+String ids = identity("s");
+T maxOf<T : Comparable<T>>(T a, T b) => if (a.compareTo(b) >= 0) a else b;
+println(maxOf(3, 7));
+println(maxOf("a", "b"));
+var counter = 0;
+Runnable bad = () => { counter++; };          //~ JS0631
+var sum = 0;
+names.forEach(n => println(sum));
+var f2 = x => x;                              //~ JS0615
+Function<int, int> wrongArity = (a, b) => a;  //~ JS0615
+Runnable notVoid = () => 5;                   //~ JS0615
+Function<String, int> badRet = s => s;        //~ JS0600

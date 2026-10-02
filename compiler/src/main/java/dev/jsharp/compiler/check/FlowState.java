@@ -31,7 +31,9 @@ final class FlowState {
   }
 
   FlowState copy() {
-    FlowState f = new FlowState((BitSet) assigned.clone(), new HashSet<>(assignedFields), new HashMap<>(narrowed));
+    FlowState f =
+        new FlowState(
+            (BitSet) assigned.clone(), new HashSet<>(assignedFields), new HashMap<>(narrowed));
     f.alive = alive;
     return f;
   }

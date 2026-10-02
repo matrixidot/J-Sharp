@@ -93,6 +93,18 @@ public final class Attr {
 
   final Map<ClassSymbol, int[]> anonCounters = new IdentityHashMap<>();
 
+  /** Enclosing scopes of local/anonymous classes (their bodies can see enclosing locals). */
+  final Map<ClassSymbol, Scope> localScopes = new IdentityHashMap<>();
+
+  /** Local classes created while checking each method body. */
+  final Map<MethodSymbol, List<BClass>> pendingLocal = new IdentityHashMap<>();
+
+  /** Final fields assigned by each class's instance initializer blocks. */
+  final Map<ClassSymbol, Set<FieldSymbol>> initAssigned = new IdentityHashMap<>();
+
+  /** File of each capture site (for deferred effective-finality errors). */
+  final Map<VarSymbol, SourceFile> captureFiles = new IdentityHashMap<>();
+
   public Attr(Context ctx, MemberEnter memberEnter) {
     this.ctx = ctx;
     this.types = new Types(ctx.syms);
@@ -142,8 +154,8 @@ public final class Attr {
   }
 
   /**
-   * Runs {@code body} with diagnostics captured; returns its result and whether it reported
-   * errors. Used to try lambdas against candidate overloads.
+   * Runs {@code body} with diagnostics captured; returns its result and whether it reported errors.
+   * Used to try lambdas against candidate overloads.
    */
   <T> Speculation<T> speculate(Supplier<T> body) {
     DiagnosticSink saved = sink;
@@ -157,7 +169,7 @@ public final class Attr {
     try {
       T result = body.get();
       boolean errors = buffer.stream().anyMatch(Diagnostic::isError);
-      return new Speculation<>(result, errors);
+      return new Speculation<>(result, errors, !buffer.isEmpty());
     } finally {
       speculative--;
       sink = saved;
@@ -168,7 +180,10 @@ public final class Attr {
     }
   }
 
-  record Speculation<T>(T result, boolean hasErrors) {}
+  record Speculation<T>(T result, boolean hasErrors, boolean hasDiagnostics) {}
+
+  /** Call results whose type arguments were partly defaulted (they would benefit from a target). */
+  final Set<BExpr> flexibleResults = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
 
   /** Runs {@code body} reporting to the real diagnostics even during speculation. */
   <T> T withRealDiagnostics(Supplier<T> body) {
@@ -215,7 +230,9 @@ public final class Attr {
 
   /** Integer value of an int-typed constant (for constant narrowing), else null. */
   static Integer intConstant(BExpr b) {
-    if (b instanceof BExpr.Const c && c.value() instanceof Integer i && b.type() instanceof PrimType p
+    if (b instanceof BExpr.Const c
+        && c.value() instanceof Integer i
+        && b.type() instanceof PrimType p
         && (p == PrimType.INT || p == PrimType.SHORT || p == PrimType.BYTE)) {
       return i;
     }
@@ -226,8 +243,8 @@ public final class Attr {
   }
 
   /**
-   * Converts {@code b} to {@code target} using assignment conversion, reporting mismatches.
-   * Returns the converted expression (an error node on failure).
+   * Converts {@code b} to {@code target} using assignment conversion, reporting mismatches. Returns
+   * the converted expression (an error node on failure).
    */
   BExpr coerce(BExpr b, Type target, Span span) {
     return coerce(b, target, span, null);
@@ -262,12 +279,20 @@ public final class Attr {
                   Code.NULLABILITY_MISMATCH,
                   span,
                   (what == null ? "" : what + ": ")
-                      + "type " + displayNullable(from) + " may be null, but " + target.display() + " is required")
-              .help("use '!' to assert non-null, '??' to supply a default, or check for null first"));
+                      + "type "
+                      + displayNullable(from)
+                      + " may be null, but "
+                      + target.display()
+                      + " is required")
+              .help(
+                  "use '!' to assert non-null, '??' to supply a default, or check for null first"));
     }
     if (c == Types.Conv.UNBOX && from.nullness() == Nullness.NULLABLE) {
       report(
-          err(Code.NULLABILITY_MISMATCH, span, "cannot unbox nullable " + from.display() + " to " + target.display())
+          err(
+                  Code.NULLABILITY_MISMATCH,
+                  span,
+                  "cannot unbox nullable " + from.display() + " to " + target.display())
               .help("use '!' or '??' to provide a non-null value"));
     }
     BExpr r = applyConversion(b, c, target, span);
@@ -289,13 +314,17 @@ public final class Attr {
     Type from = b.type();
     String prefix = what == null ? "" : what + ": ";
     Diagnostic.Builder d =
-        err(Code.TYPE_MISMATCH, span, prefix + "expected " + target.display() + ", found " + displayNullable(from));
+        err(
+            Code.TYPE_MISMATCH,
+            span,
+            prefix + "expected " + target.display() + ", found " + displayNullable(from));
     PrimType fp = types.primitiveView(from);
     PrimType tp = types.primitiveView(target);
     if (fp != null && tp != null && fp.isNumeric() && tp.isNumeric()) {
       d.help("use an explicit conversion: (" + tp.display() + ") value");
     } else if (from.isReference() && target.isReference() && types.isCastable(from, target)) {
-      d.help("use a cast '(" + target.display() + ")' or a type test 'is " + target.display() + "'");
+      d.help(
+          "use a cast '(" + target.display() + ")' or a type test 'is " + target.display() + "'");
     } else if (target == PrimType.BOOLEAN && fp != null && fp.isNumeric()) {
       d.help("J# does not treat numbers as booleans; compare explicitly, e.g. 'x != 0'");
     }
@@ -353,7 +382,11 @@ public final class Attr {
       return b;
     }
     if (!types.isBoolean(b.type())) {
-      Diagnostic.Builder d = err(Code.TYPE_MISMATCH, span, "condition must be boolean, found " + displayNullable(b.type()));
+      Diagnostic.Builder d =
+          err(
+              Code.TYPE_MISMATCH,
+              span,
+              "condition must be boolean, found " + displayNullable(b.type()));
       if (types.isNumeric(b.type())) {
         d.help("J# does not treat numbers as booleans; compare explicitly, e.g. 'x != 0'");
       } else if (b.type().isReference()) {
@@ -444,9 +477,16 @@ public final class Attr {
     return switch (l.kind()) {
       case INT -> {
         long v = (Long) l.value();
-        if (v > Integer.MAX_VALUE && !l.text().startsWith("0x") && !l.text().startsWith("0X") && !l.text().startsWith("0b") && !l.text().startsWith("0B")) {
+        if (v > Integer.MAX_VALUE
+            && !l.text().startsWith("0x")
+            && !l.text().startsWith("0X")
+            && !l.text().startsWith("0b")
+            && !l.text().startsWith("0B")) {
           report(
-              err(Code.LITERAL_OUT_OF_RANGE, l.span(), "integer literal " + l.text() + " is out of range for int")
+              err(
+                      Code.LITERAL_OUT_OF_RANGE,
+                      l.span(),
+                      "integer literal " + l.text() + " is out of range for int")
                   .help("add an 'L' suffix for a long literal: " + l.text() + "L"));
           yield new BExpr.Const(0, PrimType.INT, l.span());
         }
@@ -455,9 +495,15 @@ public final class Attr {
       case LONG -> {
         long v = (Long) l.value();
         String digits = l.text().replace("_", "");
-        if (!digits.startsWith("0x") && !digits.startsWith("0X") && !digits.startsWith("0b") && !digits.startsWith("0B")
-            && new java.math.BigInteger(digits.substring(0, digits.length() - 1)).compareTo(java.math.BigInteger.valueOf(Long.MAX_VALUE)) > 0) {
-          error(Code.LITERAL_OUT_OF_RANGE, l.span(), "long literal " + l.text() + " is out of range");
+        if (!digits.startsWith("0x")
+            && !digits.startsWith("0X")
+            && !digits.startsWith("0b")
+            && !digits.startsWith("0B")
+            && new java.math.BigInteger(digits.substring(0, digits.length() - 1))
+                    .compareTo(java.math.BigInteger.valueOf(Long.MAX_VALUE))
+                > 0) {
+          error(
+              Code.LITERAL_OUT_OF_RANGE, l.span(), "long literal " + l.text() + " is out of range");
           yield new BExpr.Const(0L, PrimType.LONG, l.span());
         }
         yield new BExpr.Const(v, PrimType.LONG, l.span());
@@ -476,7 +522,8 @@ public final class Attr {
     if (l.kind() == Expr.LiteralKind.INT && (Long) l.value() == 2147483648L) {
       return new BExpr.Const(Integer.MIN_VALUE, PrimType.INT, l.span());
     }
-    if (l.kind() == Expr.LiteralKind.LONG && l.text().replace("_", "").replaceAll("[lL]$", "").equals("9223372036854775808")) {
+    if (l.kind() == Expr.LiteralKind.LONG
+        && l.text().replace("_", "").replaceAll("[lL]$", "").equals("9223372036854775808")) {
       return new BExpr.Const(Long.MIN_VALUE, PrimType.LONG, l.span());
     }
     return null;
@@ -505,16 +552,24 @@ public final class Attr {
     if (t == null) {
       report(
           err(Code.INVALID_INTERPOLATION_FORMAT, span, "unknown format specifier '" + spec + "'")
-              .help("use F<n>, N<n>, D<n>, X<n>, E<n>, P<n>, G, or a Java format starting with '%'"));
+              .help(
+                  "use F<n>, N<n>, D<n>, X<n>, E<n>, P<n>, G, or a Java format starting with '%'"));
       return v;
     }
     PrimType p = types.primitiveView(v.type());
     if (t.domain() == FormatSpecs.Domain.FLOATING && (p == null || !p.isNumeric())) {
-      error(Code.INVALID_INTERPOLATION_FORMAT, span, "format '" + spec + "' needs a number, found " + v.type().display());
+      error(
+          Code.INVALID_INTERPOLATION_FORMAT,
+          span,
+          "format '" + spec + "' needs a number, found " + v.type().display());
       return v;
     }
-    if (t.domain() == FormatSpecs.Domain.INTEGRAL && (p == null || !p.isIntegral() || p == PrimType.CHAR)) {
-      error(Code.INVALID_INTERPOLATION_FORMAT, span, "format '" + spec + "' needs an integer, found " + v.type().display());
+    if (t.domain() == FormatSpecs.Domain.INTEGRAL
+        && (p == null || !p.isIntegral() || p == PrimType.CHAR)) {
+      error(
+          Code.INVALID_INTERPOLATION_FORMAT,
+          span,
+          "format '" + spec + "' needs an integer, found " + v.type().display());
       return v;
     }
     BExpr arg = v;
@@ -522,7 +577,14 @@ public final class Attr {
       arg = coerce(v, PrimType.DOUBLE, span);
     }
     if (t.percent()) {
-      arg = new BExpr.Binary(BExpr.BinOp.MUL, coerce(arg, PrimType.DOUBLE, span), new BExpr.Const(100.0, PrimType.DOUBLE, span), PrimType.DOUBLE, false, span);
+      arg =
+          new BExpr.Binary(
+              BExpr.BinOp.MUL,
+              coerce(arg, PrimType.DOUBLE, span),
+              new BExpr.Const(100.0, PrimType.DOUBLE, span),
+              PrimType.DOUBLE,
+              false,
+              span);
     }
     arg = coerce(arg, syms.objectType().withNullness(Nullness.NULLABLE), span);
     ClassSymbol string = syms.stringType().sym();
@@ -532,9 +594,18 @@ public final class Attr {
         format = m;
       }
     }
-    BExpr locale = new BExpr.Field(null, syms.wellKnown("java/util/Locale").sym().field("ROOT"), syms.wellKnown("java/util/Locale"), span);
+    BExpr locale =
+        new BExpr.Field(
+            null,
+            syms.wellKnown("java/util/Locale").sym().field("ROOT"),
+            syms.wellKnown("java/util/Locale"),
+            span);
     BExpr array =
-        new BExpr.NewArray(Type.ArrayType.of(syms.objectType().withNullness(Nullness.NULLABLE)), List.of(), List.of(arg), span);
+        new BExpr.NewArray(
+            Type.ArrayType.of(syms.objectType().withNullness(Nullness.NULLABLE)),
+            List.of(),
+            List.of(arg),
+            span);
     return new BExpr.Call(
         null,
         format,
@@ -568,7 +639,10 @@ public final class Attr {
       case TypeTarget tt -> {
         if (!tt.type().isError()) {
           report(
-              err(Code.UNRESOLVED_NAME, span, "'" + tt.type().display() + "' is a type, not a value")
+              err(
+                      Code.UNRESOLVED_NAME,
+                      span,
+                      "'" + tt.type().display() + "' is a type, not a value")
                   .help("use typeof(" + tt.type().display() + ") for its Class object"));
         }
         yield new BExpr.Error(Type.ErrorType.INSTANCE, span);
@@ -605,7 +679,10 @@ public final class Attr {
               yield new PackageTarget(full, m.span());
             }
             report(
-                err(Code.UNRESOLVED_NAME, m.nameSpan(), "cannot find '" + m.name() + "' in package " + p.name()));
+                err(
+                    Code.UNRESOLVED_NAME,
+                    m.nameSpan(),
+                    "cannot find '" + m.name() + "' in package " + p.name()));
             yield new ValueTarget(new BExpr.Error(Type.ErrorType.INSTANCE, m.span()));
           }
           case TypeTarget tt -> {
@@ -649,7 +726,8 @@ public final class Attr {
     // 1. locals (and the `field` keyword inside accessors)
     if (name.equals("field") && env.backingField != null && env.scope.lookup("field") == null) {
       BExpr recv = env.backingField.isStatic() ? null : thisValue(span);
-      return new ValueTarget(new BExpr.Field(recv, env.backingField, env.backingField.type(), span));
+      return new ValueTarget(
+          new BExpr.Field(recv, env.backingField, env.backingField.type(), span));
     }
     Scope.Found found = env.scope.lookup(name);
     if (found != null) {
@@ -674,7 +752,15 @@ public final class Attr {
       return new TypeTarget(tv.asType(), span);
     }
     if (tf instanceof TypeScope.FoundAmbiguous(List<ClassSymbol> cands)) {
-      error(Code.AMBIGUOUS_TYPE, span, "'" + name + "' is ambiguous between " + cands.getFirst().qualifiedName() + " and " + cands.get(1).qualifiedName());
+      error(
+          Code.AMBIGUOUS_TYPE,
+          span,
+          "'"
+              + name
+              + "' is ambiguous between "
+              + cands.getFirst().qualifiedName()
+              + " and "
+              + cands.get(1).qualifiedName());
       return new TypeTarget(Type.ErrorType.INSTANCE, span);
     }
     // 5. packages
@@ -686,7 +772,8 @@ public final class Attr {
   }
 
   void reportUnresolvedName(String name, Span span) {
-    Diagnostic.Builder d = err(Code.UNRESOLVED_NAME, span, "cannot find '" + name + "' in this scope");
+    Diagnostic.Builder d =
+        err(Code.UNRESOLVED_NAME, span, "cannot find '" + name + "' in this scope");
     Set<String> names = new LinkedHashSet<>();
     env.scope.collectNames(names);
     for (ClassSymbol c = env.cls; c != null; c = c.outer()) {
@@ -707,8 +794,16 @@ public final class Attr {
     String guess = Suggestions.closest(name, names);
     if (guess != null) {
       d.help("did you mean '" + guess + "'?");
-    } else if (env.cls.has(Flags.MODULE) && env.method != null && !env.method.has(Flags.ENTRY_POINT) && isTopLevelLocal(name)) {
-      d.help("'" + name + "' is a local variable of the top-level statements; functions cannot see it. Declare it as a top-level value: 'val " + name + " = ...;' with a modifier, e.g. 'private val'");
+    } else if (env.cls.has(Flags.MODULE)
+        && env.method != null
+        && !env.method.has(Flags.ENTRY_POINT)
+        && isTopLevelLocal(name)) {
+      d.help(
+          "'"
+              + name
+              + "' is a local variable of the top-level statements; functions cannot see it. Declare it as a top-level value: 'val "
+              + name
+              + " = ...;' with a modifier, e.g. 'private val'");
     }
     report(d.label("not found"));
   }
@@ -736,7 +831,9 @@ public final class Attr {
     if (top.has(Flags.MODULE)) {
       return top;
     }
-    return top.unit() != null && ctx.fileScope(top.unit()) != null ? ctx.fileScope(top.unit()).moduleClass() : null;
+    return top.unit() != null && ctx.fileScope(top.unit()) != null
+        ? ctx.fileScope(top.unit()).moduleClass()
+        : null;
   }
 
   /** Reference to a local variable, recording captures and applying smart casts. */
@@ -752,17 +849,26 @@ public final class Attr {
     if (!found.crossed().isEmpty() && !isSpeculative()) {
       capturedVars.add(v);
       captureSites.putIfAbsent(v, span);
+      captureFiles.putIfAbsent(v, file());
     }
-    if (found.crossed().isEmpty() && (v.kind() == VarSymbol.Kind.LOCAL) && !env.flow.assigned.get(v.id()) && env.flow.alive) {
+    if (found.crossed().isEmpty()
+        && (v.kind() == VarSymbol.Kind.LOCAL)
+        && !env.flow.assigned.get(v.id())
+        && env.flow.alive) {
       report(
-          err(Code.UNINITIALIZED_VARIABLE, span, "variable '" + v.name() + "' might not have been initialized")
+          err(
+                  Code.UNINITIALIZED_VARIABLE,
+                  span,
+                  "variable '" + v.name() + "' might not have been initialized")
               .note("declared here", file(), v.span()));
       env.flow.assigned.set(v.id());
     }
     BExpr ref = new BExpr.Local(v, span);
     Type narrowed = env.flow.narrowed.get(v);
     if (narrowed != null && !narrowed.equals(v.type())) {
-      boolean needsCast = !types.isSameType(narrowed.erasure(), v.type().erasure()) && !types.isSubtype(v.type(), narrowed);
+      boolean needsCast =
+          !types.isSameType(narrowed.erasure(), v.type().erasure())
+              && !types.isSubtype(v.type(), narrowed);
       return new BExpr.Conv(ref, needsCast ? ConvKind.CHECKCAST : ConvKind.RETYPE, narrowed, span);
     }
     return ref;
@@ -802,7 +908,8 @@ public final class Attr {
         return found;
       }
       // J# named nested types are static: only local/anonymous classes see outer instances.
-      boolean canReachOuterInstance = c.has(Flags.LOCAL) || c.has(Flags.ANONYMOUS);
+      boolean canReachOuterInstance =
+          (c.has(Flags.LOCAL) || c.has(Flags.ANONYMOUS)) && !c.has(Flags.STATIC);
       if (!canReachOuterInstance) {
         throughStatic = true;
       }
@@ -812,11 +919,13 @@ public final class Attr {
     return null;
   }
 
-  private BExpr memberOfClass(ClassSymbol c, String name, Span span, boolean isCurrent, boolean staticOnly) {
+  private BExpr memberOfClass(
+      ClassSymbol c, String name, Span span, boolean isCurrent, boolean staticOnly) {
     ClassType site = c.thisType();
     PropertySymbol p = lookup.findProperty(site, name);
     FieldSymbol f = p == null ? lookup.findField(site, name) : null;
-    MethodSymbol getter = p == null && f == null && !c.has(Flags.MODULE) ? lookup.findGetter(site, name) : null;
+    MethodSymbol getter =
+        p == null && f == null && !c.has(Flags.MODULE) ? lookup.findGetter(site, name) : null;
     if (p == null && f == null && getter == null) {
       return null;
     }
@@ -826,10 +935,16 @@ public final class Attr {
       if (staticOnly) {
         if (env.cls != c && !isCurrent) {
           report(
-              err(Code.STATIC_CONTEXT, span, "cannot use instance member '" + name + "' of " + c.name() + " here")
+              err(
+                      Code.STATIC_CONTEXT,
+                      span,
+                      "cannot use instance member '" + name + "' of " + c.name() + " here")
                   .note("nested classes in J# are static and have no outer instance"));
         } else {
-          error(Code.STATIC_CONTEXT, span, "instance member '" + name + "' cannot be used in a static context");
+          error(
+              Code.STATIC_CONTEXT,
+              span,
+              "instance member '" + name + "' cannot be used in a static context");
         }
         return new BExpr.Error(Type.ErrorType.INSTANCE, span);
       }
@@ -930,15 +1045,18 @@ public final class Attr {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     checkAccess(getter, p.owner(), recv == null ? null : site, span);
-    Type t = types.uncapture(memberType(captureSite(site), p.owner(), ensureReturnTypeOf(getter, p)));
-    return new BExpr.Call(p.isStatic() ? null : recv, getter, List.of(), callKind(getter, recv, false), t, span);
+    Type t =
+        types.uncapture(memberType(captureSite(site), p.owner(), ensureReturnTypeOf(getter, p)));
+    return new BExpr.Call(
+        p.isStatic() ? null : recv, getter, List.of(), callKind(getter, recv, false), t, span);
   }
 
   BExpr beanGet(BExpr recv, Type site, MethodSymbol getter, Span span) {
     checkAccess(getter, getter.owner(), recv == null ? null : site, span);
     checkDeprecated(getter, span);
     Type t = types.uncapture(memberType(captureSite(site), getter.owner(), getter.returnType()));
-    return new BExpr.Call(getter.isStatic() ? null : recv, getter, List.of(), callKind(getter, recv, false), t, span);
+    return new BExpr.Call(
+        getter.isStatic() ? null : recv, getter, List.of(), callKind(getter, recv, false), t, span);
   }
 
   private Type ensureReturnTypeOf(MethodSymbol getter, PropertySymbol p) {
@@ -960,7 +1078,13 @@ public final class Attr {
       error(
           Code.INACCESSIBLE_MEMBER,
           span,
-          member.kindName() + " '" + member.name() + "' of " + owner.displayName() + " is " + Flags.access(member.flags()));
+          member.kindName()
+              + " '"
+              + member.name()
+              + "' of "
+              + owner.displayName()
+              + " is "
+              + Flags.access(member.flags()));
     }
   }
 
@@ -1015,7 +1139,11 @@ public final class Attr {
   }
 
   void reportNoMember(Type site, String name, Span span) {
-    Diagnostic.Builder d = err(Code.UNRESOLVED_MEMBER, span, site.withNullness(Nullness.NON_NULL).display() + " has no member '" + name + "'");
+    Diagnostic.Builder d =
+        err(
+            Code.UNRESOLVED_MEMBER,
+            span,
+            site.withNullness(Nullness.NON_NULL).display() + " has no member '" + name + "'");
     String guess = Suggestions.closest(name, lookup.memberNames(site));
     if (guess != null) {
       d.help("did you mean '" + guess + "'?");
@@ -1033,9 +1161,16 @@ public final class Attr {
     if (t.isReference() && t.nullness() == Nullness.NULLABLE) {
       report(
           err(Code.NULLABLE_RECEIVER, at, "value of type " + t.display() + " may be null")
-              .help("use '?.' for a null-safe access, '!' to assert non-null, or check for null first"));
-    } else if (t.isReference() && t.nullness() == Nullness.PLATFORM && ctx.options.strictPlatformNullness() && !isSpeculative()) {
-      warn(Code.PLATFORM_NULLNESS, at, "value of Java type " + t.display() + " has unknown nullness");
+              .help(
+                  "use '?.' for a null-safe access, '!' to assert non-null, or check for null first"));
+    } else if (t.isReference()
+        && t.nullness() == Nullness.PLATFORM
+        && ctx.options.strictPlatformNullness()
+        && !isSpeculative()) {
+      warn(
+          Code.PLATFORM_NULLNESS,
+          at,
+          "value of Java type " + t.display() + " has unknown nullness");
     }
   }
 
@@ -1047,7 +1182,14 @@ public final class Attr {
     }
     Type site = tt.type();
     if (lookup.findProperty(site, m.name()) != null || lookup.findField(site, m.name()) != null) {
-      error(Code.STATIC_CONTEXT, m.nameSpan(), "'" + m.name() + "' is an instance member of " + site.display() + "; access it through an instance");
+      error(
+          Code.STATIC_CONTEXT,
+          m.nameSpan(),
+          "'"
+              + m.name()
+              + "' is an instance member of "
+              + site.display()
+              + "; access it through an instance");
     } else {
       reportNoMember(site, m.name(), m.nameSpan());
     }
@@ -1076,7 +1218,10 @@ public final class Attr {
     if (p != null && p.getter() != null) {
       Type t = memberType(s.superType(), p.owner(), p.type());
       if (p.getter().isAbstract()) {
-        error(Code.INVALID_THIS, m.span(), "cannot access abstract property '" + m.name() + "' through super");
+        error(
+            Code.INVALID_THIS,
+            m.span(),
+            "cannot access abstract property '" + m.name() + "' through super");
       }
       return new BExpr.Call(recv, p.getter(), List.of(), BExpr.CallKind.SPECIAL, t, m.span());
     }
@@ -1086,7 +1231,13 @@ public final class Attr {
     }
     MethodSymbol g = lookup.findGetter(s.superType(), m.name());
     if (g != null) {
-      return new BExpr.Call(recv, g, List.of(), BExpr.CallKind.SPECIAL, memberType(s.superType(), g.owner(), g.returnType()), m.span());
+      return new BExpr.Call(
+          recv,
+          g,
+          List.of(),
+          BExpr.CallKind.SPECIAL,
+          memberType(s.superType(), g.owner(), g.returnType()),
+          m.span());
     }
     reportNoMember(s.superType(), m.name(), m.nameSpan());
     return new BExpr.Error(Type.ErrorType.INSTANCE, m.span());
@@ -1109,14 +1260,30 @@ public final class Attr {
       return recv;
     }
     if (recv.type() instanceof PrimType) {
-      error(Code.BAD_OPERANDS, span, "'?.' cannot be applied to primitive type " + recv.type().display());
+      error(
+          Code.BAD_OPERANDS,
+          span,
+          "'?.' cannot be applied to primitive type " + recv.type().display());
       return rest.apply(recv);
     }
-    if (recv.type().nullness() == Nullness.NON_NULL && !(recv.type() instanceof Type.NullType) && !isSpeculative()) {
+    if (recv.type().nullness() == Nullness.NON_NULL
+        && !(recv.type() instanceof Type.NullType)
+        && !isSpeculative()) {
       // Allowed but pointless; behaves like '.'.
-      warn(Code.REDUNDANT_NON_NULL_ASSERTION, span, "'?.' on a non-null value of type " + recv.type().display() + " always takes the non-null path");
+      warn(
+          Code.REDUNDANT_NON_NULL_ASSERTION,
+          span,
+          "'?.' on a non-null value of type "
+              + recv.type().display()
+              + " always takes the non-null path");
     }
-    VarSymbol tmp = env.newVar("$safe", recv.type().withNullness(Nullness.NON_NULL), Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.LOCAL, span);
+    VarSymbol tmp =
+        env.newVar(
+            "$safe",
+            recv.type().withNullness(Nullness.NON_NULL),
+            Flags.FINAL | Flags.SYNTHETIC,
+            VarSymbol.Kind.LOCAL,
+            span);
     env.flow.assigned.set(tmp.id());
     BExpr whenPresent = rest.apply(new BExpr.Local(tmp, span));
     Type t = whenPresent.type();
@@ -1144,17 +1311,23 @@ public final class Attr {
           return thisValue(t.span());
         }
         if (env.isStatic) {
-          error(Code.STATIC_CONTEXT, t.span(), "'" + t.qualifier() + ".this' is not available in a static context");
+          error(
+              Code.STATIC_CONTEXT,
+              t.span(),
+              "'" + t.qualifier() + ".this' is not available in a static context");
           return new BExpr.Error(Type.ErrorType.INSTANCE, t.span());
         }
         noteThisUse();
         return new BExpr.OuterThis(c, c.thisType(), t.span());
       }
-      if (!c.has(Flags.LOCAL) && !c.has(Flags.ANONYMOUS)) {
+      if (!c.has(Flags.LOCAL) && !c.has(Flags.ANONYMOUS) || c.has(Flags.STATIC)) {
         break;
       }
     }
-    error(Code.INVALID_THIS, t.span(), "'" + t.qualifier() + "' is not an enclosing class with an instance here");
+    error(
+        Code.INVALID_THIS,
+        t.span(),
+        "'" + t.qualifier() + "' is not an enclosing class with an instance here");
     return new BExpr.Error(Type.ErrorType.INSTANCE, t.span());
   }
 
@@ -1164,10 +1337,16 @@ public final class Attr {
       return new BExpr.Error(Type.ErrorType.INSTANCE, t.span());
     }
     if (ty instanceof Type.TypeVar) {
-      error(Code.NOT_A_TYPE, t.span(), "typeof cannot be applied to type parameter " + ty.display() + " (generics are erased)");
+      error(
+          Code.NOT_A_TYPE,
+          t.span(),
+          "typeof cannot be applied to type parameter " + ty.display() + " (generics are erased)");
       return new BExpr.Error(Type.ErrorType.INSTANCE, t.span());
     }
-    Type arg = ty instanceof PrimType p ? (p == PrimType.VOID ? syms.wellKnown("java/lang/Void") : syms.boxed(p)) : ty.withNullness(Nullness.NON_NULL);
+    Type arg =
+        ty instanceof PrimType p
+            ? (p == PrimType.VOID ? syms.wellKnown("java/lang/Void") : syms.boxed(p))
+            : ty.withNullness(Nullness.NON_NULL);
     return new BExpr.ClassLit(ty.withNullness(Nullness.NON_NULL), syms.classType(arg), t.span());
   }
 
@@ -1179,7 +1358,10 @@ public final class Attr {
           default -> null;
         };
     if (name == null) {
-      error(Code.UNRESOLVED_NAME, n.span(), "nameof needs a name, e.g. nameof(x) or nameof(obj.member)");
+      error(
+          Code.UNRESOLVED_NAME,
+          n.span(),
+          "nameof needs a name, e.g. nameof(x) or nameof(obj.member)");
       return new BExpr.Error(syms.stringType(), n.span());
     }
     // Resolve to validate the name (types and methods are allowed too).
@@ -1216,7 +1398,12 @@ public final class Attr {
         u = tp;
       }
       if (from.nullness() == Nullness.NULLABLE) {
-        report(err(Code.NULLABILITY_MISMATCH, span, "cannot cast nullable " + from.display() + " to " + tp.display()).help("use '!' or '??' first"));
+        report(
+            err(
+                    Code.NULLABILITY_MISMATCH,
+                    span,
+                    "cannot cast nullable " + from.display() + " to " + tp.display())
+                .help("use '!' or '??' first"));
       }
       BExpr r = new BExpr.Conv(e, ConvKind.UNBOX, u, span);
       return u == tp ? r : primConv(r, tp, span);
@@ -1225,13 +1412,19 @@ public final class Attr {
       return coerce(e, target, span);
     }
     BExpr r = e;
-    boolean needCheck = !types.isSubtype(from, target) || !types.isSameType(from.erasure(), target.erasure()) && !types.isSubtype(from.erasure(), target.erasure());
+    boolean needCheck =
+        !types.isSubtype(from, target)
+            || !types.isSameType(from.erasure(), target.erasure())
+                && !types.isSubtype(from.erasure(), target.erasure());
     if (needCheck) {
       r = new BExpr.Conv(e, ConvKind.CHECKCAST, target, span);
     } else {
       r = new BExpr.Conv(e, ConvKind.RETYPE, target, span);
     }
-    if (target.isReference() && target.nullness() == Nullness.NON_NULL && from.nullness() != Nullness.NON_NULL && !(from instanceof Type.NullType)) {
+    if (target.isReference()
+        && target.nullness() == Nullness.NON_NULL
+        && from.nullness() != Nullness.NON_NULL
+        && !(from instanceof Type.NullType)) {
       r = new BExpr.Conv(r, ConvKind.NON_NULL_ASSERT, target, span);
     }
     return r;
@@ -1244,20 +1437,29 @@ public final class Attr {
       return new BExpr.Error(Type.ErrorType.INSTANCE, a.span());
     }
     if (target instanceof PrimType p) {
-      report(err(Code.INVALID_CAST, a.span(), "'as' needs a reference type").help("use 'as " + syms.boxed(p).display() + "?' or a cast"));
+      report(
+          err(Code.INVALID_CAST, a.span(), "'as' needs a reference type")
+              .help("use 'as " + syms.boxed(p).display() + "?' or a cast"));
       return new BExpr.Error(Type.ErrorType.INSTANCE, a.span());
     }
     if (e.type() instanceof PrimType p) {
       e = coerce(e, syms.boxed(p), a.span());
     }
     if (!types.isCastable(e.type(), target)) {
-      error(Code.INVALID_CAST, a.span(), "a value of type " + e.type().display() + " can never be " + target.display());
+      error(
+          Code.INVALID_CAST,
+          a.span(),
+          "a value of type " + e.type().display() + " can never be " + target.display());
       return new BExpr.Error(target.withNullness(Nullness.NULLABLE), a.span());
     }
     Type result = target.withNullness(Nullness.NULLABLE);
-    VarSymbol tmp = env.newVar("$as", e.type(), Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.LOCAL, a.span());
-    BExpr test = new BExpr.InstanceOf(new BExpr.Local(tmp, a.span()), target.erasure(), PrimType.BOOLEAN, a.span());
-    BExpr yes = new BExpr.Conv(new BExpr.Local(tmp, a.span()), ConvKind.CHECKCAST, result, a.span());
+    VarSymbol tmp =
+        env.newVar("$as", e.type(), Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.LOCAL, a.span());
+    BExpr test =
+        new BExpr.InstanceOf(
+            new BExpr.Local(tmp, a.span()), target.erasure(), PrimType.BOOLEAN, a.span());
+    BExpr yes =
+        new BExpr.Conv(new BExpr.Local(tmp, a.span()), ConvKind.CHECKCAST, result, a.span());
     BExpr no = new BExpr.Const(null, Type.NullType.INSTANCE, a.span());
     return new BExpr.Let(tmp, e, new BExpr.Conditional(test, yes, no, result, a.span()), a.span());
   }
@@ -1312,7 +1514,14 @@ public final class Attr {
         }
         env.flow.set(whenTrue.copy());
         env.flow.join(whenFalse);
-        return foldBool(new BExpr.Binary(and ? BExpr.BinOp.COND_AND : BExpr.BinOp.COND_OR, left, right, PrimType.BOOLEAN, false, b.span()));
+        return foldBool(
+            new BExpr.Binary(
+                and ? BExpr.BinOp.COND_AND : BExpr.BinOp.COND_OR,
+                left,
+                right,
+                PrimType.BOOLEAN,
+                false,
+                b.span()));
       }
       default -> {}
     }
@@ -1343,7 +1552,8 @@ public final class Attr {
     Object l = ConstFold.valueOf(b.left());
     Object r = ConstFold.valueOf(b.right());
     if (l instanceof Boolean lb && r instanceof Boolean rb) {
-      return new BExpr.Const(b.op() == BExpr.BinOp.COND_AND ? lb && rb : lb || rb, PrimType.BOOLEAN, b.span());
+      return new BExpr.Const(
+          b.op() == BExpr.BinOp.COND_AND ? lb && rb : lb || rb, PrimType.BOOLEAN, b.span());
     }
     return b;
   }
@@ -1370,7 +1580,8 @@ public final class Attr {
   static VarSymbol localOf(BExpr e) {
     return switch (e) {
       case BExpr.Local l -> l.var();
-      case BExpr.Conv c when c.kind() == ConvKind.CHECKCAST || c.kind() == ConvKind.RETYPE -> localOf(c.expr());
+      case BExpr.Conv c when c.kind() == ConvKind.CHECKCAST || c.kind() == ConvKind.RETYPE ->
+          localOf(c.expr());
       default -> null;
     };
   }
@@ -1388,7 +1599,9 @@ public final class Attr {
     env.flow.set(afterThen);
     env.flow.join(afterElse);
     Type type;
-    if (pt != null && pt != PrimType.VOID && !(pt instanceof Type.TypeVar tv && tv.sym().isCaptured())) {
+    if (pt != null
+        && pt != PrimType.VOID
+        && !(pt instanceof Type.TypeVar tv && tv.sym().isCaptured())) {
       type = pt;
       then = coerce(then, pt, c.then().span());
       otherwise = coerce(otherwise, pt, c.otherwise().span());
@@ -1424,7 +1637,8 @@ public final class Attr {
       return new BExpr.Error(Type.ErrorType.INSTANCE, i.span());
     }
     checkReceiverNullness(recv, i.target().span());
-    if (i.index() instanceof Expr.Range || (i.index() instanceof Expr.Unary u && u.op() == Expr.UnaryOp.FROM_END)) {
+    if (i.index() instanceof Expr.Range
+        || (i.index() instanceof Expr.Unary u && u.op() == Expr.UnaryOp.FROM_END)) {
       return patterns.rangeIndex(recv, i);
     }
     Type t = recv.type();
@@ -1435,13 +1649,20 @@ public final class Attr {
     if (t instanceof ClassType && types.isSubclassOf(t, "java/lang/String")) {
       BExpr idx = exprCoerced(i.index(), PrimType.INT);
       MethodSymbol charAt = syms.stringType().sym().methods("charAt").getFirst();
-      return new BExpr.Call(recv, charAt, List.of(idx), BExpr.CallKind.VIRTUAL, PrimType.CHAR, i.span());
+      return new BExpr.Call(
+          recv, charAt, List.of(idx), BExpr.CallKind.VIRTUAL, PrimType.CHAR, i.span());
     }
     IndexerAccess acc = indexer(recv, i, false);
     if (acc == null) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, i.span());
     }
-    return new BExpr.Call(recv, acc.getter, List.of(acc.index), callKind(acc.getter, recv, false), acc.type, i.span());
+    return new BExpr.Call(
+        recv,
+        acc.getter,
+        List.of(acc.index),
+        callKind(acc.getter, recv, false),
+        acc.type,
+        i.span());
   }
 
   /** {@code list[i]} / {@code map[k]}: resolved getter (and setter for writes). */
@@ -1460,7 +1681,10 @@ public final class Attr {
       getter = find(site, "get", 1);
       setter = find(site, "set", 2);
     } else if (asMap != null) {
-      Type keyType = asMap.args().isEmpty() ? syms.objectType() : Types.subst(asMap.args().getFirst(), Map.of());
+      Type keyType =
+          asMap.args().isEmpty()
+              ? syms.objectType()
+              : Types.subst(asMap.args().getFirst(), Map.of());
       if (keyType instanceof Type.WildcardType) {
         keyType = syms.objectType();
       }
@@ -1479,7 +1703,10 @@ public final class Attr {
       idx = exprCoerced(i.index(), pt);
     }
     if (forWrite && setter == null) {
-      error(Code.NOT_ASSIGNABLE, i.span(), "type " + site.display() + " does not support indexed assignment");
+      error(
+          Code.NOT_ASSIGNABLE,
+          i.span(),
+          "type " + site.display() + " does not support indexed assignment");
       return null;
     }
     Type elem = types.uncapture(memberType(captureSite(site), getter.owner(), getter.returnType()));
@@ -1492,7 +1719,10 @@ public final class Attr {
   private MethodSymbol find(Type site, String name, int arity) {
     for (MethodSymbol m : lookup.findMethods(site, name)) {
       if (m.params().size() == arity && !m.isStatic()) {
-        if (arity == 1 && name.equals("get") && m.params().getFirst().type() instanceof PrimType p && p != PrimType.INT) {
+        if (arity == 1
+            && name.equals("get")
+            && m.params().getFirst().type() instanceof PrimType p
+            && p != PrimType.INT) {
           continue;
         }
         return m;
@@ -1508,16 +1738,20 @@ public final class Attr {
     if (n.type() == null) {
       if (pt == null || pt.isError()) {
         if (pt == null) {
-          report(err(Code.CANNOT_INFER, n.span(), "cannot infer the type of 'new()' here").help("write the type: new SomeType(...)"));
+          report(
+              err(Code.CANNOT_INFER, n.span(), "cannot infer the type of 'new()' here")
+                  .help("write the type: new SomeType(...)"));
         }
         return new BExpr.Error(Type.ErrorType.INSTANCE, n.span());
       }
       t = pt.withNullness(Nullness.NON_NULL);
-      if (t instanceof ClassType ct && ct.args().stream().anyMatch(a -> a instanceof Type.WildcardType)) {
+      if (t instanceof ClassType ct
+          && ct.args().stream().anyMatch(a -> a instanceof Type.WildcardType)) {
         t = types.nonWildcard(ct);
       }
       if (!(t instanceof ClassType)) {
-        error(Code.TYPE_MISMATCH, n.span(), "'new()' cannot create a value of type " + pt.display());
+        error(
+            Code.TYPE_MISMATCH, n.span(), "'new()' cannot create a value of type " + pt.display());
         return new BExpr.Error(Type.ErrorType.INSTANCE, n.span());
       }
     } else {
@@ -1541,18 +1775,36 @@ public final class Attr {
       return patterns.anonymousClass(n, ct, pt);
     }
     if (c.isAbstract() || c.isInterface()) {
-      Diagnostic.Builder d = err(Code.ABSTRACT_INSTANTIATION, n.span(), "cannot create an instance of " + (c.isInterface() ? "interface " : "abstract class ") + c.displayName());
+      Diagnostic.Builder d =
+          err(
+              Code.ABSTRACT_INSTANTIATION,
+              n.span(),
+              "cannot create an instance of "
+                  + (c.isInterface() ? "interface " : "abstract class ")
+                  + c.displayName());
       if (c.isInterface()) {
-        d.help("implement it with a class, an anonymous class 'new " + c.name() + "() { ... }', or a lambda");
+        d.help(
+            "implement it with a class, an anonymous class 'new "
+                + c.name()
+                + "() { ... }', or a lambda");
       }
       report(d);
       return new BExpr.Error(ct, n.span());
     }
     if (c.isEnum()) {
-      error(Code.ABSTRACT_INSTANTIATION, n.span(), "enum " + c.displayName() + " cannot be instantiated; use one of its constants");
+      error(
+          Code.ABSTRACT_INSTANTIATION,
+          n.span(),
+          "enum " + c.displayName() + " cannot be instantiated; use one of its constants");
       return new BExpr.Error(ct, n.span());
     }
-    BExpr created = calls.construct(ct, n.args() == null ? List.of() : n.args(), pt, n.span(), n.type() == null || isDiamondOrRaw(n.type(), c));
+    BExpr created =
+        calls.construct(
+            ct,
+            n.args() == null ? List.of() : n.args(),
+            pt,
+            n.span(),
+            n.type() == null || isDiamondOrRaw(n.type(), c));
     if (n.init() != null) {
       return objectInit(created, n.init(), n.span());
     }
@@ -1604,7 +1856,10 @@ public final class Attr {
         if (f.has(Flags.FINAL)) {
           error(Code.NOT_ASSIGNABLE, fi.nameSpan(), "field '" + fi.name() + "' is final");
         }
-        out.add(new BExpr.MemberInit(f, exprCoerced(fi.value(), memberType(site, f.owner(), f.type()), fi.value().span())));
+        out.add(
+            new BExpr.MemberInit(
+                f,
+                exprCoerced(fi.value(), memberType(site, f.owner(), f.type()), fi.value().span())));
         continue;
       }
       MethodSymbol setter = lookup.findSetter(site, fi.name());
@@ -1634,15 +1889,28 @@ public final class Attr {
         }
       }
       for (FieldSymbol f : c.fields()) {
-        if (f.has(Flags.REQUIRED) && !f.has(Flags.BACKING_FIELD) && !initialized.contains(f.name())) {
+        if (f.has(Flags.REQUIRED)
+            && !f.has(Flags.BACKING_FIELD)
+            && !initialized.contains(f.name())) {
           missing.add(f.name());
         }
       }
     }
     if (!missing.isEmpty()) {
       report(
-          err(Code.REQUIRED_MEMBER_MISSING, span, "required member" + (missing.size() > 1 ? "s " : " ") + String.join(", ", missing.stream().map(m -> "'" + m + "'").toList()) + " must be set")
-              .help("add an object initializer: new " + ct.sym().name() + "(...) { " + missing.getFirst() + " = ... }"));
+          err(
+                  Code.REQUIRED_MEMBER_MISSING,
+                  span,
+                  "required member"
+                      + (missing.size() > 1 ? "s " : " ")
+                      + String.join(", ", missing.stream().map(m -> "'" + m + "'").toList())
+                      + " must be set")
+              .help(
+                  "add an object initializer: new "
+                      + ct.sym().name()
+                      + "(...) { "
+                      + missing.getFirst()
+                      + " = ... }"));
     }
   }
 
@@ -1676,7 +1944,9 @@ public final class Attr {
 
   private BExpr arrayInit(Expr.ArrayInit a, Type pt) {
     if (!(pt instanceof Type.ArrayType at)) {
-      report(err(Code.CANNOT_INFER, a.span(), "an array initializer '{...}' needs an array type here").help("write new T[] { ... }"));
+      report(
+          err(Code.CANNOT_INFER, a.span(), "an array initializer '{...}' needs an array type here")
+              .help("write new T[] { ... }"));
       for (Expr e : a.elements()) {
         value(e, null);
       }
@@ -1686,7 +1956,8 @@ public final class Attr {
     for (Expr e : a.elements()) {
       elems.add(exprCoerced(e, at.elem()));
     }
-    return new BExpr.NewArray((Type.ArrayType) at.withNullness(Nullness.NON_NULL), List.of(), elems, a.span());
+    return new BExpr.NewArray(
+        (Type.ArrayType) at.withNullness(Nullness.NON_NULL), List.of(), elems, a.span());
   }
 
   // ------------------------------------------------------------------ lambdas
@@ -1695,7 +1966,10 @@ public final class Attr {
   ClassType functionalTarget(Type pt, Span span, String what) {
     if (pt == null) {
       report(
-          err(Code.LAMBDA_MISMATCH, span, "cannot infer a functional interface type for this " + what)
+          err(
+                  Code.LAMBDA_MISMATCH,
+                  span,
+                  "cannot infer a functional interface type for this " + what)
               .help("declare the variable type, e.g. 'Function<int, int> f = x => x + 1;'"));
       return null;
     }
@@ -1705,7 +1979,13 @@ public final class Attr {
     if (pt instanceof ClassType ct && types.findSam(ct.sym()) != null) {
       return ct;
     }
-    error(Code.LAMBDA_MISMATCH, span, "a " + what + " needs a functional interface type, but the expected type is " + pt.display());
+    error(
+        Code.LAMBDA_MISMATCH,
+        span,
+        "a "
+            + what
+            + " needs a functional interface type, but the expected type is "
+            + pt.display());
     return null;
   }
 
@@ -1725,13 +2005,22 @@ public final class Attr {
       error(
           Code.LAMBDA_MISMATCH,
           l.span(),
-          "lambda has " + l.params().size() + " parameter" + (l.params().size() == 1 ? "" : "s") + " but " + fi.display() + " expects " + ft.params().size());
+          "lambda has "
+              + l.params().size()
+              + " parameter"
+              + (l.params().size() == 1 ? "" : "s")
+              + " but "
+              + fi.display()
+              + " expects "
+              + ft.params().size());
       return new BExpr.Error(fi, l.span());
     }
     return lambdaBody(l, plain, sam, ft);
   }
 
-  /** Attributes a lambda body against a function type (or with unknown types if {@code ft} null). */
+  /**
+   * Attributes a lambda body against a function type (or with unknown types if {@code ft} null).
+   */
   BExpr lambdaBody(Expr.Lambda l, ClassType fi, MethodSymbol sam, Types.MethodType ft) {
     LambdaFrame frame = new LambdaFrame();
     Env outer = env;
@@ -1756,17 +2045,33 @@ public final class Attr {
         Type pt = ft == null ? Type.ErrorType.INSTANCE : ft.params().get(i);
         if (p.type() != null) {
           Type declared = resolveType(p.type());
-          if (ft != null && !declared.isError() && !types.isSameType(declared, pt) && !types.isSubtype(pt, declared)) {
-            error(Code.LAMBDA_MISMATCH, p.span(), "lambda parameter '" + p.name() + "' is declared " + declared.display() + " but " + pt.display() + " is expected");
+          if (ft != null
+              && !declared.isError()
+              && !types.isSameType(declared, pt)
+              && !types.isSubtype(pt, declared)) {
+            error(
+                Code.LAMBDA_MISMATCH,
+                p.span(),
+                "lambda parameter '"
+                    + p.name()
+                    + "' is declared "
+                    + declared.display()
+                    + " but "
+                    + pt.display()
+                    + " is expected");
           }
           pt = declared.isError() ? pt : declared;
         }
         VarSymbol v = env.newVar(p.name(), pt, 0, VarSymbol.Kind.PARAM, p.nameSpan());
         if (!p.name().equals("_")) {
-          if (env.scope.parent.lookupWithinBoundary(p.name()) != null || outer.scope.lookup(p.name()) != null && env.scope.lookup(p.name()) != null) {
+          if (env.scope.parent.lookupWithinBoundary(p.name()) != null
+              || outer.scope.lookup(p.name()) != null && env.scope.lookup(p.name()) != null) {
             Scope.Found prev = outer.scope.lookup(p.name());
             if (prev != null) {
-              error(Code.DUPLICATE_VARIABLE, p.nameSpan(), "lambda parameter '" + p.name() + "' shadows a local variable");
+              error(
+                  Code.DUPLICATE_VARIABLE,
+                  p.nameSpan(),
+                  "lambda parameter '" + p.name() + "' shadows a local variable");
             }
           }
           env.scope.vars.put(p.name(), v);
@@ -1780,8 +2085,13 @@ public final class Attr {
         case Body.ExprBody eb -> {
           if (ret == PrimType.VOID) {
             BExpr v = expr(eb.expr(), null);
-            if (!stmts.isStatementExpression(eb.expr()) && !v.type().isError() && v.type() != PrimType.VOID) {
-              error(Code.LAMBDA_MISMATCH, eb.expr().span(), "this lambda must not return a value (" + fi.display() + " returns void)");
+            if (!stmts.isStatementExpression(eb.expr())
+                && !v.type().isError()
+                && v.type() != PrimType.VOID) {
+              error(
+                  Code.LAMBDA_MISMATCH,
+                  eb.expr().span(),
+                  "this lambda must not return a value (" + fi.display() + " returns void)");
             }
             body = new BStmt.ExprStmt(v, eb.expr().span());
           } else if (ret == null || inferRet) {
@@ -1800,7 +2110,12 @@ public final class Attr {
           }
           body = stmts.block(bb.block());
           if (env.flow.alive && env.returnType != null && env.returnType != PrimType.VOID) {
-            error(Code.MISSING_RETURN, l.span(), "lambda must return a value of type " + env.returnType.display() + " on every path");
+            error(
+                Code.MISSING_RETURN,
+                l.span(),
+                "lambda must return a value of type "
+                    + env.returnType.display()
+                    + " on every path");
           }
           if (env.returnType == null) {
             resultType = frame.returnTypes.isEmpty() ? PrimType.VOID : types.lub(frame.returnTypes);
@@ -1810,7 +2125,15 @@ public final class Attr {
       if (fi == null) {
         return new BExpr.Error(Type.ErrorType.INSTANCE, l.span());
       }
-      return new BExpr.Lambda(fi, sam, params, body, resultType, new ArrayList<>(frame.captures), frame.capturesThis, l.span());
+      return new BExpr.Lambda(
+          fi,
+          sam,
+          params,
+          body,
+          resultType,
+          new ArrayList<>(frame.captures),
+          frame.capturesThis,
+          l.span());
     } finally {
       env = outer;
       // Captured variables of the lambda are also captured by any enclosing lambdas/classes.
@@ -1821,7 +2144,9 @@ public final class Attr {
             if (crossed.boundary == Scope.Boundary.LAMBDA) {
               crossed.lambda.captures.add(v);
             } else if (crossed.boundary == Scope.Boundary.CLASS) {
-              localClassCaptures.computeIfAbsent(crossed.localClass, k -> new LinkedHashSet<>()).add(v);
+              localClassCaptures
+                  .computeIfAbsent(crossed.localClass, k -> new LinkedHashSet<>())
+                  .add(v);
             }
           }
         }
@@ -1866,7 +2191,10 @@ public final class Attr {
           () -> {
             Env saved = env;
             env = ClassChecker.fieldEnv(this, f);
-            error(Code.RECURSIVE_INFERENCE, s, "cannot infer the type of '" + f.name() + "': its initializer depends on itself");
+            error(
+                Code.RECURSIVE_INFERENCE,
+                s,
+                "cannot infer the type of '" + f.name() + "': its initializer depends on itself");
             env = saved;
             return null;
           });
@@ -1882,7 +2210,12 @@ public final class Attr {
               BExpr init = value(f.declarator().init(), null);
               Type t = init.type();
               if (t instanceof Type.NullType) {
-                report(err(Code.CANNOT_INFER, f.declarator().nameSpan(), "cannot infer a type from 'null'").help("declare the type: 'Type? " + f.name() + " = null;'"));
+                report(
+                    err(
+                            Code.CANNOT_INFER,
+                            f.declarator().nameSpan(),
+                            "cannot infer a type from 'null'")
+                        .help("declare the type: 'Type? " + f.name() + " = null;'"));
                 t = Type.ErrorType.INSTANCE;
               } else if (t instanceof Type.NeverType) {
                 t = Type.ErrorType.INSTANCE;
@@ -1914,7 +2247,10 @@ public final class Attr {
             Env saved = env;
             env = ClassChecker.methodEnv(this, m);
             report(
-                err(Code.RECURSIVE_INFERENCE, ((dev.jsharp.compiler.ast.Decl.Method) m.decl()).nameSpan(), "recursive method '" + m.name() + "' needs an explicit return type"));
+                err(
+                    Code.RECURSIVE_INFERENCE,
+                    ((dev.jsharp.compiler.ast.Decl.Method) m.decl()).nameSpan(),
+                    "recursive method '" + m.name() + "' needs an explicit return type"));
             env = saved;
             return null;
           });

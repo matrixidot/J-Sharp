@@ -54,7 +54,9 @@ public final class Types {
     Map<TypeVarSymbol, Type> m = new IdentityHashMap<>();
     boolean raw = ct.args().size() != tps.size();
     for (int i = 0; i < tps.size(); i++) {
-      m.put(tps.get(i), raw ? tps.get(i).erasedBound().withNullness(Nullness.PLATFORM) : ct.args().get(i));
+      m.put(
+          tps.get(i),
+          raw ? tps.get(i).erasedBound().withNullness(Nullness.PLATFORM) : ct.args().get(i));
     }
     return m;
   }
@@ -76,7 +78,9 @@ public final class Types {
         if (v.nullness() == Nullness.NULLABLE && r.isReference()) {
           yield r.withNullness(Nullness.NULLABLE);
         }
-        if (v.nullness() == Nullness.PLATFORM && r.isReference() && r.nullness() == Nullness.NON_NULL) {
+        if (v.nullness() == Nullness.PLATFORM
+            && r.isReference()
+            && r.nullness() == Nullness.NON_NULL) {
           yield r.withNullness(Nullness.PLATFORM);
         }
         yield r;
@@ -98,7 +102,8 @@ public final class Types {
         Type e = subst(a.elem(), map);
         yield e == a.elem() ? a : new ArrayType(e, a.nullness());
       }
-      case WildcardType w -> w.bound() == null ? w : new WildcardType(w.kind(), subst(w.bound(), map));
+      case WildcardType w ->
+          w.bound() == null ? w : new WildcardType(w.kind(), subst(w.bound(), map));
       case TupleType tt -> {
         List<Type> es = new ArrayList<>();
         for (Type e : tt.elems()) {
@@ -185,7 +190,9 @@ public final class Types {
       }
       case ArrayType a -> {
         String bn = sym.binaryName();
-        if (bn.equals("java/lang/Object") || bn.equals("java/lang/Cloneable") || bn.equals("java/io/Serializable")) {
+        if (bn.equals("java/lang/Object")
+            || bn.equals("java/lang/Cloneable")
+            || bn.equals("java/io/Serializable")) {
           return ClassType.of(sym);
         }
         return null;
@@ -216,7 +223,10 @@ public final class Types {
 
   /** Structural subtyping, ignoring nullness. */
   public boolean isSubtype(Type s, Type t) {
-    if (s == t || s instanceof Type.ErrorType || t instanceof Type.ErrorType || s instanceof Type.NeverType) {
+    if (s == t
+        || s instanceof Type.ErrorType
+        || t instanceof Type.ErrorType
+        || s instanceof Type.NeverType) {
       return true;
     }
     if (t instanceof Type.NeverType) {
@@ -284,7 +294,8 @@ public final class Types {
       }
       List<TypeVarSymbol> tps = tc.sym().typeParams();
       for (int i = 0; i < tc.args().size(); i++) {
-        TypeParam.Variance v = i < tps.size() ? tps.get(i).variance() : TypeParam.Variance.INVARIANT;
+        TypeParam.Variance v =
+            i < tps.size() ? tps.get(i).variance() : TypeParam.Variance.INVARIANT;
         if (!containsArg(sup.args().get(i), tc.args().get(i), v)) {
           return false;
         }
@@ -300,7 +311,10 @@ public final class Types {
       return switch (w.kind()) {
         case UNBOUNDED -> true;
         case EXTENDS -> isSubtype(upperOf(s), w.bound());
-        case SUPER -> s instanceof WildcardType sw ? sw.kind() == WildcardType.Kind.SUPER && isSubtype(w.bound(), sw.bound()) : isSubtype(w.bound(), s);
+        case SUPER ->
+            s instanceof WildcardType sw
+                ? sw.kind() == WildcardType.Kind.SUPER && isSubtype(w.bound(), sw.bound())
+                : isSubtype(w.bound(), s);
       };
     }
     if (s instanceof WildcardType) {
@@ -328,8 +342,12 @@ public final class Types {
     return switch (a) {
       case PrimType p -> p == b;
       case ClassType c -> {
-        if (!(b instanceof ClassType d) || c.sym() != d.sym() || c.args().size() != d.args().size()) {
-          yield b instanceof ClassType d2 && c.sym() == d2.sym() && (c.args().isEmpty() || d2.args().isEmpty());
+        if (!(b instanceof ClassType d)
+            || c.sym() != d.sym()
+            || c.args().size() != d.args().size()) {
+          yield b instanceof ClassType d2
+              && c.sym() == d2.sym()
+              && (c.args().isEmpty() || d2.args().isEmpty());
         }
         for (int i = 0; i < c.args().size(); i++) {
           if (!isSameType(c.args().get(i), d.args().get(i))) {
@@ -343,7 +361,9 @@ public final class Types {
       case WildcardType x ->
           b instanceof WildcardType y
               && x.kind() == y.kind()
-              && (x.bound() == null ? y.bound() == null : y.bound() != null && isSameType(x.bound(), y.bound()));
+              && (x.bound() == null
+                  ? y.bound() == null
+                  : y.bound() != null && isSameType(x.bound(), y.bound()));
       case TupleType x -> {
         if (!(b instanceof TupleType y) || x.elems().size() != y.elems().size()) {
           yield false;
@@ -438,8 +458,17 @@ public final class Types {
       return true;
     }
     return switch (from) {
-      case BYTE -> to == PrimType.SHORT || to == PrimType.INT || to == PrimType.LONG || to == PrimType.FLOAT || to == PrimType.DOUBLE;
-      case SHORT, CHAR -> to == PrimType.INT || to == PrimType.LONG || to == PrimType.FLOAT || to == PrimType.DOUBLE;
+      case BYTE ->
+          to == PrimType.SHORT
+              || to == PrimType.INT
+              || to == PrimType.LONG
+              || to == PrimType.FLOAT
+              || to == PrimType.DOUBLE;
+      case SHORT, CHAR ->
+          to == PrimType.INT
+              || to == PrimType.LONG
+              || to == PrimType.FLOAT
+              || to == PrimType.DOUBLE;
       case INT -> to == PrimType.LONG || to == PrimType.FLOAT || to == PrimType.DOUBLE;
       case LONG -> to == PrimType.FLOAT || to == PrimType.DOUBLE;
       case FLOAT -> to == PrimType.DOUBLE;
@@ -524,7 +553,10 @@ public final class Types {
   }
 
   private static boolean fitsConstant(int v, PrimType from, PrimType to) {
-    if (from != PrimType.INT && from != PrimType.SHORT && from != PrimType.CHAR && from != PrimType.BYTE) {
+    if (from != PrimType.INT
+        && from != PrimType.SHORT
+        && from != PrimType.CHAR
+        && from != PrimType.BYTE) {
       return false;
     }
     return switch (to) {
@@ -537,7 +569,9 @@ public final class Types {
 
   /** Is an explicit cast from {@code from} to {@code to} legal? */
   public boolean isCastable(Type from, Type to) {
-    if (from instanceof Type.ErrorType || to instanceof Type.ErrorType || from instanceof Type.NeverType) {
+    if (from instanceof Type.ErrorType
+        || to instanceof Type.ErrorType
+        || from instanceof Type.NeverType) {
       return true;
     }
     PrimType fp = primitiveView(from);
@@ -633,7 +667,11 @@ public final class Types {
     }
     PrimType pa = primitiveView(a);
     PrimType pb = primitiveView(b);
-    if (pa != null && pb != null && pa.isNumeric() && pb.isNumeric() && (a instanceof PrimType || b instanceof PrimType)) {
+    if (pa != null
+        && pb != null
+        && pa.isNumeric()
+        && pb.isNumeric()
+        && (a instanceof PrimType || b instanceof PrimType)) {
       return promote(pa, pb);
     }
     if (pa == PrimType.BOOLEAN && pb == PrimType.BOOLEAN) {
@@ -656,11 +694,14 @@ public final class Types {
       }
       // A single shared interface (e.g. sealed interface of records).
       List<ClassType> common = new ArrayList<>();
-      collectInterfaces(ca, new LinkedHashMap<>()).values().forEach(i -> {
-        if (isSubtype(rb, i)) {
-          common.add(i);
-        }
-      });
+      collectInterfaces(ca, new LinkedHashMap<>())
+          .values()
+          .forEach(
+              i -> {
+                if (isSubtype(rb, i)) {
+                  common.add(i);
+                }
+              });
       List<ClassType> minimal = new ArrayList<>();
       for (ClassType c : common) {
         boolean dominated = false;
@@ -680,7 +721,8 @@ public final class Types {
     return syms.objectType();
   }
 
-  private Map<ClassSymbol, ClassType> collectInterfaces(ClassType t, Map<ClassSymbol, ClassType> out) {
+  private Map<ClassSymbol, ClassType> collectInterfaces(
+      ClassType t, Map<ClassSymbol, ClassType> out) {
     for (ClassType i : interfaces(t)) {
       if (out.putIfAbsent(i.sym(), i) == null) {
         collectInterfaces(i, out);
@@ -717,7 +759,11 @@ public final class Types {
     return sam;
   }
 
-  private void collectAbstract(ClassType t, Map<String, MethodSymbol> abstracts, Set<String> implemented, Set<ClassSymbol> seen) {
+  private void collectAbstract(
+      ClassType t,
+      Map<String, MethodSymbol> abstracts,
+      Set<String> implemented,
+      Set<ClassSymbol> seen) {
     if (!seen.add(t.sym())) {
       return;
     }
@@ -752,8 +798,8 @@ public final class Types {
   public record MethodType(List<Type> params, Type ret) {}
 
   /**
-   * The function type of a functional interface type, using the non-wildcard parameterization
-   * (JLS 9.9): {@code Function<? super T, ? extends R>} behaves as {@code Function<T, R>}.
+   * The function type of a functional interface type, using the non-wildcard parameterization (JLS
+   * 9.9): {@code Function<? super T, ? extends R>} behaves as {@code Function<T, R>}.
    */
   public MethodType functionType(ClassType fi) {
     MethodSymbol sam = findSam(fi.sym());
@@ -779,7 +825,10 @@ public final class Types {
     for (int i = 0; i < t.args().size(); i++) {
       Type a = t.args().get(i);
       if (a instanceof WildcardType w) {
-        args.add(w.bound() != null ? w.bound() : (i < tps.size() ? tps.get(i).bounds().getFirst() : syms.objectType()));
+        args.add(
+            w.bound() != null
+                ? w.bound()
+                : (i < tps.size() ? tps.get(i).bounds().getFirst() : syms.objectType()));
       } else {
         args.add(a);
       }
@@ -802,7 +851,12 @@ public final class Types {
         Type declared = i < tps.size() ? tps.get(i).bounds().getFirst() : syms.objectType();
         Type upper = w.kind() == WildcardType.Kind.EXTENDS ? w.bound() : declared;
         Type lower = w.kind() == WildcardType.Kind.SUPER ? w.bound() : null;
-        TypeVarSymbol cap = TypeVarSymbol.capture("capture#" + (++captureCounter) + " of " + w.display(), List.of(upper), upper.erasure(), lower);
+        TypeVarSymbol cap =
+            TypeVarSymbol.capture(
+                "capture#" + (++captureCounter) + " of " + w.display(),
+                List.of(upper),
+                upper.erasure(),
+                lower);
         args.add(new TypeVar(cap, Nullness.NON_NULL));
       } else {
         args.add(a);
@@ -815,7 +869,9 @@ public final class Types {
   public Type uncapture(Type t) {
     return switch (t) {
       case TypeVar v when v.sym().isCaptured() ->
-          v.sym().lowerBound() != null ? v.sym().lowerBound() : v.sym().bounds().getFirst().withNullness(v.nullness());
+          v.sym().lowerBound() != null
+              ? v.sym().lowerBound()
+              : v.sym().bounds().getFirst().withNullness(v.nullness());
       case ClassType c -> {
         if (c.args().isEmpty()) {
           yield c;

@@ -3,6 +3,9 @@ package dev.jsharp.compiler.driver;
 import dev.jsharp.compiler.Context;
 import dev.jsharp.compiler.LanguageInfo;
 import dev.jsharp.compiler.ast.CompilationUnit;
+import dev.jsharp.compiler.bound.BClass;
+import dev.jsharp.compiler.check.Attr;
+import dev.jsharp.compiler.check.ClassChecker;
 import dev.jsharp.compiler.classpath.ClassPath;
 import dev.jsharp.compiler.diag.Code;
 import dev.jsharp.compiler.diag.Diagnostic;
@@ -35,6 +38,8 @@ public final class Compilation {
   private Enter enter;
   private MemberEnter memberEnter;
   private SourceFile currentFile;
+  private Attr attr;
+  private List<BClass> checked = List.of();
 
   /**
    * @param sharedClassPath a class path to reuse (must already include the runtime), or null to
@@ -101,7 +106,21 @@ public final class Compilation {
           memberEnter = new MemberEnter(ctx);
           enter = new Enter(ctx, memberEnter);
           enter.enterAll(units);
+          if (diags.hasErrors()) {
+            return;
+          }
+          attr = new Attr(ctx, memberEnter);
+          checked = ClassChecker.checkAll(attr, enter.enteredClasses());
         });
+  }
+
+  /** Checked classes (after a successful {@link #analyze()}). */
+  public List<BClass> checkedClasses() {
+    return checked;
+  }
+
+  public Attr attr() {
+    return attr;
   }
 
   /**

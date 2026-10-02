@@ -40,19 +40,23 @@ final class Env {
   ClassSymbol cls;
 
   TypeScope typeScope;
+
   /** Enclosing method, or null in field initializers and initializer blocks. */
   MethodSymbol method;
 
   boolean isStatic;
   Scope scope;
   FlowState flow = new FlowState();
+
   /** Expected return type; null while inferring a lambda's result type. */
   Type returnType;
 
   LambdaFrame lambda;
   boolean isAsync;
+
   /** In a constructor body (or instance initializer). */
   boolean inConstructor;
+
   /** Before the {@code this(...)}/{@code super(...)} call of a constructor. */
   boolean beforeSuperCall;
 
@@ -61,10 +65,12 @@ final class Env {
 
   FieldSymbol backingField;
   Deque<Jump> jumps = new ArrayDeque<>();
+
   /** Innermost catch variable (for {@code throw;}), or null. */
   VarSymbol catchVar;
 
   boolean checked;
+
   /** Shared counter for variable ids within one top-level body. */
   int[] varIds = new int[1];
 
@@ -100,7 +106,12 @@ final class Env {
     return e;
   }
 
-  VarSymbol newVar(String name, Type type, long flags, VarSymbol.Kind kind, dev.jsharp.compiler.source.Span span) {
+  VarSymbol newVar(
+      String name,
+      Type type,
+      long flags,
+      VarSymbol.Kind kind,
+      dev.jsharp.compiler.source.Span span) {
     return new VarSymbol(name, type, flags, kind, span, nextVarId());
   }
 }

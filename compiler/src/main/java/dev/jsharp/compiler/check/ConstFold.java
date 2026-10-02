@@ -25,8 +25,10 @@ final class ConstFold {
       case BYTE -> (int) (byte) n.longValue();
       case SHORT -> (int) (short) n.longValue();
       case CHAR -> (char) n.longValue();
-      case INT -> v instanceof Float || v instanceof Double ? (int) n.doubleValue() : (int) n.longValue();
-      case LONG -> v instanceof Float || v instanceof Double ? (long) n.doubleValue() : n.longValue();
+      case INT ->
+          v instanceof Float || v instanceof Double ? (int) n.doubleValue() : (int) n.longValue();
+      case LONG ->
+          v instanceof Float || v instanceof Double ? (long) n.doubleValue() : n.longValue();
       case FLOAT -> v instanceof Long l ? (float) l : n.floatValue();
       case DOUBLE -> v instanceof Long l ? (double) l : n.doubleValue();
       default -> v;

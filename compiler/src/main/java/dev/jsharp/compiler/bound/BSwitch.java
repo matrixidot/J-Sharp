@@ -11,7 +11,11 @@ import java.util.List;
  *     code falls through to {@code defaultBody} or throws {@code MatchException}
  */
 public record BSwitch(
-    BExpr selector, VarSymbol selectorVar, Type selectorType, List<Case> cases, boolean exhaustive) {
+    BExpr selector,
+    VarSymbol selectorVar,
+    Type selectorType,
+    List<Case> cases,
+    boolean exhaustive) {
 
   /**
    * One case.

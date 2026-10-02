@@ -1,0 +1,57 @@
+public sealed interface Expr;
+public record Num(double value) : Expr;
+public record Add(Expr left, Expr right) : Expr;
+public record Mul(Expr left, Expr right) : Expr;
+
+public static double eval(Expr e) => e switch {
+    Num n          => n.value,
+    Add(var l, var r) => eval(l) + eval(r),
+    Mul(var l, var r) => eval(l) * eval(r),
+};
+
+String describe(Object o) => o switch {
+    int i when i > 0 => "positive int",
+    0 or 1 => "binary",
+    String { length: > 3 } s => "long string " + s,
+    String s => "short string " + s,
+    null => "null",
+    _ => "other",
+};
+
+String color(Color c) => c switch {
+    Color.Red => "r",
+    Color.Green => "g",
+    Color.Blue => "b",
+};
+public enum Color { Red, Green, Blue }
+
+String sign(int x) => x switch { < 0 => "neg", 0 => "zero", > 0 => "pos" , _ => "?"};
+
+void stmts(Object o, int k) {
+    if (o is String s && s.length() > 3) { println(s); }
+    if (o is int n) { println(n + 1); }
+    if (!(o is String t)) { return; }
+    println(t.length());
+    if (o is String) { println(o.length()); }
+    switch (k) {
+        case 1:
+        case 2:
+            println("small");
+            break;
+        case 3 when o is String:
+            println("three");
+            break;
+        default:
+            println("other");
+            break;
+    }
+    var p = (1, "a");
+    println(p.item1 + p.item2);
+    (int id, String name) q = (2, "b");
+    println(q.id);
+    var (x, y) = p;
+    println(x);
+    var (u, v) = new Add(new Num(1), new Num(2));
+    println(eval(u));
+}
+println(eval(new Add(new Num(2), new Mul(new Num(3), new Num(4)))));

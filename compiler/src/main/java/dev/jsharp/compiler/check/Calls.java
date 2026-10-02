@@ -60,13 +60,38 @@ final class Calls {
     final boolean deferred;
     final Span span;
 
+    /** A generic call/creation whose type depends on the target (attributed per candidate). */
+    final boolean polyCall;
+
+    private Type captured;
+
+    /** The argument type with wildcards captured (once, so all candidates share the variables). */
+    Type captured(Types types) {
+      if (captured == null) {
+        captured = type instanceof ClassType ct ? types.capture(ct) : type;
+      }
+      return captured;
+    }
+
     ArgInfo(String name, Expr expr, BExpr bound, Type type, boolean deferred, Span span) {
+      this(name, expr, bound, type, deferred, span, false);
+    }
+
+    ArgInfo(
+        String name,
+        Expr expr,
+        BExpr bound,
+        Type type,
+        boolean deferred,
+        Span span,
+        boolean polyCall) {
       this.name = name;
       this.expr = expr;
       this.bound = bound;
       this.type = type;
       this.deferred = deferred;
       this.span = span;
+      this.polyCall = polyCall;
     }
 
     static ArgInfo ofType(Type t, Span span) {
@@ -103,14 +128,57 @@ final class Calls {
   List<ArgInfo> prepare(List<Arg> args) {
     List<ArgInfo> out = new ArrayList<>();
     for (Arg arg : args) {
-      if (isDeferred(arg.value())) {
-        out.add(new ArgInfo(arg.name(), arg.value(), null, null, true, arg.span()));
+      Expr e = arg.value();
+      if (isDeferred(e)) {
+        out.add(new ArgInfo(arg.name(), e, null, null, true, arg.span()));
+      } else if (isPolyCandidate(e)) {
+        // Generic calls are tried standalone first; if their type arguments could not be fully
+        // inferred (or they only check against a target), they become poly arguments typed
+        // from the selected parameter type, as in Java.
+        Attr.Speculation<BExpr> s = a.speculate(() -> a.value(e, null));
+        boolean flexible = s.result() != null && a.flexibleResults.contains(s.result());
+        if (s.hasErrors() || flexible) {
+          Type provisional = s.result() == null ? Type.ErrorType.INSTANCE : s.result().type();
+          out.add(
+              new ArgInfo(
+                  arg.name(), e, null, s.hasErrors() ? null : provisional, true, arg.span(), true));
+        } else if (!s.hasDiagnostics() && sideEffectFree(e)) {
+          out.add(new ArgInfo(arg.name(), e, s.result(), s.result().type(), false, arg.span()));
+        } else {
+          BExpr b = a.value(e, null);
+          out.add(new ArgInfo(arg.name(), e, b, b.type(), false, arg.span()));
+        }
       } else {
-        BExpr b = a.value(arg.value(), null);
-        out.add(new ArgInfo(arg.name(), arg.value(), b, b.type(), false, arg.span()));
+        BExpr b = a.value(e, null);
+        out.add(new ArgInfo(arg.name(), e, b, b.type(), false, arg.span()));
       }
     }
     return out;
+  }
+
+  private static boolean isPolyCandidate(Expr e) {
+    return switch (e) {
+      case Expr.Call c -> true;
+      case Expr.New n -> n.type() != null && n.anonBody() == null;
+      case Expr.Paren p -> isPolyCandidate(p.expr());
+      default -> false;
+    };
+  }
+
+  /** True if re-using a speculative attribution of {@code e} loses nothing (no lambdas/classes). */
+  private static boolean sideEffectFree(Expr e) {
+    boolean[] ok = {true};
+    dev.jsharp.compiler.ast.AstWalk.walk(
+        e,
+        n -> {
+          if (n instanceof Expr.Lambda
+              || n instanceof Expr.MethodRef
+              || n instanceof Expr.New nw && nw.anonBody() != null) {
+            ok[0] = false;
+          }
+          return ok[0];
+        });
+    return ok[0];
   }
 
   // ------------------------------------------------------------------ call expressions
@@ -124,15 +192,27 @@ final class Calls {
       }
       case Expr.Member m -> {
         if (m.nullSafe()) {
-          return a.safeAccess(m.target(), span, recv -> instanceCall(recv, m.name(), m.typeArgs(), m.nameSpan(), prepare(c.args()), pt, span));
+          return a.safeAccess(
+              m.target(),
+              span,
+              recv ->
+                  instanceCall(
+                      recv, m.name(), m.typeArgs(), m.nameSpan(), prepare(c.args()), pt, span));
         }
         Attr.Target t = a.target(m.target(), true);
         return switch (t) {
-          case Attr.ValueTarget v -> instanceCall(v.expr(), m.name(), m.typeArgs(), m.nameSpan(), prepare(c.args()), pt, span);
-          case Attr.TypeTarget tt -> staticCall(tt.type(), m.name(), m.typeArgs(), m.nameSpan(), c.args(), pt, span);
-          case Attr.SuperTarget s -> superCall(s, m.name(), m.typeArgs(), m.nameSpan(), c.args(), pt, span);
+          case Attr.ValueTarget v ->
+              instanceCall(
+                  v.expr(), m.name(), m.typeArgs(), m.nameSpan(), prepare(c.args()), pt, span);
+          case Attr.TypeTarget tt ->
+              staticCall(tt.type(), m.name(), m.typeArgs(), m.nameSpan(), c.args(), pt, span);
+          case Attr.SuperTarget s ->
+              superCall(s, m.name(), m.typeArgs(), m.nameSpan(), c.args(), pt, span);
           case Attr.PackageTarget p -> {
-            a.error(Code.UNRESOLVED_NAME, m.nameSpan(), "cannot find function '" + m.name() + "' in package " + p.name());
+            a.error(
+                Code.UNRESOLVED_NAME,
+                m.nameSpan(),
+                "cannot find function '" + m.name() + "' in package " + p.name());
             prepare(c.args());
             yield new BExpr.Error(Type.ErrorType.INSTANCE, span);
           }
@@ -163,7 +243,8 @@ final class Calls {
   }
 
   /** {@code name(args)}: local functional values, enclosing classes, module functions, imports. */
-  private BExpr simpleCall(String name, List<TypeNode> typeArgs, Span nameSpan, List<Arg> args, Type pt, Span span) {
+  private BExpr simpleCall(
+      String name, List<TypeNode> typeArgs, Span nameSpan, List<Arg> args, Type pt, Span span) {
     Env env = a.env;
     Scope.Found local = env.scope.lookup(name);
     if (local != null) {
@@ -177,7 +258,9 @@ final class Calls {
       if (a.lookup.hasMethodNamed(c.thisType(), name)) {
         List<MethodSymbol> cands = a.lookup.findMethods(c.thisType(), name);
         List<ArgInfo> infos = prepare(args);
-        Selected sel = select(cands, c.thisType(), infos, explicitTypeArgs(typeArgs), pt, null, span, name, true);
+        Selected sel =
+            select(
+                cands, c.thisType(), infos, explicitTypeArgs(typeArgs), pt, null, span, name, true);
         if (sel == null) {
           return new BExpr.Error(Type.ErrorType.INSTANCE, span);
         }
@@ -185,8 +268,14 @@ final class Calls {
         if (!sel.method.isStatic()) {
           if (staticOnly) {
             a.report(
-                a.err(Code.STATIC_CONTEXT, nameSpan, "instance method '" + name + "' cannot be called from a static context")
-                    .note(first ? "this code is static" : "nested classes in J# are static and have no outer instance"));
+                a.err(
+                        Code.STATIC_CONTEXT,
+                        nameSpan,
+                        "instance method '" + name + "' cannot be called from a static context")
+                    .note(
+                        first
+                            ? "this code is static"
+                            : "nested classes in J# are static and have no outer instance"));
             return new BExpr.Error(Type.ErrorType.INSTANCE, span);
           }
           if (first) {
@@ -198,7 +287,7 @@ final class Calls {
         }
         return finish(sel, recv, c.thisType(), infos, span, false);
       }
-      if (!c.has(Flags.LOCAL) && !c.has(Flags.ANONYMOUS)) {
+      if (!c.has(Flags.LOCAL) && !c.has(Flags.ANONYMOUS) || c.has(Flags.STATIC)) {
         staticOnly = true;
       }
       first = false;
@@ -243,10 +332,30 @@ final class Calls {
     for (List<MethodSymbol> tier : List.of(moduleCands, imported, onDemand)) {
       if (!tier.isEmpty()) {
         List<ArgInfo> infos = prepare(args);
-        Selected sel = select(tier, null, infos, explicitTypeArgs(typeArgs), pt, null, span, name, tier == onDemand || tier == imported);
+        Selected sel =
+            select(
+                tier,
+                null,
+                infos,
+                explicitTypeArgs(typeArgs),
+                pt,
+                null,
+                span,
+                name,
+                tier == onDemand || tier == imported);
         if (sel == null && tier == moduleCands && (!imported.isEmpty() || !onDemand.isEmpty())) {
           // A module function with the same name but different parameters: fall back to imports.
-          Selected again = select(imported.isEmpty() ? onDemand : imported, null, infos, explicitTypeArgs(typeArgs), pt, null, span, name, false);
+          Selected again =
+              select(
+                  imported.isEmpty() ? onDemand : imported,
+                  null,
+                  infos,
+                  explicitTypeArgs(typeArgs),
+                  pt,
+                  null,
+                  span,
+                  name,
+                  false);
           if (again != null) {
             return finish(again, null, null, infos, span, false);
           }
@@ -264,11 +373,16 @@ final class Calls {
     }
     // A type name used like a call: `Point(1, 2)` -> hint at `new`.
     if (a.typeScope().find(name) instanceof dev.jsharp.compiler.resolve.TypeScope.FoundClass) {
-      a.report(a.err(Code.NOT_CALLABLE, nameSpan, "'" + name + "' is a type; use 'new " + name + "(...)' to create an instance"));
+      a.report(
+          a.err(
+              Code.NOT_CALLABLE,
+              nameSpan,
+              "'" + name + "' is a type; use 'new " + name + "(...)' to create an instance"));
       prepare(args);
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
-    Diagnostic.Builder d = a.err(Code.UNRESOLVED_NAME, nameSpan, "cannot find function '" + name + "'");
+    Diagnostic.Builder d =
+        a.err(Code.UNRESOLVED_NAME, nameSpan, "cannot find function '" + name + "'");
     Set<String> names = new LinkedHashSet<>();
     for (ClassSymbol c = env.cls; c != null; c = c.outer()) {
       for (MethodSymbol m : c.allMethods()) {
@@ -291,7 +405,14 @@ final class Calls {
   }
 
   /** {@code recv.name(args)}: members first, then extension methods. */
-  BExpr instanceCall(BExpr recv, String name, List<TypeNode> typeArgs, Span nameSpan, List<ArgInfo> infos, Type pt, Span span) {
+  BExpr instanceCall(
+      BExpr recv,
+      String name,
+      List<TypeNode> typeArgs,
+      Span nameSpan,
+      List<ArgInfo> infos,
+      Type pt,
+      Span span) {
     Type site = recv.type();
     if (site.isError()) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
@@ -306,7 +427,9 @@ final class Calls {
     // members are not callable on those receivers.
     boolean nullableRecv = site.isReference() && site.nullness() == Nullness.NULLABLE;
     if ((site instanceof PrimType || nullableRecv) && !extensions.isEmpty()) {
-      Selected sel = select(extensions, null, withReceiver(recv, infos), explicit, pt, recv, span, name, false);
+      Selected sel =
+          select(
+              extensions, null, withReceiver(recv, infos), explicit, pt, recv, span, name, false);
       if (sel != null) {
         return finish(sel, null, null, withReceiver(recv, infos), span, false);
       }
@@ -320,7 +443,8 @@ final class Calls {
     List<MethodSymbol> members = a.lookup.findMethods(memberSite, name);
     if (!members.isEmpty()) {
       Type captured = a.captureSite(memberSite);
-      Selected sel = select(members, captured, infos, explicit, pt, null, span, name, extensions.isEmpty());
+      Selected sel =
+          select(members, captured, infos, explicit, pt, null, span, name, extensions.isEmpty());
       if (sel != null) {
         a.checkReceiverNullness(memberRecv, nameSpan);
         if (sel.method.isStatic()) {
@@ -346,16 +470,30 @@ final class Calls {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     // No method: maybe a property holding a function value, e.g. `obj.handler(x)`.
-    if (a.lookup.findProperty(memberSite, name) != null || a.lookup.findField(memberSite, name) != null) {
+    if (a.lookup.findProperty(memberSite, name) != null
+        || a.lookup.findField(memberSite, name) != null) {
       BExpr f = a.member(recv, name, nameSpan, span);
       if (f.type() instanceof ClassType ct && types().findSam(ct.sym()) != null) {
         return invokeFunctionalPrepared(f, infos, span);
       }
-      a.error(Code.NOT_CALLABLE, nameSpan, "'" + name + "' is a " + (a.lookup.findProperty(memberSite, name) != null ? "property" : "field") + " of type " + f.type().display() + ", not a method");
+      a.error(
+          Code.NOT_CALLABLE,
+          nameSpan,
+          "'"
+              + name
+              + "' is a "
+              + (a.lookup.findProperty(memberSite, name) != null ? "property" : "field")
+              + " of type "
+              + f.type().display()
+              + ", not a method");
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     a.checkReceiverNullness(recv, nameSpan);
-    Diagnostic.Builder d = a.err(Code.UNRESOLVED_MEMBER, nameSpan, memberSite.withNullness(Nullness.NON_NULL).display() + " has no method '" + name + "'");
+    Diagnostic.Builder d =
+        a.err(
+            Code.UNRESOLVED_MEMBER,
+            nameSpan,
+            memberSite.withNullness(Nullness.NON_NULL).display() + " has no method '" + name + "'");
     String guess = Suggestions.closest(name, a.lookup.memberNames(memberSite));
     if (guess != null) {
       d.help("did you mean '" + guess + "'?");
@@ -371,7 +509,14 @@ final class Calls {
     return out;
   }
 
-  private BExpr staticCall(Type site, String name, List<TypeNode> typeArgs, Span nameSpan, List<Arg> args, Type pt, Span span) {
+  private BExpr staticCall(
+      Type site,
+      String name,
+      List<TypeNode> typeArgs,
+      Span nameSpan,
+      List<Arg> args,
+      Type pt,
+      Span span) {
     if (site.isError()) {
       prepare(args);
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
@@ -383,20 +528,35 @@ final class Calls {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     List<ArgInfo> infos = prepare(args);
-    Selected sel = select(cands, site, infos, explicitTypeArgs(typeArgs), pt, null, span, name, true);
+    Selected sel =
+        select(cands, site, infos, explicitTypeArgs(typeArgs), pt, null, span, name, true);
     if (sel == null) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     if (!sel.method.isStatic()) {
       // `Base.method()` from a subclass is not valid; instance methods need an instance.
       a.report(
-          a.err(Code.STATIC_CONTEXT, nameSpan, "'" + name + "' is an instance method of " + site.display() + "; call it on an instance"));
+          a.err(
+              Code.STATIC_CONTEXT,
+              nameSpan,
+              "'"
+                  + name
+                  + "' is an instance method of "
+                  + site.display()
+                  + "; call it on an instance"));
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     return finish(sel, null, site, infos, span, false);
   }
 
-  private BExpr superCall(Attr.SuperTarget s, String name, List<TypeNode> typeArgs, Span nameSpan, List<Arg> args, Type pt, Span span) {
+  private BExpr superCall(
+      Attr.SuperTarget s,
+      String name,
+      List<TypeNode> typeArgs,
+      Span nameSpan,
+      List<Arg> args,
+      Type pt,
+      Span span) {
     List<MethodSymbol> cands = new ArrayList<>(a.lookup.findMethods(s.superType(), name));
     // Default methods of directly implemented interfaces are callable through super as well.
     for (ClassType it : a.env.cls.interfaces()) {
@@ -412,12 +572,14 @@ final class Calls {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     List<ArgInfo> infos = prepare(args);
-    Selected sel = select(cands, s.superType(), infos, explicitTypeArgs(typeArgs), pt, null, span, name, true);
+    Selected sel =
+        select(cands, s.superType(), infos, explicitTypeArgs(typeArgs), pt, null, span, name, true);
     if (sel == null) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     if (sel.method.isAbstract()) {
-      a.error(Code.INVALID_THIS, nameSpan, "cannot call abstract method '" + name + "' through super");
+      a.error(
+          Code.INVALID_THIS, nameSpan, "cannot call abstract method '" + name + "' through super");
     }
     BExpr recv = new BExpr.This(a.env.cls.thisType(), s.span());
     return finish(sel, recv, s.superType(), infos, span, true);
@@ -427,12 +589,22 @@ final class Calls {
   private BExpr constructorChain(boolean isSuper, List<Arg> args, Span span) {
     Env env = a.env;
     if (!env.inConstructor || env.method == null || !env.method.isConstructor()) {
-      a.error(Code.INVALID_CONSTRUCTOR_CALL, span, "'" + (isSuper ? "super" : "this") + "(...)' can only be called at the start of a constructor");
+      a.error(
+          Code.INVALID_CONSTRUCTOR_CALL,
+          span,
+          "'"
+              + (isSuper ? "super" : "this")
+              + "(...)' can only be called at the start of a constructor");
       prepare(args);
       return new BExpr.Error(PrimType.VOID, span);
     }
     if (!env.beforeSuperCall) {
-      a.error(Code.INVALID_CONSTRUCTOR_CALL, span, "'" + (isSuper ? "super" : "this") + "(...)' must be the first statement of the constructor");
+      a.error(
+          Code.INVALID_CONSTRUCTOR_CALL,
+          span,
+          "'"
+              + (isSuper ? "super" : "this")
+              + "(...)' must be the first statement of the constructor");
     }
     ClassSymbol c = env.cls;
     ClassType target;
@@ -459,7 +631,17 @@ final class Calls {
     if (!isSuper) {
       ctors = ctors.stream().filter(k -> k != env.method).toList();
     }
-    Selected sel = select(ctors, target, infos, null, null, null, span, (isSuper ? "super" : "this") + " constructor of " + target.sym().name(), true);
+    Selected sel =
+        select(
+            ctors,
+            target,
+            infos,
+            null,
+            null,
+            null,
+            span,
+            (isSuper ? "super" : "this") + " constructor of " + target.sym().name(),
+            true);
     env.beforeSuperCall = false;
     if (sel == null) {
       return new BExpr.Error(PrimType.VOID, span);
@@ -487,12 +669,16 @@ final class Calls {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     if (!(f.type() instanceof ClassType ct) || types().findSam(ct.sym()) == null) {
-      a.error(Code.NOT_CALLABLE, f.span(), "a value of type " + f.type().display() + " cannot be called");
+      a.error(
+          Code.NOT_CALLABLE,
+          f.span(),
+          "a value of type " + f.type().display() + " cannot be called");
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     a.checkReceiverNullness(f, f.span());
     MethodSymbol sam = types().findSam(ct.sym());
-    Selected sel = select(List.of(sam), a.captureSite(ct), infos, null, null, null, span, sam.name(), true);
+    Selected sel =
+        select(List.of(sam), a.captureSite(ct), infos, null, null, null, span, sam.name(), true);
     if (sel == null) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
@@ -509,28 +695,48 @@ final class Calls {
     ClassSymbol c = ct.sym();
     List<ArgInfo> infos = prepare(args);
     List<MethodSymbol> ctors = c.methods(MethodSymbol.CONSTRUCTOR);
-    boolean infer = inferArgs && !c.typeParams().isEmpty() && (ct.args().isEmpty() || pt != null && ct.sym() == (pt instanceof ClassType pc ? pc.sym() : null));
+    boolean infer =
+        inferArgs
+            && !c.typeParams().isEmpty()
+            && (ct.args().isEmpty()
+                || pt != null && ct.sym() == (pt instanceof ClassType pc ? pc.sym() : null));
     ClassType site = infer ? c.thisType() : ct;
     Type expected = infer && pt != null ? pt.withNullness(Nullness.NON_NULL) : null;
-    if (infer && pt instanceof ClassType pc && pc.sym() == c && !pc.args().isEmpty()
+    if (infer
+        && pt instanceof ClassType pc
+        && pc.sym() == c
+        && !pc.args().isEmpty()
         && pc.args().stream().noneMatch(x -> x instanceof Type.WildcardType)) {
       // new() with a fully known target: no inference needed.
       site = pc.withNullness(Nullness.NON_NULL) instanceof ClassType x ? x : site;
       infer = false;
     }
-    Selected sel = selectCtor(ctors, site, infos, infer ? c.typeParams() : List.of(), expected, span, c.name());
+    Selected sel =
+        selectCtor(
+            ctors, site, infos, infer ? c.typeParams() : List.of(), expected, span, c.name());
     if (sel == null) {
       return new BExpr.Error(ct, span);
     }
-    ClassType created = infer ? (ClassType) Types.subst(c.thisType(), sel.solution) : (ClassType) site;
+    ClassType created = infer ? (ClassType) Types.subst(c.thisType(), sel.solution) : site;
     if (infer) {
       created = (ClassType) types().uncapture(created);
     }
     List<BExpr> finalArgs = finalArgs(sel, created, infos, span);
-    return new BExpr.New(created, sel.method, finalArgs, span);
+    BExpr result = new BExpr.New(created, sel.method, finalArgs, span);
+    if (infer && mentionsAny(c.thisType(), sel.defaultedVars)) {
+      a.flexibleResults.add(result);
+    }
+    return result;
   }
 
-  private Selected selectCtor(List<MethodSymbol> ctors, ClassType site, List<ArgInfo> infos, List<TypeVarSymbol> classVars, Type expected, Span span, String name) {
+  private Selected selectCtor(
+      List<MethodSymbol> ctors,
+      ClassType site,
+      List<ArgInfo> infos,
+      List<TypeVarSymbol> classVars,
+      Type expected,
+      Span span,
+      String name) {
     extraInferenceVars = classVars;
     extraExpected = expected;
     try {
@@ -557,16 +763,23 @@ final class Calls {
     MethodSymbol method;
     Phase phase;
     Map<TypeVarSymbol, Type> solution;
+
     /** For each parameter: the argument indices mapped to it (varargs may have several). */
     List<List<Integer>> mapping;
+
     List<Type> paramTypes;
     boolean usesDefaults;
     int defaultsUsed;
+    Set<TypeVarSymbol> defaultedVars = Set.of();
+
+    boolean isFlexible(Type ret, Infer probe) {
+      return false;
+    }
   }
 
   /**
-   * Selects the most specific applicable method, or reports why none applies (when {@code
-   * report}) and returns null.
+   * Selects the most specific applicable method, or reports why none applies (when {@code report})
+   * and returns null.
    *
    * @param extReceiver non-null when candidates are extension methods (argument 0 is the receiver)
    */
@@ -599,6 +812,10 @@ final class Calls {
       }
       if (!app.isEmpty()) {
         Selected best = mostSpecific(app, args);
+        if (best == null
+            && args.stream().anyMatch(x -> !x.deferred && x.type != null && x.type.isError())) {
+          return app.getFirst();
+        }
         if (best == null) {
           if (report) {
             reportAmbiguous(app, span, what);
@@ -613,15 +830,26 @@ final class Calls {
         a.error(
             Code.INACCESSIBLE_MEMBER,
             span,
-            inaccessible.kindName() + " " + inaccessible.signature() + " is " + Flags.access(inaccessible.flags()));
+            inaccessible.kindName()
+                + " "
+                + inaccessible.signature()
+                + " is "
+                + Flags.access(inaccessible.flags()));
       } else {
-        reportNotApplicable(accessible, site, args, explicit, expected, span, what, extReceiver != null);
+        reportNotApplicable(
+            accessible, site, args, explicit, expected, span, what, extReceiver != null);
       }
     }
     return null;
   }
 
-  private Selected tryApply(MethodSymbol m, Type site, List<ArgInfo> args, List<Type> explicit, Type expected, Phase phase) {
+  private Selected tryApply(
+      MethodSymbol m,
+      Type site,
+      List<ArgInfo> args,
+      List<Type> explicit,
+      Type expected,
+      Phase phase) {
     List<MethodSymbol.Param> params = m.params();
     int n = params.size();
     boolean varargs = phase == Phase.VARARGS && m.isVarargs();
@@ -697,6 +925,7 @@ final class Calls {
       ptypes.add(t);
     }
     Infer inf = vars.isEmpty() ? null : new Infer(types(), vars);
+    Set<TypeVarSymbol> defaulted = new java.util.HashSet<>();
     // ---- check / constrain arguments
     for (int p = 0; p < n; p++) {
       for (int idx : mapping.get(p)) {
@@ -708,6 +937,12 @@ final class Calls {
         if (arg.deferred) {
           if (!potentiallyCompatible(arg.expr, pt, inf)) {
             return null;
+          }
+          if (arg.polyCall && (inf == null || !inf.mentionsVars(pt))) {
+            final Type target = pt;
+            if (a.speculate(() -> a.exprCoerced(arg.expr, target)).hasErrors()) {
+              return null;
+            }
           }
           continue;
         }
@@ -723,7 +958,8 @@ final class Calls {
             inf.subtype(at, pt);
             continue;
           }
-          inf.subtype(phase == Phase.STRICT ? at : types().boxIfPrimitive(at), pt);
+          Type captured = arg.captured(types());
+          inf.subtype(phase == Phase.STRICT ? captured : types().boxIfPrimitive(captured), pt);
           if (inf.failed) {
             return null;
           }
@@ -734,24 +970,27 @@ final class Calls {
         }
       }
     }
-    Map<TypeVarSymbol, Type> solution = explicitMap != null ? new IdentityHashMap<>(explicitMap) : new IdentityHashMap<>();
+    Map<TypeVarSymbol, Type> solution =
+        explicitMap != null ? new IdentityHashMap<>(explicitMap) : new IdentityHashMap<>();
     if (inf != null) {
-      Type ret = Types.subst(m.returnType() == null ? Type.ErrorType.INSTANCE : m.returnType(), classSubst);
+      Type ret =
+          Types.subst(
+              m.returnType() == null ? Type.ErrorType.INSTANCE : m.returnType(), classSubst);
       if (explicitMap != null) {
         ret = Types.subst(ret, explicitMap);
       }
       Type exp = extraExpected != null ? extraExpected : expected;
       if (!extraInferenceVars.isEmpty() && exp != null && site instanceof ClassType) {
         inf.subtype(site, exp);
-      } else if (exp != null && exp != PrimType.VOID && !exp.isError() && inf.mentionsVars(ret)) {
-        Infer trial = copyInfer(inf, vars);
-        trial.subtype(ret, types().boxIfPrimitive(exp));
-        Map<TypeVarSymbol, Type> tsol = trial.solve(true);
-        if (trial.check(tsol)) {
-          inf.subtype(ret, types().boxIfPrimitive(exp));
-        }
+      } else if (exp != null
+          && exp.isReference()
+          && !exp.isError()
+          && inf.mentionsVars(ret)
+          && !(exp instanceof Type.TypeVar etv && etv.sym().isCaptured())) {
+        inf.subtype(ret, exp.withNullness(Nullness.NON_NULL));
       }
       // Lambdas: infer from their bodies once their parameter types are known.
+      Set<Expr> polyDone = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
       for (int round = 0; round < 3; round++) {
         Map<TypeVarSymbol, Type> partial = inf.solve(false);
         boolean added = false;
@@ -765,16 +1004,22 @@ final class Calls {
             if (varargs && p == n - 1 && pt instanceof Type.ArrayType at) {
               pt = at.elem();
             }
-            added |= constrainDeferred(arg.expr, pt, inf, partial);
+            added |= constrainDeferred(arg.expr, pt, inf, partial, polyDone);
           }
         }
         if (!added) {
           break;
         }
       }
+      Map<TypeVarSymbol, Type> solvedOnly = inf.solve(false);
       Map<TypeVarSymbol, Type> sol = inf.solve(true);
       if (!inf.check(sol)) {
         return null;
+      }
+      for (TypeVarSymbol v : vars) {
+        if (!solvedOnly.containsKey(v)) {
+          defaulted.add(v);
+        }
       }
       solution.putAll(sol);
       List<Type> inst = new ArrayList<>();
@@ -813,7 +1058,8 @@ final class Calls {
             Types.MethodType ft = types().functionType(fi);
             if (ft != null && ft.params().size() == lam.params().size()) {
               final ClassType fiF = fi;
-              Attr.Speculation<BExpr> s = a.speculate(() -> a.lambdaBody(lam, fiF, types().findSam(fiF.sym()), ft));
+              Attr.Speculation<BExpr> s =
+                  a.speculate(() -> a.lambdaBody(lam, fiF, types().findSam(fiF.sym()), ft));
               if (s.hasErrors()) {
                 return null;
               }
@@ -830,6 +1076,7 @@ final class Calls {
     s.paramTypes = ptypes;
     s.defaultsUsed = defaultsUsed;
     s.usesDefaults = defaultsUsed > 0;
+    s.defaultedVars = defaulted;
     return s;
   }
 
@@ -869,14 +1116,18 @@ final class Calls {
   }
 
   private boolean compatible(ArgInfo arg, Type pt, Phase phase) {
-    Types.Conv c = types().assignConversion(arg.type, pt, Attr.intConstant(arg.bound));
+    Types.Conv c = types().assignConversion(arg.captured(types()), pt, Attr.intConstant(arg.bound));
     boolean ok =
         switch (c) {
           case NONE -> false;
           case BOX, UNBOX -> phase != Phase.STRICT;
           default -> true;
         };
-    if (!ok && arg.expr != null && isRetargetable(arg.expr) && !pt.isError() && !(pt instanceof Type.TypeVar)) {
+    if (!ok
+        && arg.expr != null
+        && isRetargetable(arg.expr)
+        && !pt.isError()
+        && !(pt instanceof Type.TypeVar)) {
       final Type target = pt;
       Attr.Speculation<BExpr> s = a.speculate(() -> a.exprCoerced(arg.expr, target));
       return !s.hasErrors();
@@ -887,6 +1138,9 @@ final class Calls {
   private boolean potentiallyCompatible(Expr e, Type pt, Infer inf) {
     Expr u = unwrap(e);
     if (pt.isError()) {
+      return true;
+    }
+    if (isPolyCandidate(u) && !isDeferred(u)) {
       return true;
     }
     return switch (u) {
@@ -900,7 +1154,10 @@ final class Calls {
         Types.MethodType ft = types().functionType(types().nonWildcard(ct));
         yield ft != null && ft.params().size() == l.params().size();
       }
-      case Expr.MethodRef mr -> !(inf != null && inf.isVar(pt)) && pt instanceof ClassType ct && types().findSam(ct.sym()) != null;
+      case Expr.MethodRef mr ->
+          !(inf != null && inf.isVar(pt))
+              && pt instanceof ClassType ct
+              && types().findSam(ct.sym()) != null;
       case Expr.New nw -> pt instanceof ClassType;
       case Expr.ArrayInit ai -> pt instanceof Type.ArrayType;
       default -> true;
@@ -912,8 +1169,12 @@ final class Calls {
    * speculatively and constrains the function type's return type. Returns true if new bounds were
    * added.
    */
-  private boolean constrainDeferred(Expr e, Type pt, Infer inf, Map<TypeVarSymbol, Type> partial) {
+  private boolean constrainDeferred(
+      Expr e, Type pt, Infer inf, Map<TypeVarSymbol, Type> partial, Set<Expr> polyDone) {
     Expr u = unwrap(e);
+    if (isPolyCandidate(u) && !isDeferred(u)) {
+      return polyDone.add(u) && constrainPolyCall(u, pt, inf, partial);
+    }
     if (!(pt instanceof ClassType ct) || types().findSam(ct.sym()) == null) {
       return false;
     }
@@ -948,6 +1209,58 @@ final class Calls {
     int before = boundsCount(inf);
     inf.subtype(types().boxIfPrimitive(result), ft.ret());
     return boundsCount(inf) > before;
+  }
+
+  /** Types a poly call argument against the (partially inferred) parameter type. */
+  private boolean constrainPolyCall(Expr e, Type pt, Infer inf, Map<TypeVarSymbol, Type> partial) {
+    Type target = wildcardUnresolved(Types.subst(pt, partial), inf);
+    if (target == null) {
+      return false;
+    }
+    Attr.Speculation<BExpr> s = a.speculate(() -> a.value(e, target));
+    if (s.hasErrors() || s.result() == null) {
+      inf.failed = true;
+      return false;
+    }
+    Type t = s.result().type();
+    if (t instanceof ClassType ct) {
+      t = types().capture(ct);
+    }
+    int before = boundsCount(inf);
+    inf.subtype(types().boxIfPrimitive(t), pt);
+    return boundsCount(inf) > before;
+  }
+
+  /**
+   * Replaces inference variables in type-argument positions by wildcards; null if pt is a bare
+   * variable.
+   */
+  private Type wildcardUnresolved(Type t, Infer inf) {
+    if (inf.isVar(t)) {
+      return null;
+    }
+    if (t instanceof ClassType ct && !ct.args().isEmpty()) {
+      List<Type> args = new ArrayList<>();
+      for (Type x : ct.args()) {
+        if (inf.isVar(x)) {
+          args.add(new Type.WildcardType(Type.WildcardType.Kind.UNBOUNDED, null));
+        } else if (x instanceof Type.WildcardType w
+            && w.bound() != null
+            && inf.mentionsVars(w.bound())) {
+          args.add(new Type.WildcardType(Type.WildcardType.Kind.UNBOUNDED, null));
+        } else if (inf.mentionsVars(x)) {
+          Type inner = wildcardUnresolved(x, inf);
+          args.add(
+              inner == null
+                  ? new Type.WildcardType(Type.WildcardType.Kind.UNBOUNDED, null)
+                  : inner);
+        } else {
+          args.add(x);
+        }
+      }
+      return new ClassType(ct.sym(), args, ct.nullness());
+    }
+    return inf.mentionsVars(t) ? null : t;
   }
 
   private static int boundsCount(Infer inf) {
@@ -986,7 +1299,8 @@ final class Calls {
     if (fewer.size() == 1) {
       return fewer.getFirst();
     }
-    List<Selected> nonGeneric = fewer.stream().filter(s -> s.method.typeParams().isEmpty()).toList();
+    List<Selected> nonGeneric =
+        fewer.stream().filter(s -> s.method.typeParams().isEmpty()).toList();
     if (nonGeneric.size() == 1) {
       return nonGeneric.getFirst();
     }
@@ -1006,7 +1320,10 @@ final class Calls {
     return null;
   }
 
-  /** For lambdas with value-returning bodies, prefer {@code Callable}-like over {@code Runnable}-like targets. */
+  /**
+   * For lambdas with value-returning bodies, prefer {@code Callable}-like over {@code
+   * Runnable}-like targets.
+   */
   private List<Selected> preferValueReturningFunctional(List<Selected> cands, List<ArgInfo> args) {
     List<Selected> out = new ArrayList<>();
     for (Selected s : cands) {
@@ -1014,7 +1331,8 @@ final class Calls {
       for (int p = 0; p < s.mapping.size(); p++) {
         for (int idx : s.mapping.get(p)) {
           ArgInfo arg = args.get(idx);
-          if (arg.deferred && unwrap(arg.expr) instanceof Expr.Lambda lam
+          if (arg.deferred
+              && unwrap(arg.expr) instanceof Expr.Lambda lam
               && lam.body() instanceof dev.jsharp.compiler.ast.Body.ExprBody
               && s.paramTypes.get(p) instanceof ClassType ct) {
             Types.MethodType ft = types().functionType(types().nonWildcard(ct));
@@ -1032,7 +1350,10 @@ final class Calls {
   }
 
   private static String erasedParams(MethodSymbol m) {
-    return dev.jsharp.compiler.types.Descriptors.params(m.params().stream().map(p -> p.type() == null ? (Type) Type.ErrorType.INSTANCE : p.type().erasure()).toList());
+    return dev.jsharp.compiler.types.Descriptors.params(
+        m.params().stream()
+            .map(p -> p.type() == null ? (Type) Type.ErrorType.INSTANCE : p.type().erasure())
+            .toList());
   }
 
   private boolean moreSpecific(Selected s1, Selected s2, List<ArgInfo> args) {
@@ -1062,8 +1383,12 @@ final class Calls {
         }
         return false;
       }
-      if (args.get(i).deferred && t1 instanceof ClassType c1 && t2 instanceof ClassType c2
-          && types().findSam(c1.sym()) != null && types().findSam(c2.sym()) != null && c1.sym() != c2.sym()
+      if (args.get(i).deferred
+          && t1 instanceof ClassType c1
+          && t2 instanceof ClassType c2
+          && types().findSam(c1.sym()) != null
+          && types().findSam(c2.sym()) != null
+          && c1.sym() != c2.sym()
           && !types().isSubtype(t1, t2)) {
         continue; // unrelated functional interfaces: decided by lambda compatibility instead
       }
@@ -1078,7 +1403,9 @@ final class Calls {
     for (int p = 0; p < s.mapping.size(); p++) {
       if (s.mapping.get(p).contains(argIndex)) {
         Type t = s.paramTypes.get(p);
-        if (s.phase == Phase.VARARGS && p == s.mapping.size() - 1 && t instanceof Type.ArrayType at) {
+        if (s.phase == Phase.VARARGS
+            && p == s.mapping.size() - 1
+            && t instanceof Type.ArrayType at) {
           return at.elem();
         }
         return t;
@@ -1099,9 +1426,28 @@ final class Calls {
   }
 
   private void reportNotApplicable(
-      List<MethodSymbol> cands, Type site, List<ArgInfo> args, List<Type> explicit, Type expected, Span span, String what, boolean isExtension) {
+      List<MethodSymbol> cands,
+      Type site,
+      List<ArgInfo> args,
+      List<Type> explicit,
+      Type expected,
+      Span span,
+      String what,
+      boolean isExtension) {
     if (args.stream().anyMatch(x -> !x.deferred && x.type.isError())) {
       return; // an argument already has an error
+    }
+    if (cands.size() != 1) {
+      boolean reported = false;
+      for (ArgInfo x : args) {
+        if (x.polyCall && x.type == null) {
+          a.value(x.expr, null); // its own errors are the real problem
+          reported = true;
+        }
+      }
+      if (reported) {
+        return;
+      }
     }
     if (cands.size() == 1) {
       explainSingle(cands.getFirst(), site, args, explicit, span, isExtension);
@@ -1117,7 +1463,10 @@ final class Calls {
     }
     argDesc.append(')');
     Diagnostic.Builder d =
-        a.err(Code.NO_APPLICABLE_METHOD, span, "no overload of '" + what + "' accepts arguments " + argDesc);
+        a.err(
+            Code.NO_APPLICABLE_METHOD,
+            span,
+            "no overload of '" + what + "' accepts arguments " + argDesc);
     int shown = 0;
     for (MethodSymbol m : cands) {
       if (shown++ < 5) {
@@ -1137,7 +1486,13 @@ final class Calls {
   }
 
   /** Explains precisely why the only candidate does not apply. */
-  private void explainSingle(MethodSymbol m, Type site, List<ArgInfo> args, List<Type> explicit, Span span, boolean isExtension) {
+  private void explainSingle(
+      MethodSymbol m,
+      Type site,
+      List<ArgInfo> args,
+      List<Type> explicit,
+      Span span,
+      boolean isExtension) {
     List<MethodSymbol.Param> params = m.params();
     int offset = isExtension ? 1 : 0;
     long positional = args.stream().filter(x -> x.name == null).count();
@@ -1146,21 +1501,48 @@ final class Calls {
     for (ArgInfo x : args) {
       if (x.name != null && params.stream().noneMatch(p -> p.name().equals(x.name))) {
         a.report(
-            a.err(Code.INVALID_NAMED_ARGUMENT, x.span, m.signature() + " has no parameter named '" + x.name + "'")
-                .help("parameters: " + String.join(", ", params.subList(offset, params.size()).stream().map(MethodSymbol.Param::name).toList())));
+            a.err(
+                    Code.INVALID_NAMED_ARGUMENT,
+                    x.span,
+                    m.signature() + " has no parameter named '" + x.name + "'")
+                .help(
+                    "parameters: "
+                        + String.join(
+                            ", ",
+                            params.subList(offset, params.size()).stream()
+                                .map(MethodSymbol.Param::name)
+                                .toList())));
         return;
       }
     }
     if (!hasNamed && (positional > params.size() && !m.isVarargs() || positional < required)) {
       a.report(
           a.err(
-                  Code.ARGUMENT_COUNT,
-                  span,
-                  (m.isConstructor() ? "constructor " : "") + m.signature() + " takes " + (params.size() - offset) + " argument" + (params.size() - offset == 1 ? "" : "s") + ", but " + (positional - offset) + " " + (positional - offset == 1 ? "was" : "were") + " given"));
+              Code.ARGUMENT_COUNT,
+              span,
+              (m.isConstructor() ? "constructor " : "")
+                  + m.signature()
+                  + " takes "
+                  + (params.size() - offset)
+                  + " argument"
+                  + (params.size() - offset == 1 ? "" : "s")
+                  + ", but "
+                  + (positional - offset)
+                  + " "
+                  + (positional - offset == 1 ? "was" : "were")
+                  + " given"));
       return;
     }
     if (explicit != null && explicit.size() != m.typeParams().size()) {
-      a.error(Code.WRONG_TYPE_ARG_COUNT, span, m.signature() + " has " + m.typeParams().size() + " type parameter(s), but " + explicit.size() + " type argument(s) were given");
+      a.error(
+          Code.WRONG_TYPE_ARG_COUNT,
+          span,
+          m.signature()
+              + " has "
+              + m.typeParams().size()
+              + " type parameter(s), but "
+              + explicit.size()
+              + " type argument(s) were given");
       return;
     }
     // Find the first mismatching argument (after a best-effort inference).
@@ -1173,7 +1555,8 @@ final class Calls {
       for (int i = 0; i < Math.min(args.size(), params.size()); i++) {
         ArgInfo x = args.get(i);
         if (!x.deferred && x.name == null) {
-          inf.subtype(types().boxIfPrimitive(x.type), Types.subst(params.get(i).type(), classSubst));
+          inf.subtype(
+              types().boxIfPrimitive(x.type), Types.subst(params.get(i).type(), classSubst));
         }
       }
       sol.putAll(inf.solve(true));
@@ -1194,13 +1577,21 @@ final class Calls {
         continue;
       }
       Type pt = Types.subst(Types.subst(params.get(pi).type(), classSubst), sol);
-      if (m.isVarargs() && pi == params.size() - 1 && pt instanceof Type.ArrayType at
+      if (m.isVarargs()
+          && pi == params.size() - 1
+          && pt instanceof Type.ArrayType at
           && (x.deferred || !(x.type instanceof Type.ArrayType))) {
         pt = at.elem();
       }
       if (x.deferred) {
         if (!potentiallyCompatible(x.expr, pt, null)) {
-          a.report(a.err(Code.LAMBDA_MISMATCH, x.span, describeDeferred(x.expr) + " is not compatible with parameter type " + pt.display()));
+          a.report(
+              a.err(
+                  Code.LAMBDA_MISMATCH,
+                  x.span,
+                  describeDeferred(x.expr)
+                      + " is not compatible with parameter type "
+                      + pt.display()));
           return;
         }
         // Report the lambda's own errors against the expected type.
@@ -1209,7 +1600,17 @@ final class Calls {
       }
       if (types().assignConversion(x.type, pt, Attr.intConstant(x.bound)) == Types.Conv.NONE) {
         String which = i - offset < 0 ? "receiver" : "argument " + (i - offset + 1);
-        Diagnostic.Builder d = a.err(Code.TYPE_MISMATCH, x.span, which + " of " + m.signature() + ": expected " + pt.display() + ", found " + x.type.display());
+        Diagnostic.Builder d =
+            a.err(
+                Code.TYPE_MISMATCH,
+                x.span,
+                which
+                    + " of "
+                    + m.signature()
+                    + ": expected "
+                    + pt.display()
+                    + ", found "
+                    + x.type.display());
         if (isRetargetable(x.expr)) {
           final Type target = pt;
           Attr.Speculation<BExpr> s = a.speculate(() -> a.exprCoerced(x.expr, target));
@@ -1221,12 +1622,17 @@ final class Calls {
         return;
       }
     }
-    a.report(a.err(Code.CANNOT_INFER, span, "cannot infer type arguments for " + m.signature() + " from these arguments"));
+    a.report(
+        a.err(
+            Code.CANNOT_INFER,
+            span,
+            "cannot infer type arguments for " + m.signature() + " from these arguments"));
   }
 
   // ------------------------------------------------------------------ finishing a call
 
-  BExpr finish(Selected sel, BExpr recv, Type site, List<ArgInfo> args, Span span, boolean isSpecial) {
+  BExpr finish(
+      Selected sel, BExpr recv, Type site, List<ArgInfo> args, Span span, boolean isSpecial) {
     MethodSymbol m = sel.method;
     a.checkDeprecated(m, span);
     List<BExpr> finalArgs = finalArgs(sel, site, args, span);
@@ -1241,21 +1647,46 @@ final class Calls {
     }
     Type t = Types.subst(Types.subst(ret, siteSubst(site, m)), sel.solution);
     t = types().uncapture(t);
-    if (m.name().equals("getClass") && m.params().isEmpty() && recv != null && m.owner() == a.syms.objectSym()) {
-      t = a.syms.classType(new Type.WildcardType(Type.WildcardType.Kind.EXTENDS, recv.type().erasure()));
+    if (m.name().equals("getClass")
+        && m.params().isEmpty()
+        && recv != null
+        && m.owner() == a.syms.objectSym()) {
+      t =
+          a.syms.classType(
+              new Type.WildcardType(Type.WildcardType.Kind.EXTENDS, recv.type().erasure()));
     }
     if (m.isAbstract() && isSpecial && !m.isConstructor()) {
-      a.error(Code.INVALID_THIS, span, "cannot call abstract method " + m.signature() + " directly");
+      a.error(
+          Code.INVALID_THIS, span, "cannot call abstract method " + m.signature() + " directly");
     }
     BExpr.CallKind kind = isSpecial ? BExpr.CallKind.SPECIAL : Attr.callKind(m, recv, false);
     if (m.isStatic()) {
       kind = BExpr.CallKind.STATIC;
       recv = null;
     }
-    return new BExpr.Call(recv, m, finalArgs, kind, t, span);
+    BExpr result = new BExpr.Call(recv, m, finalArgs, kind, t, span);
+    if (mentionsAny(ret, sel.defaultedVars)) {
+      a.flexibleResults.add(result);
+    }
+    return result;
   }
 
-  /** Converts arguments to the instantiated parameter types, packing varargs and filling defaults. */
+  private static boolean mentionsAny(Type t, Set<TypeVarSymbol> vars) {
+    if (vars.isEmpty() || t == null) {
+      return false;
+    }
+    return switch (t) {
+      case Type.TypeVar v -> vars.contains(v.sym());
+      case ClassType c -> c.args().stream().anyMatch(x -> mentionsAny(x, vars));
+      case Type.ArrayType arr -> mentionsAny(arr.elem(), vars);
+      case Type.WildcardType w -> w.bound() != null && mentionsAny(w.bound(), vars);
+      default -> false;
+    };
+  }
+
+  /**
+   * Converts arguments to the instantiated parameter types, packing varargs and filling defaults.
+   */
   private List<BExpr> finalArgs(Selected sel, Type site, List<ArgInfo> args, Span span) {
     MethodSymbol m = sel.method;
     List<MethodSymbol.Param> params = m.params();
@@ -1265,13 +1696,19 @@ final class Calls {
       List<Integer> mapped = sel.mapping.get(p);
       boolean varargsSlot = sel.phase == Phase.VARARGS && p == params.size() - 1;
       if (varargsSlot) {
-        Type.ArrayType at = (Type.ArrayType) (pt instanceof Type.ArrayType x ? x : Type.ArrayType.of(Type.ErrorType.INSTANCE));
+        Type.ArrayType at =
+            pt instanceof Type.ArrayType x ? x : Type.ArrayType.of(Type.ErrorType.INSTANCE);
         List<BExpr> elems = new ArrayList<>();
         for (int idx : mapped) {
           elems.add(finalArg(args.get(idx), at.elem()));
         }
         Type elemErased = at.elem() instanceof Type.TypeVar ? at.elem().erasure() : at.elem();
-        out.add(new BExpr.NewArray(Type.ArrayType.of(elemErased.withNullness(at.elem().nullness())), List.of(), elems, span));
+        out.add(
+            new BExpr.NewArray(
+                Type.ArrayType.of(elemErased.withNullness(at.elem().nullness())),
+                List.of(),
+                elems,
+                span));
         continue;
       }
       if (mapped.isEmpty()) {
@@ -1285,13 +1722,21 @@ final class Calls {
 
   private BExpr finalArg(ArgInfo arg, Type pt) {
     if (arg.deferred) {
-      return a.coerce(a.expr(arg.expr, pt), pt, arg.span);
+      Type target = arg.polyCall ? types().uncapture(pt) : pt;
+      return a.coerce(a.expr(arg.expr, target), target, arg.span);
     }
-    if (arg.expr != null && isRetargetable(arg.expr) && !arg.type.isError()
-        && types().assignConversion(arg.type, pt, Attr.intConstant(arg.bound)) == Types.Conv.NONE) {
+    Type cap = arg.captured(types());
+    if (arg.expr != null
+        && isRetargetable(arg.expr)
+        && !arg.type.isError()
+        && types().assignConversion(cap, pt, Attr.intConstant(arg.bound)) == Types.Conv.NONE) {
       return a.exprCoerced(arg.expr, pt, arg.span);
     }
-    return a.coerce(arg.bound, pt, arg.span);
+    BExpr b = arg.bound;
+    if (cap != arg.type) {
+      b = new BExpr.Conv(b, BExpr.ConvKind.RETYPE, cap, b.span());
+    }
+    return a.coerce(b, pt, arg.span);
   }
 
   /** The constant value of a defaulted parameter as a bound constant. */
@@ -1348,8 +1793,12 @@ final class Calls {
       }
       if (!e.type().isError()) {
         a.report(
-            a.err(Code.INVALID_DEFAULT_ARGUMENT, param.defaultExpr().span(), "default value of '" + param.name() + "' must be a compile-time constant")
-                .help("use a literal, a constant, or null; compute other values inside the method"));
+            a.err(
+                    Code.INVALID_DEFAULT_ARGUMENT,
+                    param.defaultExpr().span(),
+                    "default value of '" + param.name() + "' must be a compile-time constant")
+                .help(
+                    "use a literal, a constant, or null; compute other values inside the method"));
       }
       return INVALID;
     } finally {
@@ -1447,29 +1896,52 @@ final class Calls {
         return new BExpr.Error(fi, span);
       }
       if (t instanceof Type.ArrayType at) {
-        if (!mr.name().equals("new") || ft.params().size() != 1 || types().primitiveView(ft.params().getFirst()) != PrimType.INT) {
-          a.error(Code.LAMBDA_MISMATCH, span, "array constructor reference " + at.display() + "::new needs a function from int to an array");
+        if (!mr.name().equals("new")
+            || ft.params().size() != 1
+            || types().primitiveView(ft.params().getFirst()) != PrimType.INT) {
+          a.error(
+              Code.LAMBDA_MISMATCH,
+              span,
+              "array constructor reference "
+                  + at.display()
+                  + "::new needs a function from int to an array");
           return new BExpr.Error(fi, span);
         }
         checkRefReturn(at, ft, span);
         return new BExpr.MethodRef(fi, sam, null, BExpr.RefKind.ARRAY_CONSTRUCTOR, null, at, span);
       }
       if (!(t instanceof ClassType ct)) {
-        a.error(Code.LAMBDA_MISMATCH, span, "cannot create a reference to a constructor of " + t.display());
+        a.error(
+            Code.LAMBDA_MISMATCH,
+            span,
+            "cannot create a reference to a constructor of " + t.display());
         return new BExpr.Error(fi, span);
       }
       if (ct.sym().isAbstract() || ct.sym().isInterface()) {
-        a.error(Code.ABSTRACT_INSTANTIATION, span, "cannot reference the constructor of abstract type " + ct.display());
+        a.error(
+            Code.ABSTRACT_INSTANTIATION,
+            span,
+            "cannot reference the constructor of abstract type " + ct.display());
         return new BExpr.Error(fi, span);
       }
       boolean infer = !ct.sym().typeParams().isEmpty() && ct.args().isEmpty();
-      Selected sel = selectCtor(ct.sym().methods(MethodSymbol.CONSTRUCTOR), infer ? ct.sym().thisType() : ct, argTypes, infer ? ct.sym().typeParams() : List.of(), null, span, ct.sym().name());
+      Type expectedRet = ft.ret() == PrimType.VOID || !ft.ret().isReference() ? null : ft.ret();
+      Selected sel =
+          selectCtor(
+              ct.sym().methods(MethodSymbol.CONSTRUCTOR),
+              infer ? ct.sym().thisType() : ct,
+              argTypes,
+              infer ? ct.sym().typeParams() : List.of(),
+              expectedRet,
+              span,
+              ct.sym().name());
       if (sel == null) {
         return new BExpr.Error(fi, span);
       }
       ClassType created = infer ? (ClassType) Types.subst(ct.sym().thisType(), sel.solution) : ct;
       checkRefReturn(created, ft, span);
-      return new BExpr.MethodRef(fi, sam, sel.method, BExpr.RefKind.CONSTRUCTOR, null, created, span);
+      return new BExpr.MethodRef(
+          fi, sam, sel.method, BExpr.RefKind.CONSTRUCTOR, null, created, span);
     }
     Attr.Target target = a.target(mr.target(), true);
     switch (target) {
@@ -1481,14 +1953,36 @@ final class Calls {
         List<MethodSymbol> all = a.lookup.findMethods(site, mr.name());
         List<MethodSymbol> statics = all.stream().filter(MethodSymbol::isStatic).toList();
         List<MethodSymbol> instances = all.stream().filter(x -> !x.isStatic()).toList();
-        Selected st = statics.isEmpty() ? null : select(statics, site, argTypes, null, null, null, span, mr.name(), false);
+        Selected st =
+            statics.isEmpty()
+                ? null
+                : select(statics, site, argTypes, null, null, null, span, mr.name(), false);
         Selected un = null;
-        if (!instances.isEmpty() && !ft.params().isEmpty() && types().isSubtype(types().boxIfPrimitive(ft.params().getFirst()), site)) {
+        if (!instances.isEmpty()
+            && !ft.params().isEmpty()
+            && types().isSubtype(types().boxIfPrimitive(ft.params().getFirst()), site)) {
           Type recvType = ft.params().getFirst();
-          un = select(instances, a.captureSite(recvType instanceof PrimType p ? a.syms.boxed(p) : recvType), argTypes.subList(1, argTypes.size()), null, null, null, span, mr.name(), false);
+          un =
+              select(
+                  instances,
+                  a.captureSite(recvType instanceof PrimType p ? a.syms.boxed(p) : recvType),
+                  argTypes.subList(1, argTypes.size()),
+                  null,
+                  null,
+                  null,
+                  span,
+                  mr.name(),
+                  false);
         }
         if (st != null && un != null) {
-          a.error(Code.AMBIGUOUS_CALL, span, "method reference " + site.display() + "::" + mr.name() + " is ambiguous (both a static and an instance method apply)");
+          a.error(
+              Code.AMBIGUOUS_CALL,
+              span,
+              "method reference "
+                  + site.display()
+                  + "::"
+                  + mr.name()
+                  + " is ambiguous (both a static and an instance method apply)");
           return new BExpr.Error(fi, span);
         }
         if (st != null) {
@@ -1498,7 +1992,11 @@ final class Calls {
         }
         if (un != null) {
           Type recvType = ft.params().getFirst();
-          Type ret = Types.subst(Types.subst(un.method.returnType(), siteSubst(a.captureSite(recvType), un.method)), un.solution);
+          Type ret =
+              Types.subst(
+                  Types.subst(
+                      un.method.returnType(), siteSubst(a.captureSite(recvType), un.method)),
+                  un.solution);
           checkRefReturn(types().uncapture(ret), ft, span);
           return new BExpr.MethodRef(fi, sam, un.method, BExpr.RefKind.UNBOUND, null, ret, span);
         }
@@ -1516,12 +2014,20 @@ final class Calls {
         a.checkReceiverNullness(recv, mr.target().span());
         Type site = a.captureSite(recv.type());
         List<MethodSymbol> all = a.lookup.findMethods(site, mr.name());
-        Selected sel = all.isEmpty() ? null : select(all, site, argTypes, null, null, null, span, mr.name(), false);
+        Selected sel =
+            all.isEmpty()
+                ? null
+                : select(all, site, argTypes, null, null, null, span, mr.name(), false);
         if (sel == null) {
           reportRefMismatch(recv.type(), mr.name(), all, ft, span);
           return new BExpr.Error(fi, span);
         }
-        Type ret = types().uncapture(Types.subst(Types.subst(sel.method.returnType(), siteSubst(site, sel.method)), sel.solution));
+        Type ret =
+            types()
+                .uncapture(
+                    Types.subst(
+                        Types.subst(sel.method.returnType(), siteSubst(site, sel.method)),
+                        sel.solution));
         checkRefReturn(ret, ft, span);
         if (sel.method.isStatic()) {
           return new BExpr.MethodRef(fi, sam, sel.method, BExpr.RefKind.STATIC, null, ret, span);
@@ -1529,7 +2035,10 @@ final class Calls {
         return new BExpr.MethodRef(fi, sam, sel.method, BExpr.RefKind.BOUND, recv, ret, span);
       }
       case Attr.SuperTarget s -> {
-        a.error(Code.UNSUPPORTED_FEATURE, span, "'super::method' references are not supported; use a lambda");
+        a.error(
+            Code.UNSUPPORTED_FEATURE,
+            span,
+            "'super::method' references are not supported; use a lambda");
         return new BExpr.Error(fi, span);
       }
       case Attr.PackageTarget p -> {
@@ -1553,15 +2062,28 @@ final class Calls {
       return;
     }
     if (ret == PrimType.VOID) {
-      a.error(Code.LAMBDA_MISMATCH, span, "the referenced method returns void, but a value of type " + ft.ret().display() + " is expected");
+      a.error(
+          Code.LAMBDA_MISMATCH,
+          span,
+          "the referenced method returns void, but a value of type "
+              + ft.ret().display()
+              + " is expected");
       return;
     }
     if (types().assignConversion(ret, ft.ret(), null) == Types.Conv.NONE) {
-      a.error(Code.LAMBDA_MISMATCH, span, "the referenced method returns " + ret.display() + ", but " + ft.ret().display() + " is expected");
+      a.error(
+          Code.LAMBDA_MISMATCH,
+          span,
+          "the referenced method returns "
+              + ret.display()
+              + ", but "
+              + ft.ret().display()
+              + " is expected");
     }
   }
 
-  private void reportRefMismatch(Type site, String name, List<MethodSymbol> all, Types.MethodType ft, Span span) {
+  private void reportRefMismatch(
+      Type site, String name, List<MethodSymbol> all, Types.MethodType ft, Span span) {
     if (all.isEmpty()) {
       a.reportNoMember(site, name, span);
       return;
@@ -1574,7 +2096,17 @@ final class Calls {
       sb.append(ft.params().get(i).display());
     }
     sb.append(')');
-    a.error(Code.LAMBDA_MISMATCH, span, "no method " + site.display() + "::" + name + " is compatible with " + sb + " -> " + ft.ret().display());
+    a.error(
+        Code.LAMBDA_MISMATCH,
+        span,
+        "no method "
+            + site.display()
+            + "::"
+            + name
+            + " is compatible with "
+            + sb
+            + " -> "
+            + ft.ret().display());
   }
 
   /** Result type of a method reference given parameter types (for inference), or null. */
@@ -1587,9 +2119,22 @@ final class Calls {
                 argTypes.add(ArgInfo.ofType(p, mr.span()));
               }
               if (mr.name().equals("new")) {
-                Type t = mr.typeTarget() != null ? a.resolveType(mr.typeTarget()) : typeOfTarget(mr.target());
-                if (t instanceof ClassType ct && !ct.sym().typeParams().isEmpty() && ct.args().isEmpty()) {
-                  Selected sel = selectCtor(ct.sym().methods(MethodSymbol.CONSTRUCTOR), ct.sym().thisType(), argTypes, ct.sym().typeParams(), null, mr.span(), ct.sym().name());
+                Type t =
+                    mr.typeTarget() != null
+                        ? a.resolveType(mr.typeTarget())
+                        : typeOfTarget(mr.target());
+                if (t instanceof ClassType ct
+                    && !ct.sym().typeParams().isEmpty()
+                    && ct.args().isEmpty()) {
+                  Selected sel =
+                      selectCtor(
+                          ct.sym().methods(MethodSymbol.CONSTRUCTOR),
+                          ct.sym().thisType(),
+                          argTypes,
+                          ct.sym().typeParams(),
+                          null,
+                          mr.span(),
+                          ct.sym().name());
                   return sel == null ? null : Types.subst(ct.sym().thisType(), sel.solution);
                 }
                 return t;
@@ -1598,15 +2143,40 @@ final class Calls {
               if (target instanceof Attr.TypeTarget tt) {
                 for (MethodSymbol m : a.lookup.findMethods(tt.type(), mr.name())) {
                   if (m.isStatic() && m.params().size() == ps.size()) {
-                    Selected sel = select(List.of(m), tt.type(), argTypes, null, null, null, mr.span(), mr.name(), false);
+                    Selected sel =
+                        select(
+                            List.of(m),
+                            tt.type(),
+                            argTypes,
+                            null,
+                            null,
+                            null,
+                            mr.span(),
+                            mr.name(),
+                            false);
                     if (sel != null) {
                       return Types.subst(m.returnType(), sel.solution);
                     }
                   } else if (!m.isStatic() && m.params().size() == ps.size() - 1 && !ps.isEmpty()) {
                     Type recvType = types().boxIfPrimitive(ps.getFirst());
-                    Selected sel = select(List.of(m), a.captureSite(recvType), argTypes.subList(1, argTypes.size()), null, null, null, mr.span(), mr.name(), false);
+                    Selected sel =
+                        select(
+                            List.of(m),
+                            a.captureSite(recvType),
+                            argTypes.subList(1, argTypes.size()),
+                            null,
+                            null,
+                            null,
+                            mr.span(),
+                            mr.name(),
+                            false);
                     if (sel != null) {
-                      return types().uncapture(Types.subst(Types.subst(m.returnType(), siteSubst(a.captureSite(recvType), m)), sel.solution));
+                      return types()
+                          .uncapture(
+                              Types.subst(
+                                  Types.subst(
+                                      m.returnType(), siteSubst(a.captureSite(recvType), m)),
+                                  sel.solution));
                     }
                   }
                 }
@@ -1615,8 +2185,18 @@ final class Calls {
               if (target instanceof Attr.ValueTarget v) {
                 Type site = a.captureSite(types().boxIfPrimitive(v.expr().type()));
                 List<MethodSymbol> all = a.lookup.findMethods(site, mr.name());
-                Selected sel = all.isEmpty() ? null : select(all, site, argTypes, null, null, null, mr.span(), mr.name(), false);
-                return sel == null ? null : types().uncapture(Types.subst(Types.subst(sel.method.returnType(), siteSubst(site, sel.method)), sel.solution));
+                Selected sel =
+                    all.isEmpty()
+                        ? null
+                        : select(
+                            all, site, argTypes, null, null, null, mr.span(), mr.name(), false);
+                return sel == null
+                    ? null
+                    : types()
+                        .uncapture(
+                            Types.subst(
+                                Types.subst(sel.method.returnType(), siteSubst(site, sel.method)),
+                                sel.solution));
               }
               return null;
             });

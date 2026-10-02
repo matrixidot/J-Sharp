@@ -1,0 +1,28 @@
+public sealed interface Shape;
+public record Circle(double r) : Shape;
+public record Square(double s) : Shape;
+public enum Color { Red, Green, Blue }
+
+double area(Shape s) => s switch {           //~ JS0650
+    Circle c => c.r,
+};
+String name(Color c) => c switch {           //~ JS0650
+    Color.Red => "r",
+};
+String any(Object o) => o switch {           //~ JS0650
+    String s => s,
+};
+String dup(int x) => x switch {
+    1 => "a",
+    1 => "b",                                //~ JS0652
+    _ => "c",
+};
+String dominated(Object o) => o switch {
+    Object x => "any",
+    String s => "never",                     //~ JS0652
+};
+boolean never(String s) => s is Integer;     //~ JS0651
+String? maybe() => null;
+String nul(String? s) => s switch {          //~ JS0650
+    String t => t,
+};

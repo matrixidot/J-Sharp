@@ -91,6 +91,9 @@ public final class MemberEnter implements ClassSymbol.Completer {
       c.setSuperclass(ctx.syms.objectType());
       return;
     }
+    if (c.has(Flags.ANONYMOUS)) {
+      return; // supertypes are set by the checker from the 'new' expression
+    }
     Decl.TypeDecl decl = c.decl();
     List<TypeVarSymbol> tvs = TypeResolver.declare(decl.typeParams(), c);
     c.setTypeParams(tvs);
@@ -340,7 +343,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
       if (!hasCtor && decl.header() == null) {
         addGeneratedCtor(c, Flags.PRIVATE, List.of());
       }
-    } else if (decl.kind() == Decl.TypeKind.CLASS && !hasCtor) {
+    } else if (decl.kind() == Decl.TypeKind.CLASS && !hasCtor && !c.has(Flags.ANONYMOUS)) {
       long access = c.flags() & (Flags.PUBLIC | Flags.PROTECTED | Flags.PRIVATE);
       if (c.isAbstract() && Flags.is(access, Flags.PUBLIC)) {
         access = Flags.PROTECTED;
@@ -1007,7 +1010,8 @@ public final class MemberEnter implements ClassSymbol.Completer {
             "record components cannot have default values, 'this' or 'params'");
       }
       Type t = resolver.resolve(p.type(), scope);
-      FieldSymbol f = new FieldSymbol(p.name(), c, Flags.PRIVATE | Flags.FINAL, t);
+      FieldSymbol f =
+          new FieldSymbol(p.name(), c, Flags.PRIVATE | Flags.FINAL | Flags.BACKING_FIELD, t);
       c.addField(f);
       c.addRecordComponent(f);
       MethodSymbol accessor = null;
@@ -1025,7 +1029,8 @@ public final class MemberEnter implements ClassSymbol.Completer {
         accessor = null; // explicitly declared accessor is entered with the other methods
       }
       PropertySymbol ps = new PropertySymbol(p.name(), c, Flags.PUBLIC, t);
-      ps.setAccessors(accessor, null, null);
+      ps.setAccessors(accessor, null, f);
+      f.setProperty(ps);
       if (accessor != null) {
         accessor.setProperty(ps);
       }
@@ -1039,7 +1044,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
       if (ps.getter() == null) {
         for (MethodSymbol m : c.methods(ps.name())) {
           if (m.params().isEmpty()) {
-            ps.setAccessors(m, null, null);
+            ps.setAccessors(m, null, ps.backingField());
             m.setProperty(ps);
             if (!m.has(Flags.PUBLIC)) {
               ctx.report(

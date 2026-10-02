@@ -1,0 +1,46 @@
+public class Final { }
+public open class Base {
+    public void fixed() { }
+    public open void hook() { }
+}
+public class Sub : Base {
+    public void hook() { }                   //~ JS0617
+    public override void fixed() { }         //~ JS0619
+    public override void missing() { }       //~ JS0618
+}
+public interface Shape { double area(); }
+public class Square : Shape { }              //~ JS0620
+public class Person {
+    public String name { get; }
+    public int age { get; init; }
+    public required String id { get; init; }
+}
+void main2() {
+    var p = new Person { id = "x" };
+    p.name = "Bob";                          //~ JS0609
+    p.age = 3;                               //~ JS0628
+    var q = new Person();                    //~ JS0629
+    var s = new Shape();                     //~ JS0613
+    var b = new Base();
+    b.nothing();                             //~ JS0603
+    var c = new Base(1);                     //~ JS0614
+}
+public open class NoDefault {
+    public NoDefault(int x) { }
+}
+public class Child : NoDefault {             //~ JS0630
+}
+public open class OpenNoDefault {
+    public OpenNoDefault(int x) { }
+}
+public class Child2 : OpenNoDefault {
+    public Child2() { }                      //~ JS0630
+}
+public class Fields {
+    private final int x;                     //~ JS0907
+}
+public class Fields2 {
+    private final int y;
+    public Fields2() { }                     //~ JS0907
+    public Fields2(int v) { y = v; }
+}

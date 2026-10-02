@@ -101,7 +101,20 @@ final class Lookup {
         if (m.isConstructor()) {
           continue;
         }
-        String key = Descriptors.params(m.params().stream().map(p -> p.type() == null ? (Type) Type.ErrorType.INSTANCE : p.type().erasure()).toList());
+        // Compare signatures as seen from the site, so String.compareTo(String) overrides
+        // Comparable<String>.compareTo(T).
+        ClassType owner = types.asSuper(site, c);
+        Map<dev.jsharp.compiler.symbols.TypeVarSymbol, Type> subst =
+            owner == null || owner.isRaw() ? Map.of() : types.typeArgMap(owner);
+        String key =
+            Descriptors.params(
+                m.params().stream()
+                    .map(
+                        p ->
+                            p.type() == null
+                                ? (Type) Type.ErrorType.INSTANCE
+                                : Types.subst(p.type(), subst).erasure())
+                    .toList());
         // The hierarchy is ordered most-derived first (superclasses before interfaces), so the
         // first declaration of a signature is the one that overrides the others.
         bySig.putIfAbsent(key, m);
@@ -128,8 +141,11 @@ final class Lookup {
     String cap = Character.toUpperCase(name.charAt(0)) + name.substring(1);
     for (String candidate : List.of("get" + cap, "is" + cap)) {
       for (MethodSymbol m : findMethods(site, candidate)) {
-        if (m.params().isEmpty() && m.typeParams().isEmpty() && m.returnType() != Type.PrimType.VOID) {
-          if (candidate.startsWith("is") && types.primitiveView(m.returnType()) != Type.PrimType.BOOLEAN) {
+        if (m.params().isEmpty()
+            && m.typeParams().isEmpty()
+            && m.returnType() != Type.PrimType.VOID) {
+          if (candidate.startsWith("is")
+              && types.primitiveView(m.returnType()) != Type.PrimType.BOOLEAN) {
             continue;
           }
           return m;
@@ -212,7 +228,9 @@ final class Lookup {
     if (Flags.is(f, Flags.PROTECTED) && from != null) {
       for (ClassSymbol c = from; c != null; c = c.outer()) {
         if (isSubclass(c, owner)) {
-          if (member.isStatic() || site == null || member instanceof MethodSymbol m && m.isConstructor()) {
+          if (member.isStatic()
+              || site == null
+              || member instanceof MethodSymbol m && m.isConstructor()) {
             return true;
           }
           // JVM protected access: the receiver must be the accessing class or a subclass of it.

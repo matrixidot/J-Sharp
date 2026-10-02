@@ -73,7 +73,7 @@ final class Infer {
       bounds.get(((TypeVar) s).sym()).upper.add(t);
       return;
     }
-    if (!mentionsVars(t)) {
+    if (!mentionsVars(t) && !mentionsVars(s)) {
       return; // checked later by the caller with plain subtyping
     }
     switch (t) {
@@ -90,7 +90,8 @@ final class Infer {
         for (int i = 0; i < tc.args().size() && i < sup.args().size(); i++) {
           Type ta = tc.args().get(i);
           Type sa = sup.args().get(i);
-          TypeParam.Variance v = i < tps.size() ? tps.get(i).variance() : TypeParam.Variance.INVARIANT;
+          TypeParam.Variance v =
+              i < tps.size() ? tps.get(i).variance() : TypeParam.Variance.INVARIANT;
           if (ta instanceof WildcardType w) {
             switch (w.kind()) {
               case EXTENDS -> subtype(upper(sa), w.bound());
@@ -159,7 +160,10 @@ final class Infer {
       bounds.get(((TypeVar) a).sym()).eq.add(types.boxIfPrimitive(b));
       return;
     }
-    if (a instanceof ClassType ac && b instanceof ClassType bc && ac.sym() == bc.sym() && ac.args().size() == bc.args().size()) {
+    if (a instanceof ClassType ac
+        && b instanceof ClassType bc
+        && ac.sym() == bc.sym()
+        && ac.args().size() == bc.args().size()) {
       for (int i = 0; i < ac.args().size(); i++) {
         Type x = ac.args().get(i);
         Type y = bc.args().get(i);
@@ -177,8 +181,8 @@ final class Infer {
   }
 
   /**
-   * Solves the constraints. Unconstrained variables default to their (substituted) first bound
-   * when {@code defaultUnconstrained}, else stay unsolved (absent from the map).
+   * Solves the constraints. Unconstrained variables default to their (substituted) first bound when
+   * {@code defaultUnconstrained}, else stay unsolved (absent from the map).
    */
   Map<TypeVarSymbol, Type> solve(boolean defaultUnconstrained) {
     Map<TypeVarSymbol, Type> sol = new IdentityHashMap<>();

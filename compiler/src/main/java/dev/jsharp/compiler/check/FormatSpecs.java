@@ -5,8 +5,8 @@ import java.util.regex.Pattern;
 
 /**
  * Translates interpolation format specifiers to {@link java.util.Formatter} patterns. Accepts the
- * common .NET standard numeric formats ({@code F2}, {@code N0}, {@code D5}, {@code X8}, {@code
- * E3}, {@code P1}, {@code G}) and raw Java specs starting with {@code %} (e.g. {@code %08.3f}).
+ * common .NET standard numeric formats ({@code F2}, {@code N0}, {@code D5}, {@code X8}, {@code E3},
+ * {@code P1}, {@code G}) and raw Java specs starting with {@code %} (e.g. {@code %08.3f}).
  */
 final class FormatSpecs {
   private FormatSpecs() {}
@@ -38,10 +38,14 @@ final class FormatSpecs {
     return switch (Character.toUpperCase(k)) {
       case 'F' -> new Translation("%." + (n == null ? 2 : n) + "f", Domain.FLOATING, false);
       case 'N' -> new Translation("%,." + (n == null ? 2 : n) + "f", Domain.FLOATING, false);
-      case 'E' -> new Translation("%." + (n == null ? 6 : n) + (k == 'e' ? "e" : "E"), Domain.FLOATING, false);
+      case 'E' ->
+          new Translation(
+              "%." + (n == null ? 6 : n) + (k == 'e' ? "e" : "E"), Domain.FLOATING, false);
       case 'P' -> new Translation("%." + (n == null ? 2 : n) + "f%%", Domain.FLOATING, true);
       case 'D' -> new Translation(n == null ? "%d" : "%0" + n + "d", Domain.INTEGRAL, false);
-      case 'X' -> new Translation((n == null ? "%" : "%0" + n) + (k == 'x' ? "x" : "X"), Domain.INTEGRAL, false);
+      case 'X' ->
+          new Translation(
+              (n == null ? "%" : "%0" + n) + (k == 'x' ? "x" : "X"), Domain.INTEGRAL, false);
       case 'G' -> new Translation("%s", Domain.ANY, false);
       default -> null;
     };

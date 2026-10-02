@@ -131,9 +131,18 @@ final class Stmts {
     if (prev == null && env().scope.lookup(name) != null) {
       prev = env().scope.lookup(name).var();
     }
+    // A pattern binding that is not definitely assigned here is out of (flow) scope: reusable.
+    if (prev != null
+        && prev.kind() == VarSymbol.Kind.PATTERN
+        && !env().flow.assigned.get(prev.id())) {
+      prev = null;
+    }
     if (prev != null) {
       a.report(
-          a.err(Code.DUPLICATE_VARIABLE, span, "variable '" + name + "' is already defined in this scope")
+          a.err(
+                  Code.DUPLICATE_VARIABLE,
+                  span,
+                  "variable '" + name + "' is already defined in this scope")
               .note("previous declaration", a.file(), prev.span()));
     }
   }
@@ -177,15 +186,26 @@ final class Stmts {
       }
     } else if (declared == null) {
       a.report(
-          a.err(Code.CANNOT_INFER, d.nameSpan(), "'" + (kind == LocalKind.VAL ? "val" : "var") + " " + d.name() + "' needs an initializer")
+          a.err(
+                  Code.CANNOT_INFER,
+                  d.nameSpan(),
+                  "'"
+                      + (kind == LocalKind.VAL ? "val" : "var")
+                      + " "
+                      + d.name()
+                      + "' needs an initializer")
               .help("write the type explicitly, e.g. 'int " + d.name() + ";'"));
       type = Type.ErrorType.INSTANCE;
     }
-    VarSymbol v = declare(d.name(), type, isVal ? Flags.FINAL : 0, VarSymbol.Kind.LOCAL, d.nameSpan());
+    VarSymbol v =
+        declare(d.name(), type, isVal ? Flags.FINAL : 0, VarSymbol.Kind.LOCAL, d.nameSpan());
     if (init != null) {
       env().flow.assigned.set(v.id());
-      if (type.isReference() && type.nullness() != Nullness.NON_NULL && init.type().isReference()
-          && init.type().nullness() == Nullness.NON_NULL && !(init.type() instanceof Type.NullType)) {
+      if (type.isReference()
+          && type.nullness() != Nullness.NON_NULL
+          && init.type().isReference()
+          && init.type().nullness() == Nullness.NON_NULL
+          && !(init.type() instanceof Type.NullType)) {
         env().flow.narrowed.put(v, type.withNullness(Nullness.NON_NULL));
       }
     }
@@ -196,12 +216,18 @@ final class Stmts {
     Type t = init.type();
     if (t instanceof Type.NullType) {
       a.report(
-          a.err(Code.CANNOT_INFER, d.nameSpan(), "cannot infer the type of '" + d.name() + "' from null")
+          a.err(
+                  Code.CANNOT_INFER,
+                  d.nameSpan(),
+                  "cannot infer the type of '" + d.name() + "' from null")
               .help("declare the type: 'String? " + d.name() + " = null;'"));
       return Type.ErrorType.INSTANCE;
     }
     if (t == PrimType.VOID) {
-      a.error(Code.VOID_VALUE, d.init().span(), "cannot assign a void expression to '" + d.name() + "'");
+      a.error(
+          Code.VOID_VALUE,
+          d.init().span(),
+          "cannot assign a void expression to '" + d.name() + "'");
       return Type.ErrorType.INSTANCE;
     }
     if (t instanceof Type.NeverType) {
@@ -220,7 +246,10 @@ final class Stmts {
       case Expr.Await aw -> true;
       case Expr.Throw t -> true;
       case Expr.Unary u ->
-          u.op() == Expr.UnaryOp.PRE_INC || u.op() == Expr.UnaryOp.PRE_DEC || u.op() == Expr.UnaryOp.POST_INC || u.op() == Expr.UnaryOp.POST_DEC;
+          u.op() == Expr.UnaryOp.PRE_INC
+              || u.op() == Expr.UnaryOp.PRE_DEC
+              || u.op() == Expr.UnaryOp.POST_INC
+              || u.op() == Expr.UnaryOp.POST_DEC;
       case Expr.Member m -> m.nullSafe() && false;
       case Expr.Error err -> true;
       default -> false;
@@ -233,8 +262,14 @@ final class Stmts {
     BExpr b = a.expr(e, null);
     if (!ok && !b.type().isError()) {
       a.report(
-          a.err(Code.NOT_A_STATEMENT, e.span(), "this expression has no effect and cannot be used as a statement")
-              .help(e instanceof Expr.Binary bin && bin.op() == Expr.BinaryOp.EQ ? "did you mean '=' (assignment) instead of '=='?" : null));
+          a.err(
+                  Code.NOT_A_STATEMENT,
+                  e.span(),
+                  "this expression has no effect and cannot be used as a statement")
+              .help(
+                  e instanceof Expr.Binary bin && bin.op() == Expr.BinaryOp.EQ
+                      ? "did you mean '=' (assignment) instead of '=='?"
+                      : null));
     }
     if (b.type() instanceof Type.NeverType) {
       env().flow.alive = false;
@@ -270,8 +305,12 @@ final class Stmts {
           x -> {
             if (x instanceof Expr.Assign as && as.target() instanceof Expr.Name nm) {
               names.add(nm.name());
-            } else if (x instanceof Expr.Unary u && u.operand() instanceof Expr.Name nm
-                && (u.op() == Expr.UnaryOp.PRE_INC || u.op() == Expr.UnaryOp.PRE_DEC || u.op() == Expr.UnaryOp.POST_INC || u.op() == Expr.UnaryOp.POST_DEC)) {
+            } else if (x instanceof Expr.Unary u
+                && u.operand() instanceof Expr.Name nm
+                && (u.op() == Expr.UnaryOp.PRE_INC
+                    || u.op() == Expr.UnaryOp.PRE_DEC
+                    || u.op() == Expr.UnaryOp.POST_INC
+                    || u.op() == Expr.UnaryOp.POST_DEC)) {
               names.add(nm.name());
             }
             return true;
@@ -378,7 +417,8 @@ final class Stmts {
 
   private BStmt forUpdateStmt(Expr e) {
     if (!isStatementExpression(e)) {
-      a.error(Code.NOT_A_STATEMENT, e.span(), "this expression cannot be used in a for-loop header");
+      a.error(
+          Code.NOT_A_STATEMENT, e.span(), "this expression cannot be used in a for-loop header");
     }
     return new BStmt.ExprStmt(a.expr(e, null), e.span());
   }
@@ -397,8 +437,16 @@ final class Stmts {
       }
       if (elem == null) {
         a.report(
-            a.err(Code.NOT_ITERABLE, f.iterable().span(), "foreach needs an array or an Iterable, found " + it.display())
-                .help(a.types.isSubclassOf(it, "java/util/stream/Stream") ? "use stream.toList() or iterate with forEach" : a.types.isSubclassOf(it, "java/util/Map") ? "iterate map.entrySet(), map.keySet() or map.values()" : null));
+            a.err(
+                    Code.NOT_ITERABLE,
+                    f.iterable().span(),
+                    "foreach needs an array or an Iterable, found " + it.display())
+                .help(
+                    a.types.isSubclassOf(it, "java/util/stream/Stream")
+                        ? "use stream.toList() or iterate with forEach"
+                        : a.types.isSubclassOf(it, "java/util/Map")
+                            ? "iterate map.entrySet(), map.keySet() or map.values()"
+                            : null));
         elem = Type.ErrorType.INSTANCE;
       }
     }
@@ -413,17 +461,36 @@ final class Stmts {
       List<BStmt> destructure = new ArrayList<>();
       boolean isVal = f.kind() == LocalKind.VAL;
       if (f.deconstruct() != null) {
-        var = env().newVar("$elem", elem, Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.FOREACH, f.span());
+        var =
+            env()
+                .newVar(
+                    "$elem", elem, Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.FOREACH, f.span());
         env().flow.assigned.set(var.id());
-        destructure.addAll(a.patterns.destructureInto(f.deconstruct(), new BExpr.Local(var, f.span()), f.kind(), f.span()));
+        destructure.addAll(
+            a.patterns.destructureInto(
+                f.deconstruct(), new BExpr.Local(var, f.span()), f.kind(), f.span()));
       } else {
         Type vt = elem;
         if (f.type() != null) {
           vt = a.resolveType(f.type());
-          if (!vt.isError() && !elem.isError() && a.types.assignConversion(elem, vt, null) == Types.Conv.NONE) {
-            a.error(Code.TYPE_MISMATCH, f.type().span(), "elements are " + elem.display() + ", which cannot be assigned to " + vt.display());
+          if (!vt.isError()
+              && !elem.isError()
+              && a.types.assignConversion(elem, vt, null) == Types.Conv.NONE) {
+            a.error(
+                Code.TYPE_MISMATCH,
+                f.type().span(),
+                "elements are " + elem.display() + ", which cannot be assigned to " + vt.display());
           } else if (!vt.isError() && !elem.isError() && !a.types.nullnessCompatible(elem, vt)) {
-            a.report(a.err(Code.NULLABILITY_MISMATCH, f.type().span(), "elements of type " + elem.display() + " may be null, but " + vt.display() + " is non-null").help("declare the loop variable as " + vt.display() + "?"));
+            a.report(
+                a.err(
+                        Code.NULLABILITY_MISMATCH,
+                        f.type().span(),
+                        "elements of type "
+                            + elem.display()
+                            + " may be null, but "
+                            + vt.display()
+                            + " is non-null")
+                    .help("declare the loop variable as " + vt.display() + "?"));
           }
         }
         var = declare(f.name(), vt, isVal ? Flags.FINAL : 0, VarSymbol.Kind.FOREACH, f.nameSpan());
@@ -447,7 +514,8 @@ final class Stmts {
   private BStmt labeled(Stmt.Labeled l) {
     for (Env.Jump j : env().jumps) {
       if (l.label().equals(j.name)) {
-        a.error(Code.DUPLICATE_VARIABLE, l.labelSpan(), "label '" + l.label() + "' is already in use");
+        a.error(
+            Code.DUPLICATE_VARIABLE, l.labelSpan(), "label '" + l.label() + "' is already in use");
       }
     }
     return switch (l.body()) {
@@ -483,7 +551,13 @@ final class Stmts {
       if (label != null) {
         a.error(Code.UNKNOWN_LABEL, span, "no enclosing statement is labeled '" + label + "'");
       } else {
-        a.error(Code.INVALID_JUMP, span, "'" + (isBreak ? "break" : "continue") + "' outside of a loop" + (isBreak ? " or switch" : ""));
+        a.error(
+            Code.INVALID_JUMP,
+            span,
+            "'"
+                + (isBreak ? "break" : "continue")
+                + "' outside of a loop"
+                + (isBreak ? " or switch" : ""));
       }
       env().flow.alive = false;
       return new BStmt.Empty(span);
@@ -525,9 +599,14 @@ final class Stmts {
     } else if (rt == PrimType.VOID) {
       BExpr v = a.expr(r.value(), null);
       if (!v.type().isError()) {
-        a.error(Code.TYPE_MISMATCH, r.value().span(), env.method != null && env.method.has(Flags.ENTRY_POINT) && env.lambda == null
-            ? "top-level statements cannot return a value"
-            : "a void " + (env.lambda != null ? "lambda" : "method") + " cannot return a value");
+        a.error(
+            Code.TYPE_MISMATCH,
+            r.value().span(),
+            env.method != null && env.method.has(Flags.ENTRY_POINT) && env.lambda == null
+                ? "top-level statements cannot return a value"
+                : "a void "
+                    + (env.lambda != null ? "lambda" : "method")
+                    + " cannot return a value");
       }
       value = null;
     } else {
@@ -549,9 +628,14 @@ final class Stmts {
     } else {
       BExpr v = a.value(t.value(), null);
       if (!v.type().isError() && !a.types.isSubtype(v.type(), a.syms.throwableType())) {
-        a.error(Code.TYPE_MISMATCH, t.value().span(), "can only throw Throwable values, found " + v.type().display());
+        a.error(
+            Code.TYPE_MISMATCH,
+            t.value().span(),
+            "can only throw Throwable values, found " + v.type().display());
       } else if (v.type().nullness() == Nullness.NULLABLE) {
-        a.report(a.err(Code.NULLABILITY_MISMATCH, t.value().span(), "thrown value may be null").help("use '!' if it cannot be null"));
+        a.report(
+            a.err(Code.NULLABILITY_MISMATCH, t.value().span(), "thrown value may be null")
+                .help("use '!' if it cannot be null"));
       }
       ex = v;
     }
@@ -584,24 +668,43 @@ final class Stmts {
               continue;
             }
             if (!(ct instanceof ClassType cct) || !a.types.isSubtype(ct, a.syms.throwableType())) {
-              a.error(Code.TYPE_MISMATCH, tn.span(), "can only catch Throwable types, found " + ct.display());
+              a.error(
+                  Code.TYPE_MISMATCH,
+                  tn.span(),
+                  "can only catch Throwable types, found " + ct.display());
               continue;
             }
             for (Type prev : seen) {
               if (a.types.isSubtype(ct, prev) && c.filter() == null) {
-                a.report(a.err(Code.UNREACHABLE_CODE, tn.span(), "this catch clause is unreachable: " + ct.display() + " is already caught by " + prev.display()));
+                a.report(
+                    a.err(
+                        Code.UNREACHABLE_CODE,
+                        tn.span(),
+                        "this catch clause is unreachable: "
+                            + ct.display()
+                            + " is already caught by "
+                            + prev.display()));
               }
             }
             caught.add(cct);
           }
-          varType = caught.isEmpty() ? Type.ErrorType.INSTANCE : caught.size() == 1 ? caught.getFirst() : a.types.lub(new ArrayList<>(caught));
+          varType =
+              caught.isEmpty()
+                  ? Type.ErrorType.INSTANCE
+                  : caught.size() == 1 ? caught.getFirst() : a.types.lub(new ArrayList<>(caught));
         }
         if (c.filter() == null) {
           seen.addAll(caught);
         }
         VarSymbol v = null;
         if (c.name() != null) {
-          v = declare(c.name(), varType, c.types().size() > 1 ? Flags.FINAL : 0, VarSymbol.Kind.CATCH, c.nameSpan());
+          v =
+              declare(
+                  c.name(),
+                  varType,
+                  c.types().size() > 1 ? Flags.FINAL : 0,
+                  VarSymbol.Kind.CATCH,
+                  c.nameSpan());
         } else {
           v = env().newVar("$caught", varType, Flags.SYNTHETIC, VarSymbol.Kind.CATCH, c.span());
         }
@@ -645,7 +748,10 @@ final class Stmts {
       BExpr init;
       if (u.resource() instanceof Stmt.LocalVar lv) {
         if (lv.vars().size() != 1) {
-          a.error(Code.UNSUPPORTED_FEATURE, lv.span(), "declare one resource per 'using'; nest them for several");
+          a.error(
+              Code.UNSUPPORTED_FEATURE,
+              lv.span(),
+              "declare one resource per 'using'; nest them for several");
         }
         BStmt.LocalDecl d = (BStmt.LocalDecl) localVarSingle(lv);
         res = d.var();
@@ -653,7 +759,14 @@ final class Stmts {
       } else {
         Stmt.ExprStmt es = (Stmt.ExprStmt) u.resource();
         init = a.value(es.expr(), null);
-        res = env().newVar("$resource", init.type(), Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.RESOURCE, es.span());
+        res =
+            env()
+                .newVar(
+                    "$resource",
+                    init.type(),
+                    Flags.FINAL | Flags.SYNTHETIC,
+                    VarSymbol.Kind.RESOURCE,
+                    es.span());
         env().flow.assigned.set(res.id());
       }
       checkCloseable(res.type(), u.resource().span());
@@ -675,7 +788,10 @@ final class Stmts {
       return;
     }
     if (!a.types.isSubclassOf(a.types.boxIfPrimitive(t), "java/lang/AutoCloseable")) {
-      a.error(Code.TYPE_MISMATCH, span, "'using' needs an AutoCloseable resource, found " + t.display());
+      a.error(
+          Code.TYPE_MISMATCH,
+          span,
+          "'using' needs an AutoCloseable resource, found " + t.display());
     }
   }
 
@@ -684,14 +800,18 @@ final class Stmts {
     BStmt.LocalDecl d = (BStmt.LocalDecl) localVarSingle(ud.decl());
     checkCloseable(d.var().type(), ud.span());
     List<BStmt> body = statements(rest, from);
-    Span bodySpan = body.isEmpty() ? ud.span() : new Span(ud.span().end(), body.getLast().span().end());
+    Span bodySpan =
+        body.isEmpty() ? ud.span() : new Span(ud.span().end(), body.getLast().span().end());
     return new BStmt.Using(d.var(), d.init(), new BStmt.Block(body, bodySpan), ud.span());
   }
 
   private BStmt lock(Stmt.Lock l) {
     BExpr m = a.value(l.monitor(), null);
     if (m.type() instanceof PrimType) {
-      a.error(Code.TYPE_MISMATCH, l.monitor().span(), "lock needs an object, found " + m.type().display());
+      a.error(
+          Code.TYPE_MISMATCH,
+          l.monitor().span(),
+          "lock needs an object, found " + m.type().display());
     } else if (!m.type().isError()) {
       a.checkReceiverNullness(m, l.monitor().span());
     }

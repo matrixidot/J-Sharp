@@ -14,13 +14,20 @@ import java.util.List;
  *     this(...)})
  * @param staticInit static field initializers and static blocks, in source order
  * @param nested local and anonymous classes created while checking this class's bodies
+ * @param bridges bridge methods needed because an override's erased signature differs from the
+ *     overridden method's
+ * @param captures local variables captured by a local/anonymous class (stored in synthetic fields)
+ * @param capturesOuterThis whether a local/anonymous class uses the enclosing instance
  */
 public record BClass(
     ClassSymbol sym,
     List<Method> methods,
     List<BStmt> instanceInit,
     List<BStmt> staticInit,
-    List<BClass> nested) {
+    List<BClass> nested,
+    List<Bridge> bridges,
+    List<VarSymbol> captures,
+    boolean capturesOuterThis) {
 
   /**
    * A method body.
@@ -29,4 +36,10 @@ public record BClass(
    * @param body the body, or null for abstract/native/generated methods
    */
   public record Method(MethodSymbol sym, List<VarSymbol> params, BStmt body, Span span) {}
+
+  /**
+   * A bridge: a synthetic method with the overridden method's erased signature that forwards to
+   * {@code target}.
+   */
+  public record Bridge(MethodSymbol target, MethodSymbol overridden) {}
 }

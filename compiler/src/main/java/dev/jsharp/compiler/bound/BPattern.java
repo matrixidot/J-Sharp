@@ -23,15 +23,20 @@ public sealed interface BPattern {
   record Relational(BExpr.BinOp op, BExpr value, Type operandType, Span span) implements BPattern {}
 
   /**
-   * Type test followed by subpatterns on accessors (positional = record components or
-   * deconstructor results; properties = getters).
+   * Type test followed by subpatterns on accessors (positional = record components or deconstructor
+   * results; properties = getters).
    *
    * @param type tested type (null when no test is needed)
    * @param accessors accessor per subpattern
    * @param subpatterns patterns for each accessor result
    */
   record Recursive(
-      Type type, List<MethodSymbol> accessors, List<Type> accessorTypes, List<BPattern> subpatterns, VarSymbol binding, Span span)
+      Type type,
+      List<MethodSymbol> accessors,
+      List<Type> accessorTypes,
+      List<BPattern> subpatterns,
+      VarSymbol binding,
+      Span span)
       implements BPattern {}
 
   record And(BPattern left, BPattern right, Span span) implements BPattern {}

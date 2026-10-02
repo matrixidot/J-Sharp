@@ -53,7 +53,8 @@ public sealed interface BExpr {
    * Method call. Arguments match the method's parameters one-to-one (varargs already packed,
    * defaults filled in). {@code type} is the instantiated return type.
    */
-  record Call(BExpr receiver, MethodSymbol method, List<BExpr> args, CallKind kind, Type type, Span span)
+  record Call(
+      BExpr receiver, MethodSymbol method, List<BExpr> args, CallKind kind, Type type, Span span)
       implements BExpr {}
 
   /** Object creation. */
@@ -63,10 +64,12 @@ public sealed interface BExpr {
   record MemberInit(Symbol member, BExpr value) {}
 
   /** {@code new T(...) { a = 1, b = 2 }}: evaluates {@code creation}, then the member inits. */
-  record ObjectInit(BExpr creation, List<MemberInit> inits, Type type, Span span) implements BExpr {}
+  record ObjectInit(BExpr creation, List<MemberInit> inits, Type type, Span span)
+      implements BExpr {}
 
   /** Array creation with dimension sizes or with elements (exactly one is non-empty). */
-  record NewArray(ArrayType type, List<BExpr> dims, List<BExpr> elems, Span span) implements BExpr {}
+  record NewArray(ArrayType type, List<BExpr> dims, List<BExpr> elems, Span span)
+      implements BExpr {}
 
   record ArrayElem(BExpr array, BExpr index, Type type, Span span) implements BExpr {}
 
@@ -107,7 +110,14 @@ public sealed interface BExpr {
     COND_OR;
 
     public boolean isComparison() {
-      return this == LT || this == GT || this == LE || this == GE || this == EQ || this == NE || this == REF_EQ || this == REF_NE;
+      return this == LT
+          || this == GT
+          || this == LE
+          || this == GE
+          || this == EQ
+          || this == NE
+          || this == REF_EQ
+          || this == REF_NE;
     }
   }
 
@@ -116,10 +126,12 @@ public sealed interface BExpr {
    *
    * @param checked use overflow-checked arithmetic ({@code Math.addExact} family)
    */
-  record Binary(BinOp op, BExpr left, BExpr right, Type type, boolean checked, Span span) implements BExpr {}
+  record Binary(BinOp op, BExpr left, BExpr right, Type type, boolean checked, Span span)
+      implements BExpr {}
 
   /** Null-safe value equality {@code Objects.equals(left, right)} (J# {@code ==} on references). */
-  record ValueEquals(BExpr left, BExpr right, boolean negate, Type type, Span span) implements BExpr {}
+  record ValueEquals(BExpr left, BExpr right, boolean negate, Type type, Span span)
+      implements BExpr {}
 
   record Assign(BLValue target, BExpr value, Type type, Span span) implements BExpr {}
 
@@ -128,11 +140,13 @@ public sealed interface BExpr {
    *
    * @param opType the operation type (after promotion)
    */
-  record CompoundAssign(BLValue target, BinOp op, BExpr value, Type opType, Type type, boolean checked, Span span)
+  record CompoundAssign(
+      BLValue target, BinOp op, BExpr value, Type opType, Type type, boolean checked, Span span)
       implements BExpr {}
 
   /** {@code ++x}, {@code x--}, ... */
-  record IncDec(BLValue target, boolean increment, boolean prefix, Type type, boolean checked, Span span)
+  record IncDec(
+      BLValue target, boolean increment, boolean prefix, Type type, boolean checked, Span span)
       implements BExpr {}
 
   /** Kinds of conversion. */
@@ -155,7 +169,8 @@ public sealed interface BExpr {
 
   record InstanceOf(BExpr expr, Type target, Type type, Span span) implements BExpr {}
 
-  record Conditional(BExpr cond, BExpr then, BExpr otherwise, Type type, Span span) implements BExpr {}
+  record Conditional(BExpr cond, BExpr then, BExpr otherwise, Type type, Span span)
+      implements BExpr {}
 
   /** String concatenation (via {@code StringConcatFactory}); parts are any types. */
   record Concat(List<BExpr> parts, Type type, Span span) implements BExpr {}
@@ -193,7 +208,14 @@ public sealed interface BExpr {
    *
    * @param receiver evaluated receiver for BOUND references, else null
    */
-  record MethodRef(ClassType type, MethodSymbol sam, MethodSymbol target, RefKind kind, BExpr receiver, Type refType, Span span)
+  record MethodRef(
+      ClassType type,
+      MethodSymbol sam,
+      MethodSymbol target,
+      RefKind kind,
+      BExpr receiver,
+      Type refType,
+      Span span)
       implements BExpr {}
 
   /** {@code typeof(T)}: a class literal. */
@@ -211,10 +233,11 @@ public sealed interface BExpr {
   record Throw(BExpr exception, Type type, Span span) implements BExpr {}
 
   /**
-   * {@code receiver?.rest}: evaluates the receiver once into {@code tmp}; yields null if it is null,
-   * else {@code whenPresent} (which refers to {@code tmp}).
+   * {@code receiver?.rest}: evaluates the receiver once into {@code tmp}; yields null if it is
+   * null, else {@code whenPresent} (which refers to {@code tmp}).
    */
-  record SafeAccess(BExpr receiver, VarSymbol tmp, BExpr whenPresent, Type type, Span span) implements BExpr {}
+  record SafeAccess(BExpr receiver, VarSymbol tmp, BExpr whenPresent, Type type, Span span)
+      implements BExpr {}
 
   /** {@code left ?? right}. */
   record Coalesce(BExpr left, BExpr right, Type type, Span span) implements BExpr {}

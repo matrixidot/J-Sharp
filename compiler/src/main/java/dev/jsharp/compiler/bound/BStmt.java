@@ -40,7 +40,8 @@ public sealed interface BStmt {
 
   record DoWhile(BStmt body, BExpr cond, Label label, Span span) implements BStmt {}
 
-  record For(List<BStmt> init, BExpr cond, List<BExpr> update, BStmt body, Label label, Span span) implements BStmt {}
+  record For(List<BStmt> init, BExpr cond, List<BExpr> update, BStmt body, Label label, Span span)
+      implements BStmt {}
 
   /**
    * foreach over an array or {@code Iterable}.
@@ -49,7 +50,13 @@ public sealed interface BStmt {
    * @param destructure statements run at the start of each iteration (deconstruction), or empty
    */
   record Foreach(
-      VarSymbol var, BExpr iterable, Type elementType, List<BStmt> destructure, BStmt body, Label label, Span span)
+      VarSymbol var,
+      BExpr iterable,
+      Type elementType,
+      List<BStmt> destructure,
+      BStmt body,
+      Label label,
+      Span span)
       implements BStmt {}
 
   /** A labeled non-loop statement ({@code break label} leaves it). */

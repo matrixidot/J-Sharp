@@ -20,8 +20,10 @@ final class Scope {
   final Boundary boundary;
   final Map<String, VarSymbol> vars = new LinkedHashMap<>();
   final Map<String, ClassSymbol> classes = new LinkedHashMap<>();
+
   /** For LAMBDA boundaries: the lambda frame collecting captures. */
   final LambdaFrame lambda;
+
   /** For CLASS boundaries: the local class whose body starts here. */
   final ClassSymbol localClass;
 

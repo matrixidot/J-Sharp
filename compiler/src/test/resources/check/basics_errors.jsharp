@@ -1,0 +1,25 @@
+int x = "hello";                 //~ JS0600
+String s = 5;                    //~ JS0600
+boolean b = 1;                   //~ JS0600
+int y = 3.5;                     //~ JS0600
+var z = undefinedName;           //~ JS0602
+println(nope(1));                //~ JS0602
+int big = 3000000000;            //~ JS0623
+var nothing = null;              //~ JS0616
+x + 1;                           //~ JS0621
+if (x) { }                       //~ JS0600
+var q = "a" - 1;                 //~ JS0607
+var r = true + 1;                //~ JS0607
+val k = 1;
+k = 2;                           //~ JS0903
+String t = s.lenght();           //~ JS0603
+var arr = new int[3];
+arr.length = 4;                  //~ JS0609
+int w;
+println(w);                      //~ JS0900
+void f() { return 1; }           //~ JS0600
+int g() { }                      //~ JS0902
+int h(int a) { if (a > 0) return 1; }  //~ JS0902
+var cmp = "a" == 1;              //~ JS0607
+println(Math.maxx(1, 2));        //~ JS0603
+println(Math.max("a", 1));       //~ JS0604
