@@ -70,6 +70,66 @@ public enum Code {
   MISSING_BODY(427, "missing body"),
   UNEXPECTED_BODY(428, "unexpected body"),
 
+  // ---- typing ----
+  TYPE_MISMATCH(600, "type mismatch"),
+  NULLABILITY_MISMATCH(601, "nullable value where a non-null value is required"),
+  UNRESOLVED_NAME(602, "cannot find symbol"),
+  UNRESOLVED_MEMBER(603, "no such member"),
+  NO_APPLICABLE_METHOD(604, "no applicable method"),
+  AMBIGUOUS_CALL(605, "ambiguous call"),
+  NOT_CALLABLE(606, "not callable"),
+  BAD_OPERANDS(607, "operator cannot be applied"),
+  NULLABLE_RECEIVER(608, "member access on a nullable value"),
+  NOT_ASSIGNABLE(609, "cannot assign"),
+  INVALID_CAST(610, "invalid cast"),
+  INACCESSIBLE_MEMBER(611, "member is not accessible"),
+  STATIC_CONTEXT(612, "instance member used in a static context"),
+  ABSTRACT_INSTANTIATION(613, "cannot instantiate abstract type"),
+  ARGUMENT_COUNT(614, "wrong number of arguments"),
+  LAMBDA_MISMATCH(615, "lambda or method reference not compatible with target"),
+  CANNOT_INFER(616, "cannot infer type"),
+  MISSING_OVERRIDE(617, "missing 'override'"),
+  NOTHING_TO_OVERRIDE(618, "nothing to override"),
+  CANNOT_OVERRIDE(619, "cannot override"),
+  ABSTRACT_NOT_IMPLEMENTED(620, "abstract member not implemented"),
+  NOT_A_STATEMENT(621, "expression is not a statement"),
+  VOID_VALUE(622, "void expression used as a value"),
+  LITERAL_OUT_OF_RANGE(623, "literal out of range"),
+  INVALID_NAMED_ARGUMENT(624, "invalid named argument"),
+  NOT_ITERABLE(626, "not iterable"),
+  INIT_ONLY_ASSIGNMENT(628, "init-only property assigned outside initialization"),
+  REQUIRED_MEMBER_MISSING(629, "required member not initialized"),
+  INVALID_CONSTRUCTOR_CALL(630, "invalid constructor call"),
+  CAPTURED_NOT_FINAL(631, "captured variable is not effectively final"),
+  REDUNDANT_NON_NULL_ASSERTION(633, "redundant non-null assertion"),
+  INVALID_THIS(635, "invalid use of this or super"),
+  RECURSIVE_INFERENCE(636, "type inference cycle"),
+  AWAIT_OUTSIDE_ASYNC(637, "await outside an async context"),
+  PLATFORM_NULLNESS(638, "member access on a value of unknown nullness"),
+  DEPRECATED(639, "use of deprecated API"),
+  INVALID_INTERPOLATION_FORMAT(640, "invalid interpolation format"),
+  NOT_EXHAUSTIVE(650, "switch is not exhaustive"),
+  INVALID_PATTERN(651, "invalid pattern"),
+  DUPLICATE_CASE(652, "duplicate or dominated case"),
+  INVALID_SWITCH(653, "invalid switch"),
+  INVALID_RANGE(654, "invalid range or index"),
+  INVALID_WITH(655, "invalid with expression"),
+  INVALID_TUPLE_USE(656, "invalid tuple operation"),
+  INVALID_ASYNC(657, "invalid async declaration"),
+  UNSUPPORTED_FEATURE(658, "feature not supported"),
+
+  // ---- flow ----
+  UNINITIALIZED_VARIABLE(900, "variable might not be initialized"),
+  UNREACHABLE_CODE(901, "unreachable code"),
+  MISSING_RETURN(902, "missing return"),
+  FINAL_REASSIGNED(903, "final variable assigned more than once"),
+  INVALID_JUMP(904, "break or continue outside a loop"),
+  UNKNOWN_LABEL(905, "unknown label"),
+  SWITCH_FALLTHROUGH(906, "switch section falls through"),
+  FINAL_FIELD_UNINITIALIZED(907, "final field not initialized"),
+  INVALID_RETHROW(908, "rethrow outside catch"),
+  DUPLICATE_VARIABLE(909, "variable already defined"),
+
   // ---- internal ----
   INTERNAL_ERROR(9000, "internal compiler error");
 
@@ -96,6 +156,9 @@ public enum Code {
   }
 
   public Severity defaultSeverity() {
-    return Severity.ERROR;
+    return switch (this) {
+      case REDUNDANT_NON_NULL_ASSERTION, PLATFORM_NULLNESS, DEPRECATED -> Severity.WARNING;
+      default -> Severity.ERROR;
+    };
   }
 }
