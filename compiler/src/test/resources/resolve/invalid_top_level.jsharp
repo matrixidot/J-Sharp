@@ -1,0 +1,2 @@
+public int counter { get; set; }
+int ok() => 1;

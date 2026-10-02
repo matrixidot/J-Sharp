@@ -1,0 +1,3 @@
+@file:ClassName(42)
+@file:Unknown("x")
+int f() => 1;

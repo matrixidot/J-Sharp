@@ -615,10 +615,6 @@ final class Calls {
     if (sel == null) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
-    if (sel.method.isAbstract()) {
-      a.error(
-          Code.INVALID_THIS, nameSpan, "cannot call abstract method '" + name + "' through super");
-    }
     BExpr recv = new BExpr.This(a.env.cls.thisType(), s.span());
     return finish(sel, recv, s.superType(), infos, span, true);
   }

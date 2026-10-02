@@ -127,3 +127,39 @@ Format: **decision** — reason. *Rejected:* alternatives.
   (calls typed `never`, e.g. Prelude `error()`).
 - **D037: Java-style generic methods** (`<T> T first(...)`) get a targeted error pointing to the
   J# order `T first<T>(...)`.
+
+## 2026-10-03 — M3 type checker
+
+- **D038: `override` is required for interface implementations too** (Kotlin rule), including in
+  anonymous classes. Catches signature typos; error JS0617 with a fix hint.
+- **D039: Smart casts apply to locals and parameters only** (not fields or properties, whose
+  values may change between the check and the use). Narrowing comes from `!= null`, `is T`, `!`,
+  early exits and assignments of non-null values.
+- **D040: Reachability follows Java**: unreachable code is an error (JS0901), but `if` ignores
+  constant conditions so `if (DEBUG)` works; definite assignment still uses constants.
+- **D041: Switch rules.** Statement sections may not fall through (JS0906, last section exempt). A
+  switch expression must be exhaustive (sealed hierarchies, enums, booleans, `_`), and a nullable
+  selector needs a `null` arm. In switch statements a null selector goes to `default`. Arms
+  dominated by earlier unguarded arms are errors (JS0652).
+- **D042: Generic calls as arguments are poly expressions** (simplified JLS 18): they are typed
+  against the selected overload's parameter type, so `collect(Collectors.toList())` and
+  `sort(Comparator.comparing(String::length))` infer like Java. Implicit lambdas are checked
+  speculatively per candidate overload.
+- **D043: `new()` with a collection *interface* target** (`List<String> xs = new();`, spec 3.4)
+  creates the default implementation: List/Collection/Iterable -> ArrayList, Map -> HashMap,
+  Set -> HashSet, Queue/Deque -> ArrayDeque, Sorted/Navigable -> TreeMap/TreeSet.
+- **D044: Private top-level declarations are file-private** (usable by any class in the file);
+  they compile to package-private members of the module class.
+- **D045: Parameter null checks at public entry points** use `Objects.requireNonNull` inside
+  public/protected methods of J# classes (Kotlin's approach). *Deviation:* the spec asks that
+  internal J# calls skip the check; doing that needs a second unchecked entry point per method,
+  which breaks overriding. The JIT removes the check when the argument is known non-null.
+- **D046: `==` on references** is `Objects.equals`, except for enums and `Class` which use
+  identity; comparing provably unrelated types (`"a" == 1`) is an error (always false).
+- **D047: Lambdas and local classes capture effectively-final locals only** (Java/javac shape).
+- **D048: Interpolation formats** accept .NET-style `F2 N0 D5 X8 E3 P1 G` plus raw Java specs
+  starting with `%`; formatting uses `Locale.ROOT` for reproducible output.
+- **D049: Tuples** compile to `jsharp.core.Tuple2..Tuple8` records with boxed elements; element
+  names exist only at compile time.
+- **D050: Exception filters** `catch (E e) when (c)` are compiled as a rethrow when `c` is false
+  (the JVM has no filters); observable only through `finally` ordering in nested handlers.

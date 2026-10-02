@@ -21,3 +21,9 @@
 - Tests: 16 golden resolution cases (symbol dumps + diagnostics, incl. multi-file), class-file loader tests against javac-compiled fixtures.
 - Deferred: override/implementation checks, type-argument bound checks and inferred member types (M3), annotation resolution for codegen (M4).
 - Known issues: compiles against the running JDK's class library (no `--release` ct.sym view).
+
+## M3 — Type checker (done)
+- Works: bidirectional checking to a typed bound tree: primitives/boxing/promotion, generics with bounds, declaration-site variance, wildcard capture, inference (incl. lambdas and poly call arguments), overloads with named/default/varargs args, extension methods, properties, records, enums, nullability with flow typing, definite (un)assignment, reachability, patterns with exhaustiveness/dominance, tuples, `with`, ranges, async/await typing, local and anonymous classes.
+- Tests: 114 checker files (~600 inline assertions: positive and negative) plus resolution goldens; every diagnostic code has a test (enforced by `DiagnosticCoverageTest`).
+- Deferred: list patterns (v0.2), `super::m` references, Java inner (non-static) class instantiation.
+- Known issues: inference is a pragmatic subset of JLS 18 (complex nested generic lambdas may need explicit types); smart casts do not apply to fields.

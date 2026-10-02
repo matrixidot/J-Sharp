@@ -134,7 +134,7 @@ final class Patterns {
         a.report(
             a.err(Code.UNSUPPORTED_FEATURE, span, "list patterns are planned for J# v0.2")
                 .help("use xs.size() and indexing for now"));
-        return new BPattern.Any(null, span);
+        return new BPattern.Constant(new BExpr.Error(Type.ErrorType.INSTANCE, span), span);
       }
       case Pattern.Slice s -> {
         a.error(Code.INVALID_PATTERN, span, "'..' is only valid inside a list pattern");

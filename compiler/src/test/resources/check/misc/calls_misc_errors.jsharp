@@ -1,0 +1,22 @@
+public class Overloads {
+    public static void f(Integer a, int b) { }
+    public static void f(int a, Integer b) { }
+}
+public record Point(int x, int y);
+public abstract class Shape {
+    public abstract double area();
+}
+public class Square : Shape {
+    public override double area() => super.area();   //~ JS0635
+    public static void s() { println(this); }        //~ JS0612
+}
+private loop(int x) => loop(x - 1);                  //~ JS0636
+int notAsync(java.util.concurrent.CompletableFuture<Integer> f) => await f;   //~ JS0637
+public async int wrong() => 1;                      //~ JS0657
+Overloads.f(1, 1);                                   //~ JS0605
+var p = Point(1, 2);                                 //~ JS0606
+int k = 5;
+k(1);                                                //~ JS0606
+var year = new java.util.Date().getYear();           //~ JS0639
+Object o = "x";
+if (o is [1, 2]) { }                                 //~ JS0658

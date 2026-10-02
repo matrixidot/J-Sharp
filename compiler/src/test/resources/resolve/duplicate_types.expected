@@ -1,0 +1,4 @@
+duplicate_types/B.jsharp:2:14 JS0400 duplicate class 'Shared'
+---
+class app/Shared : Object [public final]
+  method <init>(): void [public generated]

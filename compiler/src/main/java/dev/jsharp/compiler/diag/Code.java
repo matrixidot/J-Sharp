@@ -111,7 +111,6 @@ public enum Code {
   NOT_EXHAUSTIVE(650, "switch is not exhaustive"),
   INVALID_PATTERN(651, "invalid pattern"),
   DUPLICATE_CASE(652, "duplicate or dominated case"),
-  INVALID_SWITCH(653, "invalid switch"),
   INVALID_RANGE(654, "invalid range or index"),
   INVALID_WITH(655, "invalid with expression"),
   INVALID_TUPLE_USE(656, "invalid tuple operation"),

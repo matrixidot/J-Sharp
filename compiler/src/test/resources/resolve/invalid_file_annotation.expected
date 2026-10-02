@@ -1,0 +1,6 @@
+invalid_file_annotation.jsharp:1:1 JS0424 @ClassName needs one string argument that is a valid class name
+invalid_file_annotation.jsharp:2:1 JS0424 unknown file annotation @Unknown
+---
+class InvalidFileAnnotationModule : Object [public final module]
+  method f(): int [static]
+  method <init>(): void [private generated]
