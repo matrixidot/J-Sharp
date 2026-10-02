@@ -1,0 +1,116 @@
+import java.io.*;
+import java.util.*;
+
+int parseOr(String s, int fallback) {
+    try {
+        return Integer.parseInt(s);
+    } catch (NumberFormatException e) {
+        println(e.getMessage());
+        return fallback;
+    }
+}
+
+void multiCatch() {
+    try {
+        throw new IOException("io");
+    } catch (IOException | RuntimeException e) {
+        Exception common = e;
+        println(common.getMessage());
+    }
+}
+
+void filters(int code) {
+    try {
+        throw new IllegalStateException("x");
+    } catch (IllegalStateException e) when (code == 1) {
+        println("one");
+    } catch (IllegalStateException e) when (e.getMessage() == "x") {
+        println("x");
+    } catch (IllegalStateException e) {
+        println("other");
+    }
+}
+
+void catchAll() {
+    try {
+        println("work");
+    } catch {
+        println("anything");
+    }
+}
+
+void catchAllRethrow() {
+    try {
+        println("work");
+    } catch {
+        println("logging");
+        throw;
+    }
+}
+
+void rethrow() {
+    try {
+        println("work");
+    } catch (RuntimeException e) {
+        println("cleanup");
+        throw;
+    }
+}
+
+void rethrowWrapped() {
+    try {
+        throw new IOException("disk");
+    } catch (IOException e) {
+        throw new UncheckedIOException(e);
+    }
+}
+
+void noCheckedExceptions() {
+    // J# does not enforce checked exceptions: no catch or throws clause needed.
+    var reader = new FileReader("missing.txt");
+    reader.close();
+    Thread.sleep(1);
+}
+
+void finallyOnly() {
+    var lock = new Object();
+    try {
+        println(lock);
+    } finally {
+        println("always");
+    }
+}
+
+String nestedTry() {
+    try {
+        try {
+            return "inner";
+        } finally {
+            println("inner finally");
+        }
+    } catch (Exception e) {
+        return "outer";
+    } finally {
+        println("outer finally");
+    }
+}
+
+void catchTypeIsSmart() {
+    try {
+        println("x");
+    } catch (FileNotFoundException | UnsupportedOperationException e) {
+        Throwable t = e;
+        println(t);
+    } catch (Exception e) {
+        if (e is IOException io) {
+            println(io.getMessage());
+        }
+    }
+}
+
+void throwExpression(String? s) {
+    String nonNull = s ?? throw new IllegalArgumentException("s");
+    println(nonNull);
+}
+
+println(parseOr("12", 0));

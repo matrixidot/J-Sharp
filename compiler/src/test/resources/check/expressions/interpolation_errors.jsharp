@@ -1,0 +1,20 @@
+// Format specifiers must be known and match the hole's type.
+int n = 42;
+double d = 1.5;
+String s = "x";
+boolean flag = true;
+void nothing() { }
+
+String decimalOnDouble = $"{d:D5}";      //~ JS0640
+String hexOnDouble = $"{d:X}";           //~ JS0640
+String fixedOnString = $"{s:F2}";        //~ JS0640
+String groupedOnString = $"{s:N0}";      //~ JS0640
+String fixedOnBool = $"{flag:F2}";       //~ JS0640
+String hexOnString = $"{s:X4}";          //~ JS0640
+String unknownSpec = $"{n:Q}";           //~ JS0640
+String tooManyDigits = $"{n:D123}";      //~ JS0640
+String wordSpec = $"{n:yyyy}";           //~ JS0640
+String undefinedHole = $"{missing}";     //~ JS0602
+String voidHole = $"{nothing()}";        //~ JS0622
+int notAString = $"{n}";                 //~ JS0600
+String fine = $"{n:D5} {d:F2} {s}";

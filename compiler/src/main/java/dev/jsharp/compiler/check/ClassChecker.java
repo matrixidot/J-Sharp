@@ -365,13 +365,13 @@ public final class ClassChecker {
     Env saved = a.env;
     a.env = staticEnv(a, c);
     try {
+      computeConstants(a, c);
       if (!c.has(Flags.MODULE)) {
         checkOverrides(a, c, bridges);
         checkAbstractImplemented(a, c);
         checkVariance(a, c);
         checkDefaultArgs(a, c);
       }
-      computeConstants(a, c);
       // Initializers first: constructors need to know which final fields they assign.
       initializers(a, c, instanceInit, staticInit, nested);
       Set<MethodSymbol> done = new HashSet<>();
@@ -509,42 +509,7 @@ public final class ClassChecker {
   /** Evaluates constant initializers of static final fields (for inlining and ConstantValue). */
   private static void computeConstants(Attr a, ClassSymbol c) {
     for (FieldSymbol f : c.fields()) {
-      if (f.isStatic()
-          && f.has(Flags.FINAL)
-          && f.declarator() != null
-          && f.declarator().init() != null
-          && f.constantValue() == null) {
-        Type t = f.type();
-        if (t != null
-            && !(t instanceof PrimType)
-            && !(t instanceof ClassType ct && ct.sym().binaryName().equals("java/lang/String"))) {
-          continue;
-        }
-        Attr.Speculation<BExpr> s =
-            a.speculate(
-                () -> {
-                  Env saved = a.env;
-                  a.env = fieldEnv(a, f);
-                  try {
-                    return f.type() == null
-                        ? a.value(f.declarator().init(), null)
-                        : a.exprCoerced(f.declarator().init(), f.type());
-                  } finally {
-                    a.env = saved;
-                  }
-                });
-        if (!s.hasErrors()
-            && s.result() instanceof BExpr.Const k
-            && k.value() != null
-            && (f.type() == null
-                ? k.type() instanceof PrimType || k.value() instanceof String
-                : true)) {
-          if (f.type() == null) {
-            f.setType(k.type());
-          }
-          f.setConstantValue(k.value());
-        }
-      }
+      a.ensureConstant(f);
     }
   }
 
@@ -736,7 +701,7 @@ public final class ClassChecker {
   /** Methods of supertypes that {@code m} overrides (override-equivalent after substitution). */
   static List<MethodSymbol> overridden(Attr a, ClassSymbol c, MethodSymbol m) {
     List<MethodSymbol> out = new ArrayList<>();
-    if (m.isConstructor() || m.isStatic() || m.has(Flags.PRIVATE)) {
+    if (m.isConstructor() || m.isStatic() || m.has(Flags.PRIVATE) && !m.has(Flags.OVERRIDE)) {
       return out;
     }
     String mine = erasedParams(m.params().stream().map(p -> p.type()).toList());
@@ -864,12 +829,13 @@ public final class ClassChecker {
           }
         }
         // Bridge if the erased descriptors differ.
-        if (!Descriptors.method(
-                erasedParamsList(o),
-                o.returnType() == null ? PrimType.VOID : o.returnType().erasure())
-            .equals(
-                Descriptors.method(
-                    erasedParamsList(m), myRet == null ? PrimType.VOID : myRet.erasure()))) {
+        if (!m.has(Flags.PRIVATE)
+            && !Descriptors.method(
+                    erasedParamsList(o),
+                    o.returnType() == null ? PrimType.VOID : o.returnType().erasure())
+                .equals(
+                    Descriptors.method(
+                        erasedParamsList(m), myRet == null ? PrimType.VOID : myRet.erasure()))) {
           boolean already = bridges.stream().anyMatch(b -> sameErasure(b.overridden(), o));
           if (!already) {
             bridges.add(new BClass.Bridge(m, o));
@@ -925,7 +891,7 @@ public final class ClassChecker {
 
   /** A concrete class must implement every abstract method it inherits. */
   private static void checkAbstractImplemented(Attr a, ClassSymbol c) {
-    if (c.isAbstract() || c.isInterface()) {
+    if (c.isInterface()) {
       return;
     }
     List<String> missing = new ArrayList<>();
@@ -935,7 +901,7 @@ public final class ClassChecker {
         continue;
       }
       for (MethodSymbol n : s.allMethods()) {
-        if (!n.isAbstract() || n.isStatic()) {
+        if (!n.isAbstract() || n.isStatic() || c.isAbstract()) {
           continue;
         }
         if (!implemented(a, c, s, n)) {
@@ -943,6 +909,35 @@ public final class ClassChecker {
           if (reported.add(key)) {
             missing.add(n.signature());
           }
+        }
+      }
+    }
+    // Two inherited default methods with the same signature must be resolved by an override.
+    Map<String, MethodSymbol> defaults = new java.util.HashMap<>();
+    for (ClassSymbol s : a.lookup.hierarchy(c.thisType())) {
+      if (!s.isInterface()) {
+        continue;
+      }
+      for (MethodSymbol n : s.allMethods()) {
+        if (!n.has(Flags.DEFAULT)) {
+          continue;
+        }
+        String key =
+            n.name() + erasedParams(n.params().stream().map(MethodSymbol.Param::type).toList());
+        MethodSymbol prev = defaults.putIfAbsent(key, n);
+        if (prev != null
+            && prev.owner() != n.owner()
+            && a.types.asSuper(prev.owner().thisType(), n.owner()) == null
+            && a.types.asSuper(n.owner().thisType(), prev.owner()) == null
+            && c.methods(n.name()).stream()
+                .noneMatch(k -> k.params().size() == n.params().size())) {
+          missing.add(
+              n.signature()
+                  + " (inherited from both "
+                  + prev.owner().name()
+                  + " and "
+                  + n.owner().name()
+                  + ")");
         }
       }
     }

@@ -96,10 +96,14 @@ final class Lookup {
    */
   List<MethodSymbol> findMethods(Type site, String name) {
     Map<String, MethodSymbol> bySig = new LinkedHashMap<>();
+    ClassSymbol siteClass = site instanceof ClassType sc ? sc.sym() : null;
     for (ClassSymbol c : hierarchy(site)) {
       for (MethodSymbol m : c.methods(name)) {
         if (m.isConstructor()) {
           continue;
+        }
+        if (m.isStatic() && c.isInterface() && c != siteClass) {
+          continue; // static interface methods are not inherited
         }
         // Compare signatures as seen from the site, so String.compareTo(String) overrides
         // Comparable<String>.compareTo(T).
@@ -220,6 +224,10 @@ final class Lookup {
       return true;
     }
     if (Flags.is(f, Flags.PRIVATE)) {
+      if (owner.has(Flags.MODULE)) {
+        // Private top-level members are file-private.
+        return from != null && from.outermost().unit() == owner.unit();
+      }
       return from != null && from.outermost() == owner.outermost();
     }
     if (from != null && from.packageName().equals(owner.packageName())) {

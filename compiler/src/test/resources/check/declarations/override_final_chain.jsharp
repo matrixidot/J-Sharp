@@ -1,0 +1,33 @@
+public open class Animal {
+    public open String sound() => "...";
+    public open String name() => "animal";
+}
+
+public open class Dog : Animal {
+    public final override String sound() => "woof";
+    public override String name() => "dog";
+}
+
+public class Puppy : Dog {
+    public override String sound() => "yip";     //~ JS0619
+    public override String name() => "puppy";
+}
+
+public open class Mammal : Animal {
+}
+
+public class Cat : Mammal {
+    public override String sound() => "meow";
+    public String name() => "cat";               //~ JS0617
+}
+
+public class Stringly {
+    public override String toString() => "s";
+    public override int hashcode() => 1;         //~ JS0618
+    public final override boolean equals(Object? o) => false;
+}
+
+public class Frozen : Thread {
+    public override void run() { }
+    public override long threadId() => 1;        //~ JS0619
+}

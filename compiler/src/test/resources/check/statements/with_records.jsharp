@@ -1,0 +1,30 @@
+public record Point(int x, int y);
+public record Person(String name, int age, String? email);
+public class NotARecord {
+    public int x { get; set; }
+}
+
+var p = new Point(1, 2);
+Point moved = p with { x = 5 };
+Point both = p with { x = 1, y = 9 };
+var same = p with { };
+Point check = same;
+
+var ann = new Person("Ann", 30, null);
+Person older = ann with { age = ann.age + 1 };
+Person withMail = ann with { email = "ann@example.com" };
+Person noMail = withMail with { email = null };
+var chained = (ann with { age = 1 }) with { name = "Baby" };
+Person c2 = chained;
+
+Point mirror(Point pt) => pt with { x = pt.y, y = pt.x };
+
+// errors
+var bad1 = p with { z = 1 };                 //~ JS0655
+var bad2 = p with { x = "five" };            //~ JS0600
+var bad3 = ann with { name = null };         //~ JS0601
+var bad4 = new NotARecord() with { x = 1 };  //~ JS0655
+var bad5 = "text" with { };                  //~ JS0655
+var bad6 = p with { x = 1, x = 2 };          //~ JS0409
+Point? maybe = null;
+var bad7 = maybe with { x = 1 };             //~ JS0608

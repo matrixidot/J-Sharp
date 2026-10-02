@@ -1,0 +1,86 @@
+public sealed interface Animal;
+public record Dog(String name) : Animal;
+public record Cat(String name, int lives) : Animal;
+public enum Level { Low, High }
+
+String dupConstant(int x) => x switch {
+    1 => "a",
+    2 => "b",
+    1 => "c",                                        //~ JS0652
+    _ => "d",
+};
+
+String dupString(String s) => s switch {
+    "x" => "1",
+    "x" => "2",                                      //~ JS0652
+    _ => "3",
+};
+
+String dupEnum(Level l) => l switch {
+    Level.Low => "l",
+    Level.High => "h",
+    Level.Low => "again",                            //~ JS0652
+};
+
+String typeAfterSupertype(Object o) => o switch {
+    CharSequence cs => "cs",
+    String s => "s",                                 //~ JS0652
+    _ => "o",
+};
+
+String sameTypeTwice(Animal a) => a switch {
+    Dog d => "dog",
+    Dog d2 => "dog again",                           //~ JS0652
+    Cat c => "cat",
+};
+
+String afterDefault(int x) => x switch {
+    _ => "any",
+    5 => "five",                                     //~ JS0652
+};
+
+String afterVar(Object o) => o switch {
+    var v => "any",
+    String s => "never",                             //~ JS0652
+};
+
+String recordAfterType(Animal a) => a switch {
+    Cat c => "cat",
+    Cat(var n, var l) => n,                          //~ JS0652
+    Dog d => "dog",
+};
+
+String constantAfterType(Object o) => o switch {
+    Integer i => "int",
+    42 => "answer",                                  //~ JS0652
+    _ => "other",
+};
+
+String relationalCovered(int x) => x switch {
+    > 0 => "pos",
+    5 => "five",                                     //~ JS0652
+    _ => "other",
+};
+
+String dupNull(String? s) => s switch {
+    null => "n",
+    null => "n2",                                    //~ JS0652
+    _ => "x",
+};
+
+// guards do not dominate; these are all fine
+String guardsOk(Animal a) => a switch {
+    Dog d when d.name == "Rex" => "rex",
+    Dog d => "dog",
+    Cat(_, var l) when l > 5 => "lucky",
+    Cat(var n, _) => n,
+};
+
+String specificFirstOk(Object o) => o switch {
+    String s => "s",
+    CharSequence cs => "cs",
+    Integer i when i > 0 => "pos",
+    Integer i => "int",
+    _ => "o",
+};
+

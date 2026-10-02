@@ -72,6 +72,9 @@ final class Stmts {
       }
       out.add(stmt(s));
     }
+    if (reportedUnreachable) {
+      env().flow.alive = false; // the end of a block containing dead code is itself unreachable
+    }
     return out;
   }
 
@@ -284,9 +287,20 @@ final class Stmts {
   // ------------------------------------------------------------------ control flow
 
   private BStmt ifStmt(Stmt.If i) {
+    boolean reachable = env().flow.alive;
     BExpr cond = a.condition(i.cond());
     FlowState t = a.whenTrue;
     FlowState f = a.whenFalse;
+    // Like Java, `if` ignores constant conditions for reachability (`if (DEBUG)` idiom); a
+    // statically dead branch keeps vacuous definite assignment.
+    if (reachable && !t.alive) {
+      t.assigned.set(0, 1 << 16);
+      t.alive = true;
+    }
+    if (reachable && !f.alive) {
+      f.assigned.set(0, 1 << 16);
+      f.alive = true;
+    }
     env().flow.set(t);
     BStmt then = embedded(i.then());
     FlowState afterThen = env().flow.copy();
@@ -320,6 +334,9 @@ final class Stmts {
       Scope.Found f = env().scope.lookup(n);
       if (f != null) {
         env().flow.narrowed.remove(f.var());
+        if (f.var().id() >= 0) {
+          env().flow.maybeAssigned.set(f.var().id()); // a previous iteration may have assigned it
+        }
       }
     }
   }

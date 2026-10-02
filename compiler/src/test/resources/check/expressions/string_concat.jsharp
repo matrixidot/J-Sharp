@@ -1,0 +1,35 @@
+// `+` with a String operand is concatenation, left to right.
+String name = "Ann";
+int age = 30;
+long id = 7L;
+double score = 97.5;
+char initial = 'A';
+boolean active = true;
+Object tag = new Object();
+String? nickname = null;
+
+String a = "Name: " + name;
+String b = name + age;
+String c = age + name;
+String d = "x" + 1 + 2;
+String e = 1 + 2 + "x";
+String f = "" + initial + 'b';
+String g = "c" + initial + active + score + id;
+String h = "tag " + tag;
+String i = "nick " + nickname;
+String j = name + (age + 1);
+String k = initial + "" + initial;
+var inferred = "a" + 1;
+String checkInferred = inferred;
+
+String acc = "start";
+acc += " more";
+acc += 1;
+acc += 'c';
+acc += 2.5;
+acc += active;
+acc += tag;
+println(a + b + c + d + e + f + g + h + i + j + k + acc);
+
+String charsAsInt = 'a' + 'b';           //~ JS0600
+int stringToInt = "1" + 2;               //~ JS0600

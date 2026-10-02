@@ -1,0 +1,30 @@
+public record Point(int x, int y) {
+    public void move() {
+        x = 5;                                       //~ JS0609
+    }
+}
+
+public record User(String name, int age) {
+    public User {
+        if (age < 0) {
+            age = 0;
+        }
+    }
+    public int age() => "old";                       //~ JS0600
+}
+
+public class Box {
+    public int size { get; set; }
+}
+
+void main2() {
+    var p = new Point(1, 2);
+    p.x = 3;                                         //~ JS0609
+    var q = p with { z = 1 };                        //~ JS0655
+    var r = p with { x = "one" };                    //~ JS0600
+    var b = new Box();
+    var c = b with { size = 2 };                     //~ JS0655
+    var u = new User("ann");                         //~ JS0614
+    var v = new User(30, "ann");                     //~ JS0600
+    var w = new Point { x = 1, y = 2 };              //~ JS0614 JS0609 JS0609
+}

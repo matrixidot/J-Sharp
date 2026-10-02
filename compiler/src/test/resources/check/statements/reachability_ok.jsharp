@@ -1,0 +1,67 @@
+// Code that is reachable even though a nearby path completes abruptly.
+void loopWithBreakIsExitable() {
+    while (true) {
+        if (System.nanoTime() > 0) break;
+    }
+    println("reachable");
+}
+
+void labeledBreakMakesOuterExit() {
+    outer:
+    while (true) {
+        while (true) {
+            break outer;
+        }
+    }
+    println("reachable");
+}
+
+void ifWithoutElse(boolean c) {
+    if (c) {
+        return;
+    }
+    println("reachable");
+}
+
+void catchContinues() {
+    try {
+        throw new RuntimeException();
+    } catch (RuntimeException e) {
+        println("handled");
+    }
+    println("reachable");
+}
+
+void switchWithBreaks(int k) {
+    switch (k) {
+        case 1:
+            return;
+        default:
+            break;
+    }
+    println("reachable");
+}
+
+void emptyStatementsAfterReturn() {
+    return;
+    ;
+}
+
+// Java exempts `if` from constant-condition reachability so `if (DEBUG)` style flags work.
+void constantConditions() {
+    if (true) {
+        println("always");
+    } else {
+        println("never, but not an error");
+    }
+    if (false) {
+        println("debug only");
+    }
+}
+
+void whileFalseBodyIsNotFlagged(int n) {
+    while (n > 100) {
+        n--;
+    }
+    println(n);
+}

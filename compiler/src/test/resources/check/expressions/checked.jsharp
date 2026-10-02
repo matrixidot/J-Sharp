@@ -1,0 +1,24 @@
+// checked(expr) and checked { } select overflow-checking arithmetic; typing is unchanged.
+int a = Integer.MAX_VALUE;
+int b = checked(a - 1);
+long c = checked(a * 2L);
+int d = checked(a + b * 2);
+var neg = checked(-a);
+int checkNeg = neg;
+int div = checked(a / 3);
+long mixed = checked(c + a);
+double unaffected = checked(1.5 + 2.5);
+checked {
+    int e = a + 1;
+    long f = c * c;
+    e++;
+    e += 2;
+    println(e + f);
+}
+int add(int x, int y) => checked(x + y);
+long square(long x) { checked { return x * x; } }
+println(add(1, 2) + square(3));
+
+int narrowed = checked(a + 1L);          //~ JS0600
+var badOperands = checked("a" - 1);      //~ JS0607
+checked(a + 1);                          //~ JS0621

@@ -1,0 +1,35 @@
+import java.util.*;
+
+public static int doubled(this int x) => x * 2;
+public static boolean isBlankish(this String s) => s.trim().isEmpty();
+public static T secondOr<T>(this List<T> xs, T fallback) => xs.size() > 1 ? xs.get(1) : fallback;
+public static String shout(this String? s) => s == null ? "NULL" : s.toUpperCase() + "!";
+
+public class Temperature {
+    public final double celsius;
+    public Temperature(double c) { celsius = c; }
+    public String format() => "member";
+}
+
+public class TemperatureExt {
+    public static double fahrenheit(this Temperature t) => t.celsius * 9 / 5 + 32;
+    public static String format(this Temperature t) => "extension";
+    public static Temperature warmer(this Temperature t, double by = 1.0) => new Temperature(t.celsius + by);
+}
+
+void main2() {
+    println(5.doubled());
+    int n = 21;
+    println(n.doubled().doubled());
+    println("  ".isBlankish());
+    println(List.of("a", "b").secondOr("z"));
+    String? maybe = null;
+    println(maybe.shout());
+    var t = new Temperature(100);
+    println(t.fahrenheit());
+    println(TemperatureExt.fahrenheit(t));
+    String which = t.format();
+    println(which);
+    println(t.warmer().warmer(by: 5).celsius);
+    println(doubled(4));
+}

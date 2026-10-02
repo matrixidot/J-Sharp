@@ -1,0 +1,17 @@
+public class Closed { }
+public class Sub : Closed { }                    //~ JS0407
+
+public sealed interface Op permits Plus;
+public record Plus() : Op;
+public record Minus() : Op;                      //~ JS0412
+
+public abstract class Abs { }
+public class FromAbs : Abs { }
+
+public open class Open { }
+public class FromOpen : Open { }
+
+public class FromString : StringBuilder { }      //~ JS0407
+
+public record Rec(int x) : Open;                 //~ JS0408
+public interface Iface : Open { }                //~ JS0408

@@ -1,0 +1,67 @@
+import java.util.*;
+
+public record Point(int x, int y) {
+    public static final Point ORIGIN = new Point(0, 0);
+    public Point translate(int dx, int dy) => new Point(x + dx, y + dy);
+    public double dist() => Math.sqrt(x * x + y * y);
+}
+
+public record Range(int lo, int hi) {
+    public Range {
+        if (lo > hi) {
+            throw new IllegalArgumentException("lo > hi");
+        }
+    }
+    public int length => hi - lo;
+}
+
+public record Email(String address) {
+    public Email {
+        require(address.contains("@"));
+    }
+    public String address() => address.toLowerCase();
+}
+
+public record Pair<A, B>(A first, B second) {
+    public Pair<B, A> swap() => new Pair<>(second, first);
+}
+
+public record Money(long cents, String currency) {
+    public Money(long cents) { this(cents, "USD"); }
+    public static Money zero() => new Money(0);
+    public Money plus(Money o) => new Money(cents + o.cents, currency);
+}
+
+public interface HasArea { double area(); }
+public record Circle(double r) : HasArea, Comparable<Circle> {
+    public override double area() => Math.PI * r * r;
+    public override int compareTo(Circle o) => Double.compare(r, o.r);
+}
+
+public record Empty();
+
+void main2() {
+    var p = new Point(3, 4);
+    println(p.x + p.y);
+    println(p.x() + p.y());
+    println(p.dist());
+    var q = p with { x = 10 };
+    var r = p with { x = 1, y = 2 };
+    println(q.translate(1, 1) == r);
+    println(Point.ORIGIN);
+    var range = new Range(1, 5);
+    println(range.length);
+    println(new Email("A@B.c").address());
+    Pair<String, int> pr = new Pair<>("a", 1);
+    Pair<int, String> sw = pr.swap();
+    println(sw.first + 1);
+    var m = Money.zero().plus(new Money(250, "EUR"));
+    println(m.currency);
+    var circles = new ArrayList<Circle>();
+    circles.add(new Circle(2));
+    circles.add(new Circle(1));
+    Collections.sort(circles);
+    println(circles.get(0).area());
+    println(new Empty().equals(new Empty()));
+    println(p.hashCode() + p.toString());
+}

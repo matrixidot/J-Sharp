@@ -1,0 +1,42 @@
+// ++ and -- on numeric variables, array elements, fields and properties.
+public class Counter {
+    public int count;
+    public long total { get; set; }
+    public void tick() { count++; ++count; total++; this.total--; }
+}
+
+var n = 0;
+n++;
+++n;
+n--;
+--n;
+int post = n++;
+int pre = ++n;
+long l = 0;
+l++;
+double d = 0.5;
+d--;
+char c = 'a';
+c++;
+byte b = 127;
+b++;
+Integer boxed = 1;
+boxed++;
+int[] arr = new int[2];
+arr[0]++;
+--arr[1];
+var counter = new Counter();
+counter.count++;
+counter.total++;
+for (int i = 0; i < 3; i++) { }
+for (int j = 10; j > 0; j -= 2) { }
+
+String s = "x";
+s++;                                     //~ JS0607
+boolean flag = true;
+flag--;                                  //~ JS0607
+5++;                                     //~ JS0609
+(n + 1)++;                               //~ JS0609
+val fixed = 1;
+fixed++;                                 //~ JS0903
+"abc".length()--;                        //~ JS0609

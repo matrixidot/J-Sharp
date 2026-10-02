@@ -1,0 +1,26 @@
+// Casts between types that can never be converted.
+public interface Shape { double area(); }
+public class Point { }                   // final by default
+public open class Base { }
+public record Square(double side) : Shape { public override double area() => side * side; }
+
+String s = "x";
+int fromString = (int) s;                //~ JS0610
+Integer boxedFromString = (Integer) s;   //~ JS0610
+boolean fromInt = (boolean) 1;           //~ JS0610
+int fromBool = (int) true;               //~ JS0610
+String fromNumber = (String) 42;         //~ JS0610
+char fromString2 = (char) s;             //~ JS0610
+StringBuilder unrelated = (StringBuilder) s;  //~ JS0610
+Long boxedLong = (Long) 5;               //~ JS0610
+Integer fromLong = (Integer) 5L;         //~ JS0610
+Runnable r = () => { };
+var finalNotRunnable = (String) r;       //~ JS0610
+Shape shape = getShape();
+var finalPoint = (Point) shape;          //~ JS0610
+var openBase = (Base) shape;
+Point p = new Point();
+var pointToShape = (Shape) p;            //~ JS0610
+Object o = s;
+var fromObject = (StringBuilder) o;
+Shape getShape() => new Square(2);

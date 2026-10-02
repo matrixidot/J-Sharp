@@ -1,0 +1,72 @@
+int[][] grid = new int[][] { new int[] { 1, 2 }, new int[] { 3, 4 } };
+
+int findRow(int[][] g, int target) {
+    var found = -1;
+    outer:
+    for (var r = 0; r < g.length; r++) {
+        for (var c = 0; c < g[r].length; c++) {
+            if (g[r][c] == target) {
+                found = r;
+                break outer;
+            }
+            if (g[r][c] < 0) {
+                continue outer;
+            }
+        }
+    }
+    return found;
+}
+
+int countPairs(int[] xs) {
+    var count = 0;
+    rows:
+    foreach (var a in xs) {
+        cols:
+        foreach (var b in xs) {
+            if (a == b) continue cols;
+            if (a > b) continue rows;
+            count++;
+        }
+    }
+    return count;
+}
+
+int labeledWhile() {
+    var i = 0;
+    loop:
+    while (true) {
+        i++;
+        do {
+            if (i > 5) break loop;
+            i += 2;
+        } while (i < 3);
+    }
+    return i;
+}
+
+void labeledBlock(boolean c) {
+    done:
+    {
+        if (c) break done;
+        println("not done");
+    }
+    println("after");
+}
+
+int breakFromSwitchInLoop(int[] xs) {
+    var sum = 0;
+    scan:
+    foreach (var x in xs) {
+        switch (x) {
+            case 0:
+                break scan;
+            default:
+                sum += x;
+                break;
+        }
+    }
+    return sum;
+}
+
+println(findRow(grid, 3) + countPairs(new int[] { 1, 2, 3 }) + labeledWhile() + breakFromSwitchInLoop(new int[] { 1, 0 }));
+labeledBlock(true);

@@ -1,0 +1,26 @@
+import java.util.*;
+
+public interface Producer<out T> {
+    T get();
+    void put(T value);                               //~ JS0426
+    List<T> all();                                   //~ JS0426
+}
+
+public interface Consumer2<in T> {
+    void take(T value);
+    T peek();                                        //~ JS0426
+    void each(Consumer2<T> c);                       //~ JS0426
+}
+
+public interface Fine<out T> {
+    T get();
+    Producer<T> producer();
+    void feed(Consumer2<T> c);
+}
+
+void main2(Producer<String> ps, Consumer2<Object> co) {
+    Producer<Object> po = ps;
+    Producer<String> back = po;                      //~ JS0600
+    Consumer2<String> cs = co;
+    Consumer2<Object> co2 = cs;                      //~ JS0600
+}

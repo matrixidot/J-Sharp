@@ -92,6 +92,8 @@ final class Ops {
       }
       case PRE_INC, PRE_DEC, POST_INC, POST_DEC -> {
         BLValue lv = lvalue(u.operand());
+        requireAssigned(lv, u.operand().span());
+        afterAssign(lv, null);
         Type t = lv.type();
         if (t.isError()) {
           return new BExpr.Error(t, span);
@@ -555,6 +557,9 @@ final class Ops {
       return coalesceAssign(as);
     }
     BLValue lv = lvalue(as.target());
+    if (as.op() != Expr.AssignOp.ASSIGN) {
+      requireAssigned(lv, as.target().span());
+    }
     if (as.op() == Expr.AssignOp.ASSIGN) {
       BExpr v = a.exprCoerced(as.value(), lv.type(), as.value().span());
       afterAssign(lv, v);
@@ -631,6 +636,7 @@ final class Ops {
   private BExpr coalesceAssign(Expr.Assign as) {
     Span span = as.span();
     BLValue lv = lvalue(as.target());
+    requireAssigned(lv, as.target().span());
     Type t = lv.type();
     if (t.isError()) {
       a.value(as.value(), null);
@@ -674,6 +680,10 @@ final class Ops {
   private void afterAssign(BLValue lv, BExpr value) {
     if (lv instanceof BLValue.LocalLV l) {
       VarSymbol v = l.var();
+      if (v.id() >= 0) {
+        a.env.flow.assigned.set(v.id());
+        a.env.flow.maybeAssigned.set(v.id());
+      }
       a.env.flow.narrowed.remove(v);
       if (value != null
           && v.type().nullness() != Nullness.NON_NULL
@@ -717,6 +727,9 @@ final class Ops {
           return errorLV();
         }
         a.checkReceiverNullness(recv, i.target().span());
+        if (i.index() instanceof Expr.Unary fe && fe.op() == Expr.UnaryOp.FROM_END) {
+          return fromEndLValue(recv, fe, i.span());
+        }
         if (recv.type() instanceof Type.ArrayType at) {
           BExpr idx = a.exprCoerced(i.index(), PrimType.INT);
           return new BLValue.ArrayLV(recv, idx, at.elem());
@@ -750,6 +763,61 @@ final class Ops {
         return errorLV();
       }
     }
+  }
+
+  /** {@code xs[^n] = v} on arrays and lists (the receiver must be re-evaluable). */
+  private BLValue fromEndLValue(BExpr recv, Expr.Unary fe, Span span) {
+    if (!(recv instanceof BExpr.Local
+        || recv instanceof BExpr.This
+        || recv instanceof BExpr.Field f
+            && (f.receiver() == null || f.receiver() instanceof BExpr.This))) {
+      a.report(
+          a.err(
+                  Code.INVALID_RANGE,
+                  span,
+                  "'^' in an assignment needs a variable or field on the left")
+              .help("store the collection in a local variable first"));
+      return errorLV();
+    }
+    BExpr n = a.exprCoerced(fe.operand(), PrimType.INT);
+    Type t = recv.type();
+    if (t instanceof Type.ArrayType at) {
+      BExpr len = new BExpr.ArrayLength(recv, PrimType.INT, span);
+      return new BLValue.ArrayLV(
+          recv, new BExpr.Binary(BExpr.BinOp.SUB, len, n, PrimType.INT, false, span), at.elem());
+    }
+    ClassSymbol list = a.syms.lookup("java/util/List");
+    ClassType asList = a.types.asSuper(t, list);
+    if (asList == null) {
+      a.error(Code.INVALID_RANGE, span, "'^' indices work on arrays and lists, not " + t.display());
+      return errorLV();
+    }
+    MethodSymbol size = null;
+    MethodSymbol get = null;
+    MethodSymbol set = null;
+    for (MethodSymbol m : a.lookup.findMethods(t, "size")) {
+      if (m.params().isEmpty()) {
+        size = m;
+      }
+    }
+    for (MethodSymbol m : a.lookup.findMethods(t, "get")) {
+      if (m.params().size() == 1 && m.params().getFirst().type() == PrimType.INT) {
+        get = m;
+      }
+    }
+    for (MethodSymbol m : a.lookup.findMethods(t, "set")) {
+      if (m.params().size() == 2 && m.params().getFirst().type() == PrimType.INT) {
+        set = m;
+      }
+    }
+    BExpr len =
+        new BExpr.Call(recv, size, List.of(), Attr.callKind(size, recv, false), PrimType.INT, span);
+    BExpr idx = new BExpr.Binary(BExpr.BinOp.SUB, len, n, PrimType.INT, false, span);
+    Type elem =
+        a.types.uncapture(
+            a.memberType(a.captureSite(t), list, list.typeParams().getFirst().asType()));
+    return new BLValue.PropertyLV(
+        recv, null, get, set, List.of(idx), elem, Attr.callKind(set, recv, false));
   }
 
   private static BLValue errorLV() {
@@ -793,13 +861,16 @@ final class Ops {
                     v.kind() == VarSymbol.Kind.PARAM
                         ? "copy it into a local 'var'"
                         : "declare it with 'var' instead of 'val'"));
-      } else if (v.isFinal() && !definitelyAssigned && !isDefinitelyUnassigned(v)) {
+      } else if (v.isFinal()
+          && !definitelyAssigned
+          && v.id() >= 0
+          && env.flow.maybeAssigned.get(v.id())) {
         a.error(Code.FINAL_REASSIGNED, span, "val '" + name + "' might already have been assigned");
       }
       if (definitelyAssigned || v.kind() != VarSymbol.Kind.LOCAL) {
         v.markReassigned();
       }
-      env.flow.assigned.set(v.id());
+      // Definite assignment is recorded after the right-hand side is evaluated (afterAssign).
       return new BLValue.LocalLV(v);
     }
     // Members of enclosing classes.
@@ -831,6 +902,21 @@ final class Ops {
     }
     a.reportUnresolvedName(name, span);
     return errorLV();
+  }
+
+  /** A compound assignment or increment reads the local first: it must be definitely assigned. */
+  void requireAssigned(BLValue lv, Span span) {
+    if (lv instanceof BLValue.LocalLV l
+        && l.var().id() >= 0
+        && !a.env.flow.assigned.get(l.var().id())
+        && a.env.flow.alive
+        && (l.var().kind() == VarSymbol.Kind.LOCAL || l.var().kind() == VarSymbol.Kind.PATTERN)) {
+      a.error(
+          Code.UNINITIALIZED_VARIABLE,
+          span,
+          "variable '" + l.var().name() + "' might not have been initialized");
+      a.env.flow.assigned.set(l.var().id());
+    }
   }
 
   /** Tracks `val x;` declared without initializer: assignable while definitely unassigned. */
@@ -879,6 +965,18 @@ final class Ops {
     PropertySymbol p = a.lookup.findProperty(site, name);
     if (p != null) {
       return propertyLValue(recv, site, p, span, onThis);
+    }
+    if (!onThis && a.lookup.findRecordAccessor(site, name) != null
+        || site instanceof Type.TupleType) {
+      a.error(
+          Code.NOT_ASSIGNABLE,
+          span,
+          "'"
+              + name
+              + "' of "
+              + site.display()
+              + " is read-only (records and tuples are immutable)");
+      return errorLV();
     }
     FieldSymbol f = a.lookup.findField(site, name);
     if (f != null) {

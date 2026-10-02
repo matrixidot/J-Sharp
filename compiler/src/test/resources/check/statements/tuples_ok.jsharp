@@ -1,0 +1,69 @@
+import java.util.*;
+
+var pair = (1, "a");
+int first = pair.item1;
+String second = pair.item2;
+
+(int, String) typed = (2, "b");
+int n = typed.item1;
+
+(int id, String name) named = (3, "c");
+int id = named.id;
+String nm = named.name;
+int byPosition = named.item1;
+
+var triple = (1, 2.5, true);
+double d = triple.item2;
+boolean flag = triple.item3;
+
+// deconstruction
+var (a, b) = pair;
+int a2 = a;
+String b2 = b;
+val (x, y, z) = triple;
+var (_, onlyName) = named;
+String on = onlyName;
+
+// swap with tuple assignment
+var left = 1;
+var right = 2;
+(left, right) = (right, left);
+int l2 = left;
+
+// tuples as return types and arguments
+(int min, int max) bounds(int[] xs) {
+    var lo = xs[0];
+    var hi = xs[0];
+    foreach (var v in xs) {
+        if (v < lo) lo = v;
+        if (v > hi) hi = v;
+    }
+    return (lo, hi);
+}
+var bs = bounds(new int[] { 3, 1, 4 });
+int span = bs.max - bs.min;
+var (lo, hi) = bounds(new int[] { 9, 2 });
+
+// unnamed tuple converts to a named one with the same element types
+(int count, String label) conv = (5, "five");
+
+// tuples in collections
+List<(String, int)> scores = new ArrayList<>();
+scores.add(("ann", 3));
+foreach (var (who, score) in scores) {
+    String w = who;
+    int s = score;
+}
+
+// nested tuples
+var nested = ((1, 2), "outer");
+int inner = nested.item1.item2;
+var ((p, q), r) = nested;
+int pq = p + q;
+
+// tuple equality is structural
+boolean same = (1, "a") == (1, "a");
+
+// nullable elements
+(String?, int) maybe = (null, 0);
+String? m = maybe.item1;

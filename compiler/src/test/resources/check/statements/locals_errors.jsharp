@@ -1,0 +1,59 @@
+import java.util.*;
+
+var x = 1;
+var x = 2;                                   //~ JS0909
+val fixed = 10;
+fixed = 11;                                  //~ JS0903
+fixed += 1;                                  //~ JS0903
+fixed++;                                     //~ JS0903
+int a = 1, a = 2;                            //~ JS0909
+var nothing = null;                          //~ JS0616
+String s = null;                             //~ JS0601
+int n = "five";                              //~ JS0600
+var printed = println("x");                  //~ JS0622
+
+void params(int p) {
+    var p = 2;                               //~ JS0909
+    println(p);
+}
+
+void nested() {
+    var outer = 1;
+    {
+        var outer = 2;                       //~ JS0909
+        println(outer);
+    }
+}
+
+void valTwice(boolean c) {
+    final int v;
+    v = 1;
+    v = 2;                                   //~ JS0903
+    println(v);
+}
+
+void valMaybeTwice(boolean c) {
+    final int w;
+    if (c) {
+        w = 1;
+    }
+    w = 2;                                   //~ JS0903
+    println(w);
+}
+
+void loopAssign() {
+    final int z;
+    for (var i = 0; i < 3; i++) {
+        z = i;                               //~ JS0903
+    }
+}
+
+void forEachVal(List<String> xs) {
+    foreach (val e in xs) {
+        e = "changed";                       //~ JS0903
+    }
+}
+
+void valNoInit() {
+    val nope;                                //~ JS0616
+}

@@ -1,0 +1,42 @@
+import java.util.*;
+
+// `==` is null-safe value equality on references, numeric on primitives; `===` is identity.
+public interface Named { String name(); }
+public open class Animal { }
+public record Person(String name) : Named { }
+
+String a = "x";
+String b = new String("x");
+boolean valueEqual = a == b;
+boolean valueNotEqual = a != b;
+boolean sameRef = a === b;
+boolean differentRef = a !== b;
+String? missing = null;
+boolean nullSafe = missing == a;
+boolean nullSafeReversed = a == missing;
+boolean isNull = missing == null;
+boolean isNotNull = null != missing;
+boolean identityNull = missing === null;
+boolean intLong = 1 == 1L;
+boolean doubleInt = 1.0 == 1;
+boolean charInt = 'a' == 97;
+boolean bools = true == false;
+Integer boxed = 5;
+boolean boxedNumeric = boxed == 5;
+boolean boxedNumericWidened = boxed == 5L;
+Object o = a;
+boolean objectString = o == a;
+boolean objectIdentity = o === a;
+List<String> list = new ArrayList<String>();
+Collection<String> coll = list;
+boolean subtypes = list == coll;
+CharSequence cs = a;
+boolean interfaceAndFinal = cs == a;
+Runnable r = () => { };
+boolean twoInterfaces = r == coll;
+Animal animal = new Animal();
+Named named = getNamed();
+boolean openClassAndInterface = animal == named;
+boolean enums = Thread.State.NEW == Thread.State.RUNNABLE;
+Named getNamed() => new Person("Ann");
+println(valueEqual && valueNotEqual && sameRef && differentRef && nullSafe && isNull);

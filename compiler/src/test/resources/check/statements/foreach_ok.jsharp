@@ -1,0 +1,63 @@
+import java.util.*;
+
+var ages = new HashMap<String, Integer>();
+ages.put("ann", 30);
+ages.put("bob", 25);
+
+var total = 0;
+foreach (var (name, age) in ages.entrySet()) {
+    String n = name;
+    int a = age;
+    total += a + n.length();
+}
+foreach (val (k, v) in ages.entrySet()) {
+    println(k.toUpperCase() + v);
+}
+foreach (var entry in ages.entrySet()) {
+    String key = entry.getKey();
+    int value = entry.getValue();
+    println(key + value);
+}
+foreach (var key in ages.keySet()) {
+    println(key.length());
+}
+foreach (var v in ages.values()) {
+    total += v;
+}
+
+public record Point(int x, int y);
+var points = List.of(new Point(1, 2), new Point(3, 4));
+foreach (var (x, y) in points) {
+    int sum = x + y;
+    total += sum;
+}
+foreach (Point p in points) {
+    total += p.x;
+}
+
+var pairs = List.of((1, "one"), (2, "two"));
+foreach (var (num, word) in pairs) {
+    int i = num;
+    String w = word;
+    println(w + i);
+}
+
+var matrix = new String[][] { new String[] { "a" }, new String[] { "b", "c" } };
+foreach (String[] row in matrix) {
+    foreach (String cell in row) {
+        println(cell);
+    }
+}
+
+List<String?> maybeNames = new ArrayList<String?>();
+foreach (String? m in maybeNames) {
+    println(m ?? "none");
+}
+
+Object anything = List.of(1);
+if (anything is List<?> l) {
+    foreach (var o in l) {
+        println(o);
+    }
+}
+println(total);

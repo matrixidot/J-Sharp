@@ -1,0 +1,33 @@
+import java.util.*;
+
+// Primitive narrowing/widening casts.
+double d = 3.99;
+int truncated = (int) d;
+long asLong = (long) d;
+byte wrapped = (byte) 300;
+char fromInt = (char) 65;
+short fromChar = (short) fromInt;
+float asFloat = (float) d;
+int code = (int) 'x';
+char next = (char) (code + 1);
+long big = 10_000_000_000L;
+int lowBits = (int) big;
+double precise = (double) 1 / 3;
+
+// Reference casts: downcasts, upcasts, boxing and unboxing.
+Object o = "hello";
+String s = (String) o;
+CharSequence cs = (CharSequence) o;
+Object boxed = (Object) 42;
+int unboxed = (int) boxed;
+Integer boxedInt = (Integer) boxed;
+long unboxedWidened = (long) boxedInt;
+Number n = (Number) boxedInt;
+List<String> list = new ArrayList<String>();
+Collection<String> coll = list;
+ArrayList<String> down = (ArrayList<String>) coll;
+Runnable r = (Runnable) o;
+var castToInterface = (Comparable<String>) s;
+String? maybe = (String?) o;
+println(truncated + asLong + wrapped + fromChar + asFloat + next + lowBits + precise);
+println(s + cs + unboxed + unboxedWidened + n + down + r + castToInterface + maybe);

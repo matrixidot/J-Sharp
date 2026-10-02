@@ -1,0 +1,18 @@
+public static int squared(this int x) => x * x;
+public static String reversed(this String s) => new StringBuilder(s).reverse().toString();
+public static int len(this String s) => s.length();
+
+public class Holder {
+    public int length() => 3;
+}
+
+void main2() {
+    println("abc".squared());                        //~ JS0603
+    println(5.reversed());                           //~ JS0603
+    String? maybe = null;
+    println(maybe.reversed());                       //~ JS0608
+    println(maybe?.reversed());
+    int x = "abc".reversed();                        //~ JS0600
+    println(new Holder().len());                     //~ JS0603
+    println(5.squared(2));                           //~ JS0614
+}

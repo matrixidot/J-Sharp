@@ -1,0 +1,17 @@
+var pair = (1, "a");
+int wrong = pair.item2;                      //~ JS0600
+var missing = pair.item3;                    //~ JS0603
+(int id, String name) named = (3, "c");
+var noSuch = named.title;                    //~ JS0603
+(int, String) mismatched = ("a", 1);         //~ JS0600 JS0600
+(int, String) arity = (1, "a", true);        //~ JS0600
+var (a, b, c) = pair;                        //~ JS0656
+var x = 1;
+var y = 2;
+(x, y) = (1, "two");                         //~ JS0600
+(x, y) = (1, 2, 3);                          //~ JS0656
+pair.item1 = 5;                              //~ JS0609
+(String, int) nonNull = (null, 1);           //~ JS0601
+val v = 1;
+var w = 2;
+(v, w) = (w, v);                             //~ JS0903

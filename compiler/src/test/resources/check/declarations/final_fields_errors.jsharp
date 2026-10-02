@@ -1,0 +1,53 @@
+public class Order {
+    private final long id;
+    private final String customer;
+    private final double total;
+
+    public Order(long id, String customer) {     //~ JS0907
+        this.id = id;
+        this.customer = customer;
+    }
+
+    public Order(long id, String customer, double total) {
+        this.id = id;
+        this.customer = customer;
+        this.total = total;
+        this.total = total * 2;                  //~ JS0903
+    }
+
+    public Order(long id) {
+        this(id, "anon", 0.0);
+    }
+
+    public Order(String customer, boolean rush) { //~ JS0907
+        this.customer = customer;
+        if (rush) {
+            id = 1;
+            total = 10;
+        } else {
+            id = 2;
+        }
+    }
+
+    public void discount() {
+        total = total * 0.9;                     //~ JS0609
+    }
+}
+
+public class Constants {
+    public static final int LIMIT;               //~ JS0907
+    public static final int MAX = 10;
+    private final String label;                  //~ JS0907
+}
+
+public class Ticket {
+    public final String code;
+    public Ticket(String code) { this.code = code; }
+}
+
+void main2() {
+    var o = new Order(1);
+    var t = new Ticket("A1");
+    t.code = "B2";                               //~ JS0609
+    println(t.code);
+}

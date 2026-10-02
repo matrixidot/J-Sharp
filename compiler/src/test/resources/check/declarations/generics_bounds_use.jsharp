@@ -1,0 +1,16 @@
+import java.util.*;
+
+public class Sorted<T : Comparable<T>> {
+    public final List<T> items = new ArrayList<>();
+}
+
+public static T max<T : Comparable<T>>(T a, T b) => a.compareTo(b) >= 0 ? a : b;
+
+void main2() {
+    var ok = new Sorted<String>();
+    var ok2 = max<int>(1, 2);
+    var bad = new Sorted<Object>();                  //~ JS0423
+    var bad2 = max<Object>(new Object(), new Object());  //~ JS0423
+    List<Sorted<Thread>> nested = new ArrayList<>(); //~ JS0423
+    println(ok.items.size() + ok2);
+}

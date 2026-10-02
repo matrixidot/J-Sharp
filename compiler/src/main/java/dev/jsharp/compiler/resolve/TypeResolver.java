@@ -55,9 +55,66 @@ public final class TypeResolver {
           "jsharp.text");
 
   private final Context ctx;
+  private dev.jsharp.compiler.types.Types types;
+  private boolean deferBounds = true;
+  private final List<Runnable> pendingBounds = new ArrayList<>();
 
   public TypeResolver(Context ctx) {
     this.ctx = ctx;
+  }
+
+  private dev.jsharp.compiler.types.Types types() {
+    if (types == null) {
+      types = new dev.jsharp.compiler.types.Types(ctx.syms);
+    }
+    return types;
+  }
+
+  /** Runs bound checks deferred while class headers were incomplete; later checks run eagerly. */
+  public void flushBoundChecks() {
+    deferBounds = false;
+    List<Runnable> todo = new ArrayList<>(pendingBounds);
+    pendingBounds.clear();
+    todo.forEach(Runnable::run);
+  }
+
+  /** Reports type arguments that violate their parameter's declared bounds. */
+  private void checkBounds(ClassType t, SourceFile file, dev.jsharp.compiler.source.Span span) {
+    Runnable check =
+        () -> {
+          List<TypeVarSymbol> tps = t.sym().typeParams();
+          if (tps.size() != t.args().size()) {
+            return;
+          }
+          Map<TypeVarSymbol, Type> m = dev.jsharp.compiler.types.Types.zip(tps, t.args());
+          for (int i = 0; i < tps.size(); i++) {
+            Type arg = t.args().get(i);
+            if (arg instanceof Type.WildcardType || arg.isError()) {
+              continue;
+            }
+            for (Type b : tps.get(i).bounds()) {
+              Type bound = dev.jsharp.compiler.types.Types.subst(b, m);
+              if (!types().isSubtype(arg, bound)) {
+                ctx.report(
+                    Code.TYPE_ARGUMENT_BOUND,
+                    file,
+                    span,
+                    "type argument "
+                        + arg.display()
+                        + " does not satisfy the bound "
+                        + bound.display()
+                        + " of "
+                        + tps.get(i).name());
+                return;
+              }
+            }
+          }
+        };
+    if (deferBounds) {
+      pendingBounds.add(check);
+    } else {
+      check.run();
+    }
   }
 
   public Type resolve(TypeNode node, TypeScope scope) {
@@ -366,7 +423,9 @@ public final class TypeResolver {
       }
       args.add(t);
     }
-    return new ClassType(cls, args, Nullness.NON_NULL);
+    ClassType result = new ClassType(cls, args, Nullness.NON_NULL);
+    checkBounds(result, file, seg.span());
+    return result;
   }
 
   private static String typeParamNames(ClassSymbol c) {

@@ -1,0 +1,23 @@
+public sealed class Node {
+    public open int weight() => 1;
+}
+public class Leaf : Node {
+    public override int weight() => 0;
+}
+public class Branch : Node {
+    public int weight() => 2;                    //~ JS0617
+}
+
+public sealed interface Event;
+public record Click(int x, int y) : Event;
+public record Key(char c) : Event;
+
+public static String describe(Event e) => e switch {   //~ JS0650
+    Click c => "click",
+};
+
+void main2() {
+    var n = new Node();                          //~ JS0613
+    Node leaf = new Leaf();
+    println(leaf.weight());
+}

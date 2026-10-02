@@ -727,7 +727,10 @@ abstract class ExprParser extends ParserBase {
       return new Expr.New(null, args, init, null, spanFrom(start));
     }
     TypeNode type = parseNonArrayType(false);
-    if (at(QUESTION)) {
+    if (at(QUESTION) && peek(1).is(LBRACKET)) {
+      advance(); // `new T?[n]`: an array of nullable elements
+      type = new TypeNode.Nullable(type, spanFrom(start));
+    } else if (at(QUESTION)) {
       Token q = advance();
       errorAlways(Code.UNEXPECTED_TOKEN, q.span(), "cannot create an instance of a nullable type");
     }

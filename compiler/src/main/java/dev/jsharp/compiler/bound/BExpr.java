@@ -136,7 +136,8 @@ public sealed interface BExpr {
   record Assign(BLValue target, BExpr value, Type type, Span span) implements BExpr {}
 
   /**
-   * {@code target op= value}: computed in {@code opType}, converted back to the target type.
+   * {@code target op= value}: computed in {@code opType}, converted back to the target type. A null
+   * {@code op} means {@code ??=} (assign only if the target is null).
    *
    * @param opType the operation type (after promotion)
    */
@@ -258,6 +259,43 @@ public sealed interface BExpr {
 
   /** {@code expr is pattern}: tests the pattern and binds its variables. */
   record IsPattern(BExpr expr, BPattern pattern, Type type, Span span) implements BExpr {}
+
+  /** A void expression that does nothing (lowering helper). */
+  record Nop(Span span) implements BExpr {
+    @Override
+    public Type type() {
+      return Type.PrimType.VOID;
+    }
+  }
+
+  /** How an {@link Indy} implementation method is invoked. */
+  enum ImplKind {
+    STATIC,
+    VIRTUAL,
+    INTERFACE,
+    SPECIAL,
+    NEW
+  }
+
+  /**
+   * A lowered lambda or method reference: {@code invokedynamic} through {@code LambdaMetafactory}.
+   *
+   * @param impl the implementation method (synthetic lambda method or the referenced method)
+   * @param implKind how {@code impl} is invoked
+   * @param captured values captured at creation (receiver/this first, then locals)
+   * @param instantiatedParams parameter types of the function type (erased at codegen)
+   * @param instantiatedReturn return type of the function type
+   */
+  record Indy(
+      ClassType type,
+      MethodSymbol sam,
+      MethodSymbol impl,
+      ImplKind implKind,
+      List<BExpr> captured,
+      List<Type> instantiatedParams,
+      Type instantiatedReturn,
+      Span span)
+      implements BExpr {}
 
   /** Placeholder after an error. */
   record Error(Type type, Span span) implements BExpr {}

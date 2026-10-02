@@ -1,0 +1,13 @@
+// Integer literal range checks (D011: done in the checker so that -2147483648 works).
+int justOver = 2147483648;                          //~ JS0623
+int belowMin = -2147483649;                         //~ JS0623
+long longOver = 9223372036854775808L;               //~ JS0623
+long longBelowMin = -9223372036854775809L;          //~ JS0623
+long needsSuffix = 3000000000;                      //~ JS0623
+long withSuffix = 3000000000L;
+long fitsInt = 2147483647;
+int doubleNegation = -(-2147483648);
+println(2147483648);                                //~ JS0623
+println(-2147483648);
+println(maxPlusOne());
+long maxPlusOne() => 2147483648L;

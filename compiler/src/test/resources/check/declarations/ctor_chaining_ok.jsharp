@@ -1,0 +1,62 @@
+public open class Vehicle {
+    protected final String make;
+    protected final int wheels;
+
+    public Vehicle(String make, int wheels) {
+        this.make = make;
+        this.wheels = wheels;
+    }
+
+    public Vehicle(String make) { this(make, 4); }
+
+    public Vehicle() { this("generic"); }
+
+    public String describe() => make + " with " + wheels + " wheels";
+}
+
+public class Truck : Vehicle {
+    private final double payload;
+
+    public Truck(String make, double payload) {
+        super(make, 6);
+        this.payload = payload;
+    }
+
+    public Truck(double payload) {
+        this("Volvo", payload);
+    }
+
+    public double payload() => payload;
+}
+
+public class Bike : Vehicle {
+    public Bike() { super("bmx", 2); }
+}
+
+public class Scooter : Vehicle {
+}
+
+public class Moped : Vehicle {
+    public Moped() { }
+}
+
+public class Tagged : Object {
+    private final String tag;
+    public Tagged(String tag) {
+        super();
+        this.tag = tag;
+    }
+    public override String toString() => "#" + tag;
+}
+
+void main2() {
+    var t = new Truck(12.5);
+    println(t.describe());
+    println(t.payload());
+    Vehicle v = new Bike();
+    println(v.describe());
+    println(new Scooter().describe());
+    println(new Moped().describe());
+    println(new Vehicle("vw").describe());
+    println(new Tagged("x"));
+}

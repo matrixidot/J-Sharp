@@ -1,0 +1,33 @@
+public class HttpRequest {
+    public required String url { get; init; }
+    public required String method { get; init; }
+    public int timeoutMs { get; init; } = 5000;
+    public String? body { get; set; }
+}
+
+public class Settings {
+    public required String path { get; set; }
+    public boolean verbose { get; set; }
+}
+
+public open class Entity {
+    public required long id { get; init; }
+}
+
+public class Customer : Entity {
+    public required String name { get; init; }
+}
+
+void main2() {
+    var ok = new HttpRequest { url = "http://x", method = "GET" };
+    var ok2 = new HttpRequest { method = "POST", url = "http://y", timeoutMs = 10, body = "{}" };
+    var noUrl = new HttpRequest { method = "GET" };  //~ JS0629
+    var none = new HttpRequest();                    //~ JS0629
+    var s = new Settings { path = "/tmp" };
+    s.path = "/var";
+    var s2 = new Settings { verbose = true };        //~ JS0629
+    var c = new Customer { id = 1, name = "ann" };
+    var c2 = new Customer { name = "bob" };          //~ JS0629
+    println(ok.url + ok2.timeoutMs + s.path + c.id);
+    ok.url = "changed";                              //~ JS0628
+}

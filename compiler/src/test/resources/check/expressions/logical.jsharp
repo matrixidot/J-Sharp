@@ -1,0 +1,25 @@
+// &&, || and ! work on boolean (and Boolean) operands only; each non-boolean operand is a
+// type mismatch (JS0600) like a non-boolean condition.
+int a = 4;
+String s = "abc";
+boolean t = true;
+Boolean boxed = false;
+
+boolean both = a > 3 && s.length() == 3;
+boolean either = a < 0 || s.isEmpty();
+boolean negated = !t;
+boolean nested = !(a == 4 && !s.isEmpty()) || t;
+boolean withBoxed = boxed && t;
+boolean notBoxed = !boxed;
+boolean precedence = t || t && !t;
+if (a > 0 && a < 10 || s.startsWith("a")) { println("ok"); }
+while (!t) { }
+
+var notInt = !5;                         //~ JS0600
+var andInts = 1 && 2;                    //~ JS0600 JS0600
+var orString = t || s;                   //~ JS0600
+var andMixed = t && 1;                   //~ JS0600
+var notString = !s;                      //~ JS0600
+if (a) { }                               //~ JS0600
+while (s) { }                            //~ JS0600
+int asInt = t && t;                      //~ JS0600

@@ -1,0 +1,31 @@
+import java.util.*;
+
+public class Stats {
+    public static int sum(params int[] xs) {
+        var total = 0;
+        foreach (var x in xs) total += x;
+        return total;
+    }
+    public static String join(String sep, params String[] parts) => String.join(sep, parts);
+    public static List<T> listOf<T>(params T[] items) => Arrays.asList(items);
+}
+
+void main2() {
+    println(Stats.sum());
+    println(Stats.sum(1));
+    println(Stats.sum(1, 2, 3));
+    println(Stats.sum(new int[] { 4, 5 }));
+    println(Stats.join(", "));
+    println(Stats.join(", ", "a", "b"));
+    List<String> l = Stats.listOf("x", "y");
+    println(String.format("%s-%d", "a", 1));
+    println(Arrays.asList(1, 2, 3).size());
+    println(List.of(1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12).size());
+    var e = EnumSet.of(Thread.State.NEW, Thread.State.RUNNABLE);
+    var p = java.nio.file.Path.of("a", "b", "c");
+
+    Stats.sum(1, "two");                             //~ JS0600
+    Stats.sum(1.5);                                  //~ JS0600
+    Stats.join();                                    //~ JS0614
+    Stats.join(", ", 1, 2);                          //~ JS0600
+}

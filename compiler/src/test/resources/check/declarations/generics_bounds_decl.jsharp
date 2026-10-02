@@ -1,0 +1,12 @@
+import java.util.*;
+
+public class Sorted<T : Comparable<T>> {
+    public T? top;
+}
+
+public class Holder {
+    public Sorted<String> names;
+    public Sorted<Object> things;                    //~ JS0423
+    public Sorted<StringBuilder> sbs;
+    public Map<String> broken;                       //~ JS0405
+}

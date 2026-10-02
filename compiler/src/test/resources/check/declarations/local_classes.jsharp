@@ -1,0 +1,49 @@
+import java.util.*;
+
+public class Report {
+    private final String title = "Q3";
+
+    public List<String> lines(List<int> values) {
+        val prefix = "> ";
+        class Line {
+            private final int v;
+            public Line(int v) { this.v = v; }
+            public String render() => prefix + title + ": " + v;
+        }
+        var out = new ArrayList<String>();
+        foreach (var v in values) {
+            out.add(new Line(v).render());
+        }
+        return out;
+    }
+
+    public static int total(int[] xs) {
+        record Acc(int sum, int count);
+        var acc = new Acc(0, 0);
+        foreach (var x in xs) {
+            acc = new Acc(acc.sum + x, acc.count + 1);
+        }
+        return acc.sum;
+    }
+
+    public static String classify(int n) {
+        enum Size { Small, Large }
+        var s = n < 10 ? Size.Small : Size.Large;
+        return s.name();
+    }
+
+    public void mutated() {
+        var count = 0;
+        class Counter {
+            public int read() => count;              //~ JS0631
+        }
+        count++;
+    }
+}
+
+void main2() {
+    var r = new Report();
+    println(r.lines(List.of(1, 2)));
+    println(Report.total(new int[] { 1, 2, 3 }));
+    println(Report.classify(42));
+}

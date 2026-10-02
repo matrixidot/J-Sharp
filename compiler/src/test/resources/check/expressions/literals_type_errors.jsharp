@@ -1,0 +1,17 @@
+// A literal's type decides what it can initialize.
+int fromLong = 5L;                       //~ JS0600
+float fromDouble = 3.14;                 //~ JS0600
+long fromDouble2 = 1.0;                  //~ JS0600
+int fromFloat = 1f;                      //~ JS0600
+char fromString = "a";                   //~ JS0600
+String fromChar = 'a';                   //~ JS0600
+boolean fromZero = 0;                    //~ JS0600
+int fromBool = true;                     //~ JS0600
+String fromNumber = 42;                  //~ JS0600
+var inferredLong = 10L;
+int narrowed = inferredLong;             //~ JS0600
+var inferredDouble = 1.5;
+float narrowedFloat = inferredDouble;    //~ JS0600
+int fromChar2 = 'a';
+double fromFloat2 = 1.5f;
+long fromInt = 7;

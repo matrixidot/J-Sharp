@@ -1,0 +1,42 @@
+// T?, ?., ??, ??=, ! and their result types.
+public class User {
+    public String name { get; set; } = "";
+    public String? email { get; set; }
+    public User? manager { get; set; }
+}
+
+String? find(int id) => if (id > 0) "user" + id else null;
+User? lookup(String key) => if (key.isEmpty()) null else new User();
+
+String? maybe = find(1);
+int len = maybe?.length() ?? 0;
+int? lenOrNull = maybe?.length();
+String upper = maybe?.toUpperCase() ?? "NONE";
+String chained = maybe?.trim()?.toLowerCase() ?? "";
+String asserted = find(2)!;
+int assertedLen = find(3)!.length();
+String fallbackChain = find(4) ?? find(5) ?? "fallback";
+String? stillNullable = find(6) ?? find(7);
+Object widened = maybe ?? 0;
+var inferred = maybe ?? "d";
+String checkInferred = inferred;
+
+User? u = lookup("k");
+String? managerEmail = u?.manager?.email;
+String managerName = u?.manager?.name ?? "nobody";
+int emailLength = u?.email?.length() ?? -1;
+
+String? v = find(8);
+v ??= "default";
+String checkV = v;
+User? w = lookup("");
+w ??= new User();
+w.name = "set";
+
+int? boxed = maybe?.length();
+int unboxedOrZero = boxed ?? 0;
+long unboxedWidened = boxed ?? 0L;
+int unboxedAsserted = boxed!;
+String? nothing = null;
+println(len + upper + chained + asserted + assertedLen + fallbackChain + stillNullable);
+println(widened + managerEmail + managerName + emailLength + unboxedOrZero + unboxedWidened);

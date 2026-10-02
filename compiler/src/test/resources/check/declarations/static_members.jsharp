@@ -1,0 +1,43 @@
+public class IdGen {
+    private static long next = 1;
+    public static final String PREFIX = "id-";
+    public static int issued { get; private set; }
+    private final String scope;
+
+    public IdGen(String scope) { this.scope = scope; }
+
+    public static String fresh() {
+        issued++;
+        return PREFIX + next++;
+    }
+
+    public String scoped() => scope + ":" + fresh();
+
+    public static String broken() => scope;          //~ JS0612
+    public static String alsoBroken() => scoped();   //~ JS0612
+    public static String noThis() => this.scope;     //~ JS0612
+
+    static {
+        next = 100;
+    }
+}
+
+public class Outer {
+    private int counter = 0;
+    public static int shared = 0;
+    public class Nested {
+        public int peek() => counter;                //~ JS0612
+        public int sharedPeek() => shared;
+    }
+}
+
+void main2() {
+    println(IdGen.fresh());
+    println(IdGen.issued);
+    println(IdGen.PREFIX);
+    var g = new IdGen("x");
+    println(g.scoped());
+    println(IdGen.scoped());                         //~ JS0612
+    IdGen.issued = 3;                                //~ JS0611
+    println(new Outer.Nested().sharedPeek());
+}

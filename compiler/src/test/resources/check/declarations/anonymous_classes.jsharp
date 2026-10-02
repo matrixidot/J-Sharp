@@ -1,0 +1,59 @@
+import java.util.*;
+
+public abstract class Handler {
+    protected final String name;
+    protected Handler(String name) { this.name = name; }
+    public abstract boolean handle(String msg);
+    public open String describe() => name;
+}
+
+public interface Listener {
+    void onEvent(String e);
+    default void onClose() { }
+}
+
+public static Handler make(String prefix) {
+    return new Handler("prefix") {
+        public override boolean handle(String msg) => msg.startsWith(prefix);
+        public override String describe() => "starts with " + prefix;
+    };
+}
+
+void main2() {
+    var counter = new int[1];
+    Runnable r = new Runnable() {
+        public override void run() { counter[0]++; }
+    };
+    r.run();
+    Comparator<String> byLen = new Comparator<String>() {
+        public override int compare(String a, String b) => a.length() - b.length();
+    };
+    var words = new ArrayList<String>(List.of("ccc", "a", "bb"));
+    words.sort(byLen);
+    Listener l = new Listener() {
+        private int seen = 0;
+        public override void onEvent(String e) { seen++; println(e + seen); }
+        public override void onClose() { println("closed after " + seen); }
+    };
+    l.onEvent("x");
+    println(make("ab").handle("abc"));
+    var it = new Iterator<int>() {
+        private int i = 0;
+        public override boolean hasNext() => i < 3;
+        public override Integer next() => i++;
+    };
+    println(it.next());
+
+    Runnable noOverride = new Runnable() {
+        public void run() { }                        //~ JS0617
+    };
+    Runnable missing = new Runnable() {              //~ JS0620
+    };
+    var h = new Handler() {                          //~ JS0614
+        public override boolean handle(String m) => true;
+    };
+    var bogus = new Listener() {
+        public override void onEvent(String e) { }
+        public override void onOpen() { }            //~ JS0618
+    };
+}

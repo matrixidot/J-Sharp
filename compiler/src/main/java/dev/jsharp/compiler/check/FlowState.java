@@ -11,8 +11,8 @@ import java.util.Set;
 
 /**
  * Flow facts at a program point: reachability, definite assignment (locals by id, final fields of
- * the class being constructed) and smart-cast narrowings of locals. Copied at branches and joined
- * at merges.
+ * the class being constructed), possible assignment (for single assignment of finals) and
+ * smart-cast narrowings of locals. Copied at branches and joined at merges.
  */
 final class FlowState {
   boolean alive = true;
@@ -20,20 +20,28 @@ final class FlowState {
   final Set<FieldSymbol> assignedFields;
   final Map<VarSymbol, Type> narrowed;
 
+  /** Variables that may have been assigned on some path. */
+  final BitSet maybeAssigned;
+
   FlowState() {
-    this(new BitSet(), new HashSet<>(), new HashMap<>());
+    this(new BitSet(), new HashSet<>(), new HashMap<>(), new BitSet());
   }
 
-  private FlowState(BitSet assigned, Set<FieldSymbol> fields, Map<VarSymbol, Type> narrowed) {
+  private FlowState(
+      BitSet assigned, Set<FieldSymbol> fields, Map<VarSymbol, Type> narrowed, BitSet maybe) {
     this.assigned = assigned;
     this.assignedFields = fields;
     this.narrowed = narrowed;
+    this.maybeAssigned = maybe;
   }
 
   FlowState copy() {
     FlowState f =
         new FlowState(
-            (BitSet) assigned.clone(), new HashSet<>(assignedFields), new HashMap<>(narrowed));
+            (BitSet) assigned.clone(),
+            new HashSet<>(assignedFields),
+            new HashMap<>(narrowed),
+            (BitSet) maybeAssigned.clone());
     f.alive = alive;
     return f;
   }
@@ -48,6 +56,7 @@ final class FlowState {
 
   /** Merges {@code other} into this state (control-flow join). */
   void join(FlowState other) {
+    maybeAssigned.or(other.maybeAssigned);
     if (!other.alive) {
       return;
     }
@@ -75,5 +84,7 @@ final class FlowState {
     assignedFields.addAll(other.assignedFields);
     narrowed.clear();
     narrowed.putAll(other.narrowed);
+    maybeAssigned.clear();
+    maybeAssigned.or(other.maybeAssigned);
   }
 }

@@ -1,0 +1,29 @@
+public open class Account {
+    protected final long id;
+    public Account(long id) { this.id = id; }
+}
+
+public class Savings : Account {                 //~ JS0630
+    public double rate = 0.02;
+}
+
+public class Checking : Account {
+    public Checking() { }                        //~ JS0630
+    public Checking(long id) { super(id); }
+    public Checking(String s) { super(s); }      //~ JS0600
+    public Checking(int a, int b) { super(); }   //~ JS0614
+}
+
+public class Point {
+    private final int x;
+    private final int y;
+    public Point(int x, int y) { this.x = x; this.y = y; }
+    public Point() { this(0); }                  //~ JS0604
+    public Point(String s) { this(s, s); }       //~ JS0604
+}
+
+void main2() {
+    var p = new Point(1, 2, 3);                  //~ JS0604
+    var q = new Point("a", 2);                   //~ JS0604
+    var a = new Account();                       //~ JS0614
+}

@@ -1,0 +1,45 @@
+public sealed interface Shape permits Circle, Square, Tri;
+public record Circle(double r) : Shape;
+public record Square(double side) : Shape;
+public record Tri(double b, double h) : Shape;
+
+public static double area(Shape s) => s switch {
+    Circle c => Math.PI * c.r * c.r,
+    Square q => q.side * q.side,
+    Tri t => 0.5 * t.b * t.h,
+};
+
+public sealed class Result {
+    public abstract boolean ok();
+}
+public class Success : Result {
+    public final String value;
+    public Success(String value) { this.value = value; }
+    public override boolean ok() => true;
+}
+public class Failure : Result {
+    public final String error;
+    public Failure(String error) { this.error = error; }
+    public override boolean ok() => false;
+}
+
+public static String show(Result r) => r switch {
+    Success s => "ok " + s.value,
+    Failure f => "err " + f.error,
+};
+
+public sealed interface Token;
+public record Ident(String name) : Token;
+public record Number(long value) : Token;
+public sealed interface Punct : Token;
+public record Comma() : Punct;
+public record Semi() : Punct;
+
+void main2() {
+    println(area(new Circle(1)));
+    println(show(new Success("x")));
+    Result r = new Failure("boom");
+    println(r.ok());
+    Token t = new Comma();
+    println(t is Punct);
+}

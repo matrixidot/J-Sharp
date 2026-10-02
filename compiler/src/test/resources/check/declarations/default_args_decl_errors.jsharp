@@ -1,0 +1,13 @@
+import java.util.*;
+
+public class Defaults {
+    public static int counter = 0;
+    public static final int LIMIT = 10;
+
+    public void a(int x = LIMIT * 2) { }
+    public void b(List<String> xs = new ArrayList<>()) { }            //~ JS0420
+    public void c(int x = counter) { }                                //~ JS0420
+    public void d(long t = System.currentTimeMillis()) { }            //~ JS0420
+    public void e(String s = "a" + "b") { }
+    public void f(String? s = null) { }
+}

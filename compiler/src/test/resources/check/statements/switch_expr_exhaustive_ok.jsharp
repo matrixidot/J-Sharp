@@ -1,0 +1,106 @@
+public sealed interface Shape;
+public record Circle(double r) : Shape;
+public record Rect(double w, double h) : Shape;
+public final class Triangle : Shape {
+    public double base { get; }
+    public double height { get; }
+    public Triangle(double b, double h) { base = b; height = h; }
+}
+
+public sealed interface Tree;
+public record Leaf(int value) : Tree;
+public sealed interface Branch : Tree;
+public record Two(Tree l, Tree r) : Branch;
+public record Three(Tree a, Tree b, Tree c) : Branch;
+
+public enum Dir { North, East, South, West }
+
+double area(Shape s) => s switch {
+    Circle c => Math.PI * c.r * c.r,
+    Rect(var w, var h) => w * h,
+    Triangle t => t.base * t.height / 2,
+};
+
+int depth(Tree t) => t switch {
+    Leaf _ => 1,
+    Two(var l, var r) => 1 + Math.max(depth(l), depth(r)),
+    Three tr => 1,
+};
+
+int depthViaSubSealed(Tree t) => t switch {
+    Leaf l => l.value,
+    Branch b => 0,
+};
+
+String turn(Dir d) => d switch {
+    Dir.North => "E",
+    Dir.East => "S",
+    Dir.South => "W",
+    Dir.West => "N",
+};
+
+String yesNo(boolean b) => b switch {
+    true => "yes",
+    false => "no",
+};
+
+String withDefault(int x) => x switch {
+    0 => "zero",
+    _ => "nonzero",
+};
+
+String withVarCatchAll(Object o) => o switch {
+    String s => s,
+    var other => other.toString(),
+};
+
+String nullableHandled(Shape? s) => s switch {
+    null => "none",
+    Circle _ => "circle",
+    Rect _ => "rect",
+    Triangle _ => "triangle",
+};
+
+String nullableEnum(Dir? d) => d switch {
+    Dir.North or Dir.South => "vertical",
+    Dir.East or Dir.West => "horizontal",
+    null => "nowhere",
+};
+
+String nullableDefault(String? s) => s switch {
+    "a" => "A",
+    _ => "other",
+};
+
+// switch in the prefix form and as an arrow-block value
+int prefix(Dir d) => switch (d) {
+    Dir.North => 0,
+    Dir.East => 90,
+    Dir.South => 180,
+    Dir.West => 270,
+};
+
+// a type that is the whole input is a total pattern
+String totalType(CharSequence cs) => cs switch {
+    String s => "string " + s,
+    CharSequence other => "other",
+};
+
+// guarded case followed by the unguarded one is exhaustive
+String guarded(Shape s) => s switch {
+    Circle c when c.r > 10 => "big circle",
+    Circle c => "circle",
+    Rect r => "rect",
+    Triangle t => "triangle",
+};
+
+// result type is the common supertype
+Number widen(boolean b) => b switch {
+    true => 1,
+    false => 2.5,
+};
+var label = Dir.North switch {
+    Dir.North => "n",
+    _ => "x",
+};
+String check = label;

@@ -1,0 +1,71 @@
+public class Product {
+    public String name { get; set; } = "";
+    public double price { get; private set; }
+    public final String sku { get; }
+    public int stock { get; init; }
+    public double total => price * stock;
+    public boolean inStock => stock > 0;
+    public String label { get => name + " (" + sku + ")"; }
+    public static int created { get; private set; }
+
+    private int _discount;
+    public int discount {
+        get => _discount;
+        set {
+            if (value < 0 || value > 100) {
+                throw new IllegalArgumentException("bad discount");
+            }
+            _discount = value;
+        }
+    }
+
+    public String code {
+        get => field;
+        set { field = value.trim().toUpperCase(); }
+    } = "NONE";
+
+    public Product(String sku, double price) {
+        this.sku = sku;
+        this.price = price;
+        created++;
+    }
+
+    public void reprice(double p) { price = p; }
+}
+
+public class Celsius {
+    public double degrees { get; set; }
+    public double fahrenheit {
+        get => degrees * 9 / 5 + 32;
+        set => degrees = (value - 32) * 5 / 9;
+    }
+}
+
+public interface Identified {
+    String id { get; }
+    String display => "#" + id;
+}
+
+public class Customer : Identified {
+    public override String id { get; }
+    public Customer(String id) { this.id = id; }
+}
+
+void main2() {
+    var p = new Product("A1", 9.99) { name = "Pen", stock = 3 };
+    p.name = p.name + "!";
+    p.discount = 10;
+    p.code = "  ab ";
+    p.reprice(5.0);
+    println(p.total + p.price + p.discount);
+    println(p.label + p.code + p.inStock);
+    println(Product.created);
+    var c = new Celsius();
+    c.fahrenheit = 212;
+    println(c.degrees);
+    c.degrees += 1;
+    println(c.fahrenheit);
+    Identified i = new Customer("c7");
+    println(i.display);
+    println(i.id);
+}

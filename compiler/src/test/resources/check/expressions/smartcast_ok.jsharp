@@ -1,0 +1,49 @@
+// Flow typing: null checks, `is` checks and early exits narrow a local's type.
+String? find(int id) => if (id > 0) "x" + id else null;
+
+int lengthOrZero(String? s) {
+    if (s == null) return 0;
+    return s.length();
+}
+int lengthOrZero2(String? s) {
+    if (s == null || s.isEmpty()) return 0;
+    return s.length();
+}
+String describe(Object o) {
+    if (o is Integer) return $"int {o + 1}";
+    if (o is String) return "string of " + o.length();
+    return "other";
+}
+int must(String? s) {
+    if (s == null) throw new IllegalArgumentException("s");
+    return s.length();
+}
+int ternary(String? s) => s != null ? s.length() : -1;
+int ternaryReversed(String? s) => s == null ? -1 : s.length();
+boolean andChain(String? s) => s != null && s.length() > 2 && s.startsWith("a");
+boolean orChain(String? s) => s == null || s.isEmpty();
+
+String? a = find(1);
+if (a != null) { println(a.length()); }
+String? b = find(2);
+if (null != b) { println(b.length()); }
+String? c = find(3);
+if (c == null) { println("none"); } else { println(c.length()); }
+String? d = find(4);
+if (d is String ds) { println(ds.length()); }
+String? e = find(5);
+if (e is not null) { println(e.length()); }
+String? f = find(6);
+if (!(f is String)) { return; }
+println(f.length());
+String? g = find(7);
+g = "now non-null";
+println(g.length());
+Object o = "text";
+if (o is String) { println(o.toUpperCase()); }
+if (o is String str && str.length() > 3) { println(str); }
+if (!(o is String s2)) { return; }
+println(s2.length());
+String? h = find(8);
+if (h == null) { h = "replaced"; }
+println(h.length());

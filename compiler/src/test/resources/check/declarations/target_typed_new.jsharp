@@ -1,0 +1,40 @@
+import java.util.*;
+
+public class Registry {
+    private final HashMap<String, List<int>> index = new();
+    private ArrayList<String> names = new();
+    private StringBuilder log = new(64);
+
+    public void add(String name, int id) {
+        names.add(name);
+        index.computeIfAbsent(name, k => new ArrayList<>()).add(id);
+        log.append(name);
+    }
+
+    public Set<String> keys() {
+        Set<String> out = new HashSet<>();
+        out.addAll(index.keySet());
+        return out;
+    }
+
+    public ArrayList<String> fresh() => new();
+
+    public static void take(ArrayDeque<String> d) { }
+}
+
+void main2() {
+    ArrayList<String> xs = new();
+    HashMap<String, int> counts = new();
+    counts.put("a", 1);
+    ArrayList<Long> sized = new(10);
+    Registry.take(new());
+    Registry r = new();
+    r.add("x", 1);
+    xs.add("y");
+    println(xs.size() + counts.size() + sized.size());
+
+    var bad = new();                                 //~ JS0616
+    Object o = new();
+    Runnable run = new();                            //~ JS0613
+    AbstractList<String> al = new();                 //~ JS0613
+}

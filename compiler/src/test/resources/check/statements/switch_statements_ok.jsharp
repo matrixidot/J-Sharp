@@ -1,0 +1,128 @@
+public sealed interface Event;
+public record Click(int x, int y) : Event;
+public record Key(char c) : Event;
+public enum Mode { Insert, Normal, Visual }
+
+void handle(Event e) {
+    switch (e) {
+        case Click(var x, var y) when x < 0:
+            println("offscreen");
+            break;
+        case Click c:
+            println(c.x + c.y);
+            break;
+        case Key k:
+            println(k.c);
+            break;
+    }
+}
+
+String modeName(Mode m) {
+    switch (m) {
+        case Mode.Insert:
+            return "-- INSERT --";
+        case Mode.Normal:
+            return "";
+        default:
+            break;
+    }
+    return "?";
+}
+
+int classify(int code) {
+    var result = 0;
+    switch (code) {
+        case 0:
+            result = 10;
+            break;
+        case 1 or 2:
+            result = 20;
+            break;
+        case > 100:
+            result = 30;
+            break;
+        default:
+            result = -1;
+            break;
+    }
+    return result;
+}
+
+void strings(String cmd) {
+    switch (cmd) {
+        case "start":
+        case "run":
+            println("go");
+            break;
+        case "stop":
+            println("halt");
+            return;
+        default:
+            throw new IllegalArgumentException(cmd);
+    }
+}
+
+// the last section may fall off the end
+void lastFallsOff(int x) {
+    switch (x) {
+        case 1:
+            println("one");
+            break;
+        default:
+            println("other");
+    }
+}
+
+// sections may end with continue or throw
+void inLoop(int[] xs) {
+    foreach (var x in xs) {
+        switch (x) {
+            case 0:
+                continue;
+            case -1:
+                throw new IllegalStateException();
+            default:
+                println(x);
+                break;
+        }
+    }
+}
+
+// a section can open a block with its own locals
+void blocks(int x) {
+    switch (x) {
+        case 1: {
+            var tmp = x * 2;
+            println(tmp);
+            break;
+        }
+        case 2: {
+            var tmp = "two";
+            println(tmp);
+            break;
+        }
+    }
+}
+
+// non-exhaustive statement switches over open types are allowed
+void partial(Object o) {
+    switch (o) {
+        case String s:
+            println(s);
+            break;
+    }
+}
+
+void nullCase(String? s) {
+    switch (s) {
+        case null:
+            println("null");
+            break;
+        case "x":
+            println("x");
+            break;
+        default:
+            println(s);
+            break;
+    }
+}

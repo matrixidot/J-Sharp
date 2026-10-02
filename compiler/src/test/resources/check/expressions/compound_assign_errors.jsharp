@@ -1,0 +1,19 @@
+// Invalid compound assignments.
+String s = "a";
+s -= "b";                                //~ JS0607
+s *= 2;                                  //~ JS0607
+boolean flag = true;
+flag += true;                            //~ JS0607
+flag <<= 1;                              //~ JS0607
+double d = 1.0;
+d <<= 1;                                 //~ JS0607
+d &= 1;                                  //~ JS0607
+int i = 1;
+i += "x";                                //~ JS0607
+i &= true;                               //~ JS0607
+val k = 1;
+k += 1;                                  //~ JS0903
+Object o = s;
+o += 1;                                  //~ JS0607
+"abc".length() += 1;                     //~ JS0609
+(i + 1) += 2;                            //~ JS0609

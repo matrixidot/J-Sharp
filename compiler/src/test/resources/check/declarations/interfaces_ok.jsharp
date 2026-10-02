@@ -1,0 +1,64 @@
+import java.util.*;
+
+public interface Logger {
+    void log(String msg);
+    default void info(String msg) => log("INFO " + format(msg));
+    default void warn(String msg) { log("WARN " + format(msg)); }
+    private String format(String msg) => msg.trim();
+    static Logger console() => new ConsoleLogger();
+    static Logger prefixed(String p) => m => println(p + m);
+    static final int LEVEL = 3;
+}
+
+public class ConsoleLogger : Logger {
+    public override void log(String msg) => println(msg);
+}
+
+public class LoudLogger : Logger {
+    public override void log(String msg) => println(msg.toUpperCase());
+    public override void info(String msg) => log("!! " + msg);
+}
+
+public interface Named { String name(); }
+public interface Aged { int age(); default boolean adult() => age() >= 18; }
+public interface Person : Named, Aged {
+    default String card() => name() + " " + age();
+}
+
+public class Employee : Person {
+    public override String name() => "ann";
+    public override int age() => 30;
+}
+
+public interface Left { default String hello() => "left"; }
+public interface Right { default String hello() => "right"; }
+public class Both : Left, Right {
+    public override String hello() => "both";
+}
+
+public interface Visitor<R> {
+    R visitNum(int n);
+    R visitAdd(int a, int b);
+}
+
+public class Printer : Visitor<String> {
+    public override String visitNum(int n) => "" + n;
+    public override String visitAdd(int a, int b) => a + "+" + b;
+}
+
+void main2() {
+    Logger l = Logger.console();
+    l.info(" hi ");
+    l.warn("careful");
+    Logger.prefixed("> ").log("x");
+    new LoudLogger().info("hey");
+    println(Logger.LEVEL);
+    Person p = new Employee();
+    println(p.card());
+    println(p.adult());
+    Named n = p;
+    println(n.name());
+    println(new Both().hello());
+    Visitor<String> v = new Printer();
+    println(v.visitAdd(1, 2));
+}

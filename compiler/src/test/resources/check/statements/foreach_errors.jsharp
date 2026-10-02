@@ -1,0 +1,23 @@
+import java.util.*;
+
+var map = new HashMap<String, Integer>();
+foreach (var e in map) { }                   //~ JS0626
+foreach (var c in "text") { }                //~ JS0626
+foreach (var i in 42) { }                    //~ JS0626
+foreach (var s in List.of("a").stream()) { } //~ JS0626
+Object obj = List.of(1);
+foreach (var o in obj) { }                   //~ JS0626
+
+var words = List.of("a", "b");
+foreach (int w in words) { }                 //~ JS0600
+List<String?> maybe = new ArrayList<String?>();
+foreach (String m in maybe) { }              //~ JS0601
+List<String>? nullableList = null;
+foreach (var s in nullableList) { }          //~ JS0608
+
+var nums = List.of(1, 2);
+foreach (var (a, b) in nums) { }             //~ JS0651
+foreach (var (k, v, extra) in map.entrySet()) { }  //~ JS0656
+foreach (var w in words) {
+    var w = 1;                               //~ JS0909
+}

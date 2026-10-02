@@ -1,0 +1,43 @@
+import java.util.*;
+
+public open class Vault {
+    private String secret = "s";
+    protected String hint = "h";
+    internal String note = "n";
+    String implicitInternal = "i";
+    public String label = "l";
+
+    private Vault(int code) { }
+    public Vault() { }
+
+    private void unlock() { }
+    protected open void audit() { }
+    private static Vault master() => new Vault(0);
+    public static Vault create() => master();
+
+    public boolean same(Vault other) => other.secret == secret;
+
+    public class Key {
+        public String peek(Vault v) => v.secret;
+    }
+}
+
+public class SubVault : Vault {
+    public String reveal() => hint + note + implicitInternal + label;
+    public String steal() => secret;                 //~ JS0611
+    protected override void audit() { unlock(); }    //~ JS0611
+}
+
+public class Thief {
+    public void rob(Vault v) {
+        println(v.label + v.note + v.implicitInternal);
+        println(v.secret);                           //~ JS0611
+        v.unlock();                                  //~ JS0611
+        var w = new Vault(42);                       //~ JS0611
+        var m = Vault.master();                      //~ JS0611
+        var c = Vault.create();
+    }
+    public void removeRange(ArrayList<String> xs) {
+        xs.removeRange(0, 1);                        //~ JS0611
+    }
+}

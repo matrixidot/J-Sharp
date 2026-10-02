@@ -657,6 +657,9 @@ final class Patterns {
                   "a case with several labels cannot declare pattern variables");
             }
             bindings.addAll(lb);
+            for (VarSymbol b : lb) {
+              env().flow.assigned.set(b.id());
+            }
             if (l.guard() != null) {
               if (sec.labels().size() > 1) {
                 a.error(
@@ -932,8 +935,19 @@ final class Patterns {
   private void checkDominance(List<BSwitch.Case> cases, List<Span> spans, Type input) {
     List<BPattern> earlier = new ArrayList<>();
     Set<Object> constants = new HashSet<>();
+    boolean catchAll = false;
     for (int i = 0; i < cases.size(); i++) {
       BSwitch.Case c = cases.get(i);
+      if (catchAll) {
+        a.error(
+            Code.DUPLICATE_CASE,
+            spans.get(i),
+            "this case can never match: an earlier case matches everything");
+        continue;
+      }
+      if (c.pattern() == null && c.guard() == null && c.value() != null) {
+        catchAll = true; // `_ =>` arm of a switch expression
+      }
       if (c.pattern() != null) {
         List<BPattern> flat = new ArrayList<>();
         flatten(c.pattern(), flat);
@@ -981,6 +995,21 @@ final class Patterns {
   private boolean dominates(BPattern earlier, BPattern later, Type input) {
     if (earlier instanceof BPattern.Any) {
       return true;
+    }
+    Object k = later instanceof BPattern.Constant lc ? ConstFold.valueOf(lc.value()) : null;
+    if (k != null && earlier instanceof BPattern.TypeTest et) {
+      BExpr kv = ((BPattern.Constant) later).value();
+      Type kt = kv.type() instanceof PrimType p ? a.syms.boxed(p) : kv.type();
+      return types().isSubtype(kt, et.type());
+    }
+    if (k != null
+        && earlier instanceof BPattern.Relational rel
+        && rel.operandType() instanceof PrimType pt) {
+      Object bound = ConstFold.valueOf(rel.value());
+      Object v = k instanceof Character ch ? (Object) (int) ch.charValue() : k;
+      if (bound != null && (v instanceof Number)) {
+        return Boolean.TRUE.equals(ConstFold.binary(rel.op(), ConstFold.convert(v, pt), bound, pt));
+      }
     }
     if (earlier instanceof BPattern.TypeTest e) {
       Type lt =
@@ -1103,6 +1132,9 @@ final class Patterns {
       BExpr v =
           a.coerce(new BExpr.Local(temps.get(i), span), lv.type(), t.elements().get(i).span());
       stmts.add(new BStmt.ExprStmt(new BExpr.Assign(lv, v, lv.type(), span), span));
+      if (lv instanceof BLValue.LocalLV l && l.var().id() >= 0) {
+        env().flow.assigned.set(l.var().id());
+      }
     }
     return new BExpr.Block(stmts, new BExpr.Local(tmp, span), span);
   }

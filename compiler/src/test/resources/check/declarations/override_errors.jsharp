@@ -1,0 +1,36 @@
+public open class Widget {
+    public open void render() { }
+    public open String label() => "widget";
+    public void layout() { }
+    protected open void onClick(int x, int y) { }
+    public open Object payload() => "p";
+    public open int size() => 1;
+    public static void reset() { }
+}
+
+public class Button : Widget {
+    public void render() { }                     //~ JS0617
+    public override String label() => "button";
+    public override void layout() { }            //~ JS0619
+    public override void onClick(int x) { }      //~ JS0618
+    public override void onHover() { }           //~ JS0618
+    public override String payload() => "s";
+}
+
+public class Narrow : Widget {
+    private override void render() { }           //~ JS0619
+    internal override String label() => "n";     //~ JS0619
+    public override void onClick(int x, int y) { }
+}
+
+public class WrongReturn : Widget {
+    public override int label() => 1;            //~ JS0600
+    public override long size() => 2;            //~ JS0600
+    public override String payload() => "ok";
+}
+
+public class Plain {
+    public override String toString() => "plain";
+    public String hashCode() => "h";             //~ JS0617 JS0600
+    public boolean equals(Object? o) => false;   //~ JS0617
+}

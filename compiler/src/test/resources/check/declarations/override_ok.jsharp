@@ -1,0 +1,67 @@
+import java.util.*;
+
+public abstract class Shape {
+    public abstract double area();
+    public open String name() => "shape";
+    public open Shape scaled(double k) => this;
+    public final override String toString() => name() + "(" + area() + ")";
+}
+
+public open class Rect : Shape {
+    protected final double w;
+    protected final double h;
+    public Rect(double w, double h) { this.w = w; this.h = h; }
+    public override double area() => w * h;
+    public override String name() => "rect";
+    public override Rect scaled(double k) => new Rect(w * k, h * k);
+}
+
+public class Square : Rect {
+    public Square(double side) { super(side, side); }
+    public override String name() => "square";
+    public override Square scaled(double k) => new Square(w * k);
+}
+
+public open class Base {
+    protected open void hook() { }
+    public open Object value() => 0;
+}
+
+public class Wider : Base {
+    public override void hook() { }
+    public final override String value() => "v";
+}
+
+public open class Repository<T> {
+    public open T? find(int id) => null;
+    public open void save(T item) { }
+}
+
+public class UserRepository : Repository<String> {
+    private final Map<int, String> store = new HashMap<>();
+    public override String? find(int id) => store.get(id);
+    public override void save(String item) { store.put(store.size(), item); }
+}
+
+public class Money {
+    private final long cents;
+    public Money(long cents) { this.cents = cents; }
+    public override boolean equals(Object? o) => o is Money m && m.cents == cents;
+    public override int hashCode() => Long.hashCode(cents);
+    public override String toString() => $"{cents / 100}.{cents % 100}";
+}
+
+void main2() {
+    Shape s = new Square(2).scaled(3);
+    println(s);
+    Rect r = new Square(1).scaled(2);
+    Square sq = new Square(1).scaled(2);
+    println(r.area() + sq.area());
+    var repo = new UserRepository();
+    repo.save("ann");
+    String? found = repo.find(0);
+    println(found);
+    println(new Money(150) == new Money(150));
+    Base b = new Wider();
+    println(b.value());
+}

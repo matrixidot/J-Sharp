@@ -1,0 +1,20 @@
+public enum Coin(int cents) {
+    Penny(1), Nickel(5), Dime("ten"),                //~ JS0600
+    Quarter;                                         //~ JS0614
+    public int doubled() => cents * 2;
+}
+
+public enum Dir { North, South }
+
+public static String name(Dir d) => d switch {      //~ JS0650
+    Dir.North => "n",
+};
+
+void main2() {
+    var d = new Dir();                               //~ JS0613
+    Coin.Penny.cents = 3;                            //~ JS0609
+    var e = Dir.East;                                //~ JS0603
+    int i = Dir.North;                               //~ JS0600
+    Dir.North = Dir.South;                           //~ JS0609
+    var x = Coin.Penny.ordinal;                      //~ JS0611
+}

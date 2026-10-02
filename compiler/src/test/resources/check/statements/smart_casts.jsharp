@@ -1,0 +1,88 @@
+import java.util.*;
+
+int typeTestSmartCast(Object o) {
+    if (o is String) {
+        return o.length();
+    }
+    return 0;
+}
+
+int nullCheckSmartCast(String? s) {
+    if (s != null) {
+        return s.length();
+    }
+    return 0;
+}
+
+int earlyReturnSmartCast(String? s) {
+    if (s == null) {
+        return 0;
+    }
+    return s.length();
+}
+
+int andSmartCast(String? s) => s != null && s.length() > 2 ? 1 : 0;
+
+int orSmartCast(String? s) => s == null || s.isEmpty() ? 0 : s.length();
+
+int throwSmartCast(String? s) {
+    if (s == null) throw new IllegalArgumentException();
+    return s.length();
+}
+
+int loopReassignmentInvalidates(String? s) {
+    var cur = s;
+    if (cur != null) {
+        println(cur.length());
+    }
+    while (cur != null) {
+        println(cur.length());
+        cur = null;
+    }
+    return 0;
+}
+
+// assignment of a nullable value invalidates the smart cast
+int reassigned(String? s, String? other) {
+    if (s != null) {
+        s = other;
+        return s.length();                   //~ JS0608
+    }
+    return 0;
+}
+
+// a smart cast does not survive into a lambda for a mutable local
+void lambdaCapture(String? s) {
+    if (s != null) {
+        Runnable r = () => println(s.length());
+        r.run();
+    }
+}
+
+// after the if without return, the variable is nullable again
+int afterIf(String? s) {
+    if (s != null) {
+        println(s.length());
+    }
+    return s.length();                       //~ JS0608
+}
+
+// type smart cast is gone after the branch
+int afterTypeTest(Object o) {
+    if (o is String) {
+        println(o.length());
+    }
+    return o.length();                       //~ JS0603
+}
+
+// non-null assertion
+int asserted(String? s) => s!.length();
+
+// a val captured by a lambda keeps its smart cast
+void valCapture(String? input) {
+    val s = input;
+    if (s != null) {
+        Runnable r = () => println(s.length());
+        r.run();
+    }
+}

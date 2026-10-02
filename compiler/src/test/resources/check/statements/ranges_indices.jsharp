@@ -1,0 +1,40 @@
+import java.util.*;
+
+int[] arr = new int[] { 10, 20, 30, 40, 50 };
+List<String> xs = List.of("a", "b", "c", "d");
+String s = "hello";
+
+int last = arr[^1];
+int secondLast = arr[^2];
+String lastItem = xs[^1];
+char lastChar = s[^1];
+
+int[] mid = arr[1..3];
+List<String> sub = xs[1..3];
+String prefix = s[..2];
+String suffix = s[2..];
+String all = s[..];
+List<String> tail = xs[1..];
+List<String> dropLast = xs[..^1];
+int[] fromEnd = arr[^3..^1];
+
+var n = 2;
+int dyn = arr[^n];
+String dynSlice = s[n..n + 2];
+
+var list = new ArrayList<Integer>(List.of(1, 2, 3));
+list[^1] = 9;
+arr[^1] = 7;
+int el = list[0];
+char first = s[0];
+
+// errors
+var e1 = arr["x"];                           //~ JS0600
+var e2 = 5[^1];                              //~ JS0654
+var e3 = s["a".."b"];                        //~ JS0600 JS0600
+var e4 = arr[1.5..2];                        //~ JS0600
+int e5 = arr[1..2];                          //~ JS0600
+String e6 = xs[0..1];                        //~ JS0600
+var obj = new Object();
+var e7 = obj[^1];                            //~ JS0654
+s[0] = 'x';                                  //~ JS0607

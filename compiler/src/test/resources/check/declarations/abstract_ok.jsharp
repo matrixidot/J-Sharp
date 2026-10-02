@@ -1,0 +1,44 @@
+public abstract class Task2 {
+    private final String title;
+    protected Task2(String title) { this.title = title; }
+    public abstract int priority();
+    public abstract String run();
+    public String title() => title;
+    public String summary() => $"[{priority()}] {title}: {run()}";
+}
+
+public abstract class Chore : Task2 {
+    protected Chore(String title) { super(title); }
+    public override int priority() => 1;
+}
+
+public class Dishes : Chore {
+    public Dishes() { super("dishes"); }
+    public override String run() => "washing";
+}
+
+public class Urgent : Task2 {
+    public Urgent(String t) { super(t); }
+    public override int priority() => 10;
+    public override String run() => "now";
+}
+
+public abstract class Template {
+    public String render() => header() + body() + footer();
+    protected abstract String header();
+    protected abstract String body();
+    protected open String footer() => "";
+}
+
+public class Page : Template {
+    protected override String header() => "<h1>";
+    protected override String body() => "hi";
+    protected override String footer() => "</h1>";
+}
+
+void main2() {
+    Task2 t = new Dishes();
+    println(t.summary());
+    println(new Urgent("fire").summary());
+    println(new Page().render());
+}

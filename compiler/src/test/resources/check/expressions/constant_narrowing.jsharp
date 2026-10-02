@@ -1,0 +1,29 @@
+// Assignment of int constants to byte/short/char narrows implicitly when the value fits
+// (Java assignment-context rule); non-constant or out-of-range values do not.
+byte b = 10;
+byte bMax = 127;
+byte bMin = -128;
+short sh = 32767;
+short shMin = -32768;
+char ch = 65;
+char chMax = 65535;
+short fromCharConst = 'a';
+byte folded = 10 + 20;
+char nextLetter = 'a' + 1;
+byte tooBig = 128;                     //~ JS0600
+byte tooSmall = -129;                  //~ JS0600
+short shTooBig = 32768;                //~ JS0600
+char negativeChar = -1;                //~ JS0600
+char charTooBig = 65536;               //~ JS0600
+byte foldedTooBig = 100 + 100;         //~ JS0600
+byte fromLongConst = 10L;              //~ JS0600
+int i = 10;
+byte fromVariable = i;                 //~ JS0600
+char fromShortVariable = sh;           //~ JS0600
+byte returnsByte() => 10;
+short returnsShort() { return 1000; }
+byte returnsTooBig() => 1000;          //~ JS0600
+void takeByte(byte x) { }
+takeByte(10);
+takeByte((byte) 10);
+takeByte(b);

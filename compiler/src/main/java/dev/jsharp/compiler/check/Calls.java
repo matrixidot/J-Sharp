@@ -430,7 +430,9 @@ final class Calls {
       Selected sel =
           select(
               extensions, null, withReceiver(recv, infos), explicit, pt, recv, span, name, false);
-      if (sel != null) {
+      if (sel != null
+          && (site instanceof PrimType
+              || sel.method.params().getFirst().type().nullness() != Nullness.NON_NULL)) {
         return finish(sel, null, null, withReceiver(recv, infos), span, false);
       }
     }
@@ -456,10 +458,46 @@ final class Calls {
         return new BExpr.Error(Type.ErrorType.INSTANCE, span);
       }
     }
+    // Only extensions whose receiver parameter accepts this receiver are relevant.
+    List<MethodSymbol> applicableExt = new ArrayList<>();
+    for (MethodSymbol ext : extensions) {
+      Type rp = ext.params().isEmpty() ? null : ext.params().getFirst().type();
+      boolean ok;
+      if (rp == null) {
+        ok = false;
+      } else if (rp instanceof Type.TypeVar) {
+        ok = true;
+      } else if (!ext.typeParams().isEmpty()) {
+        ok =
+            rp instanceof PrimType
+                ? types().primitiveView(site) == rp
+                : types().isSubtype(types().boxIfPrimitive(site).erasure(), rp.erasure());
+      } else {
+        ok = types().assignConversion(site, rp, null) != Types.Conv.NONE;
+      }
+      if (ok) {
+        applicableExt.add(ext);
+      }
+    }
+    extensions = applicableExt;
     if (!extensions.isEmpty()) {
       List<ArgInfo> withRecv = withReceiver(recv, infos);
       Selected sel = select(extensions, null, withRecv, explicit, pt, recv, span, name, false);
       if (sel != null) {
+        if (site.isReference()
+            && site.nullness() == Nullness.NULLABLE
+            && sel.method.params().getFirst().type().nullness() == Nullness.NON_NULL) {
+          a.checkReceiverNullness(recv, nameSpan);
+          List<ArgInfo> retyped =
+              withReceiver(
+                  new BExpr.Conv(
+                      recv,
+                      BExpr.ConvKind.RETYPE,
+                      site.withNullness(Nullness.NON_NULL),
+                      recv.span()),
+                  infos);
+          return finish(sel, null, null, retyped, span, false);
+        }
         return finish(sel, null, null, withRecv, span, false);
       }
       if (!members.isEmpty()) {
@@ -826,6 +864,25 @@ final class Calls {
       }
     }
     if (report) {
+      for (MethodSymbol m : candidates) {
+        if (!accessible.contains(m)
+            && tryApply(
+                    m,
+                    site,
+                    args,
+                    explicit,
+                    expected,
+                    Phase.VARARGS.compareTo(Phase.LOOSE) > 0 && m.isVarargs()
+                        ? Phase.VARARGS
+                        : Phase.LOOSE)
+                != null) {
+          a.error(
+              Code.INACCESSIBLE_MEMBER,
+              span,
+              m.kindName() + " " + m.signature() + " is " + Flags.access(m.flags()));
+          return null;
+        }
+      }
       if (accessible.isEmpty() && inaccessible != null) {
         a.error(
             Code.INACCESSIBLE_MEMBER,
@@ -915,6 +972,9 @@ final class Calls {
       }
       explicitMap = Types.zip(m.typeParams(), explicit);
       vars = new ArrayList<>(extraInferenceVars);
+      if (violatedBound(m, explicitMap) != null) {
+        return null;
+      }
     }
     List<Type> ptypes = new ArrayList<>();
     for (MethodSymbol.Param p : params) {
@@ -1078,6 +1138,25 @@ final class Calls {
     s.usesDefaults = defaultsUsed > 0;
     s.defaultedVars = defaulted;
     return s;
+  }
+
+  /** A message if explicit type arguments violate the method's declared bounds, else null. */
+  private String violatedBound(MethodSymbol m, Map<TypeVarSymbol, Type> subst) {
+    for (TypeVarSymbol tv : m.typeParams()) {
+      Type arg = subst.get(tv);
+      for (Type b : tv.bounds()) {
+        Type bound = Types.subst(b, subst);
+        if (arg != null && !arg.isError() && !types().isSubtype(arg, bound)) {
+          return "type argument "
+              + arg.display()
+              + " does not satisfy the bound "
+              + bound.display()
+              + " of "
+              + tv.name();
+        }
+      }
+    }
+    return null;
   }
 
   private Infer copyInfer(Infer inf, List<TypeVarSymbol> vars) {
@@ -1496,42 +1575,93 @@ final class Calls {
     List<MethodSymbol.Param> params = m.params();
     int offset = isExtension ? 1 : 0;
     long positional = args.stream().filter(x -> x.name == null).count();
-    int required = (int) params.stream().filter(p -> !p.hasDefault() && !p.isVarargs()).count();
     boolean hasNamed = args.stream().anyMatch(x -> x.name != null);
+    // Simulate the argument-to-parameter mapping to explain mapping errors precisely.
+    boolean[] filled = new boolean[params.size()];
+    int next = 0;
+    boolean sawNamed = false;
     for (ArgInfo x : args) {
-      if (x.name != null && params.stream().noneMatch(p -> p.name().equals(x.name))) {
+      if (x.name != null) {
+        sawNamed = true;
+        int idx = -1;
+        for (int p = 0; p < params.size(); p++) {
+          if (params.get(p).name().equals(x.name)) {
+            idx = p;
+          }
+        }
+        if (idx < 0) {
+          a.report(
+              a.err(
+                      Code.INVALID_NAMED_ARGUMENT,
+                      x.span,
+                      m.signature() + " has no parameter named '" + x.name + "'")
+                  .help(
+                      "parameters: "
+                          + String.join(
+                              ", ",
+                              params.subList(offset, params.size()).stream()
+                                  .map(MethodSymbol.Param::name)
+                                  .toList())));
+          return;
+        }
+        if (filled[idx]) {
+          a.error(
+              Code.INVALID_NAMED_ARGUMENT,
+              x.span,
+              "parameter '" + x.name + "' is given more than once");
+          return;
+        }
+        filled[idx] = true;
+        continue;
+      }
+      if (sawNamed) {
+        a.error(
+            Code.INVALID_NAMED_ARGUMENT,
+            x.span,
+            "positional arguments must come before named arguments");
+        return;
+      }
+      if (next >= params.size()) {
+        if (m.isVarargs()) {
+          continue;
+        }
         a.report(
             a.err(
-                    Code.INVALID_NAMED_ARGUMENT,
-                    x.span,
-                    m.signature() + " has no parameter named '" + x.name + "'")
-                .help(
-                    "parameters: "
-                        + String.join(
-                            ", ",
-                            params.subList(offset, params.size()).stream()
-                                .map(MethodSymbol.Param::name)
-                                .toList())));
+                Code.ARGUMENT_COUNT,
+                span,
+                (m.isConstructor() ? "constructor " : "")
+                    + m.signature()
+                    + " takes "
+                    + (params.size() - offset)
+                    + " argument"
+                    + (params.size() - offset == 1 ? "" : "s")
+                    + ", but "
+                    + (positional - offset)
+                    + " "
+                    + (positional - offset == 1 ? "was" : "were")
+                    + " given"));
+        return;
+      }
+      filled[next++] = true;
+    }
+    for (int p = 0; p < params.size(); p++) {
+      MethodSymbol.Param prm = params.get(p);
+      if (!filled[p] && !prm.hasDefault() && !prm.isVarargs()) {
+        a.report(
+            a.err(
+                    Code.ARGUMENT_COUNT,
+                    span,
+                    "missing argument for parameter '" + prm.name() + "' of " + m.signature())
+                .help(hasNamed ? "pass it by position or as '" + prm.name() + ": value'" : null));
         return;
       }
     }
-    if (!hasNamed && (positional > params.size() && !m.isVarargs() || positional < required)) {
-      a.report(
-          a.err(
-              Code.ARGUMENT_COUNT,
-              span,
-              (m.isConstructor() ? "constructor " : "")
-                  + m.signature()
-                  + " takes "
-                  + (params.size() - offset)
-                  + " argument"
-                  + (params.size() - offset == 1 ? "" : "s")
-                  + ", but "
-                  + (positional - offset)
-                  + " "
-                  + (positional - offset == 1 ? "was" : "were")
-                  + " given"));
-      return;
+    if (explicit != null && explicit.size() == m.typeParams().size()) {
+      String v = violatedBound(m, Types.zip(m.typeParams(), explicit));
+      if (v != null) {
+        a.error(Code.TYPE_ARGUMENT_BOUND, span, v);
+        return;
+      }
     }
     if (explicit != null && explicit.size() != m.typeParams().size()) {
       a.error(
@@ -1611,7 +1741,7 @@ final class Calls {
                     + pt.display()
                     + ", found "
                     + x.type.display());
-        if (isRetargetable(x.expr)) {
+        if (x.expr != null && isRetargetable(x.expr)) {
           final Type target = pt;
           Attr.Speculation<BExpr> s = a.speculate(() -> a.exprCoerced(x.expr, target));
           if (!s.hasErrors()) {

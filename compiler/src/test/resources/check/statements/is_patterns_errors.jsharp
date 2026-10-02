@@ -1,0 +1,59 @@
+import java.util.*;
+
+// A binding may be visible after its test (see earlyExit in is_patterns_ok) but is only
+// definitely assigned where the pattern matched.
+void scopeAfterIf(Object o) {
+    if (o is String s) {
+        println(s);
+    }
+    println(s.length());                     //~ JS0900
+}
+
+void notInScopeInElse(Object o) {
+    if (o is String s) {
+        println(s);
+    } else {
+        println(s);                          //~ JS0900
+    }
+}
+
+void notAssignedThroughOr(Object o) {
+    if (o is String s || o is Integer) {
+        println(s);                          //~ JS0900
+    }
+}
+
+void negationHidesInThen(Object o) {
+    if (!(o is String s)) {
+        println(s);                          //~ JS0900
+    }
+}
+
+void bindingConflictsWithLocal(Object o) {
+    var s = 1;
+    if (o is String s) { }                   //~ JS0909
+}
+
+// impossible tests: String and Integer are unrelated final classes
+boolean impossible(String str) => str is Integer;      //~ JS0651
+boolean impossibleBinding(Integer i) => i is String s; //~ JS0651
+
+// always true, reported as a warning
+boolean always(String str) => str is String;           //~ JS0633
+
+// `as` on a primitive target is not allowed
+int asPrimitive(Object o) => o as int;                  //~ JS0610
+
+// the result of `as` is nullable
+int asIsNullable(Object o) {
+    String s = o as String;                  //~ JS0601
+    return s.length();
+}
+
+// smart cast on a binding does not leak to the original variable
+int originalStaysObject(Object o) {
+    if (o is String s) {
+        return o.length() + s.length();      //~ JS0603
+    }
+    return 0;
+}

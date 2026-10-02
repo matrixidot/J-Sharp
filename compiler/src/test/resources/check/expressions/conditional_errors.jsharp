@@ -1,0 +1,13 @@
+// Conditional expressions: boolean condition, and the result must fit the target.
+int a = 5;
+var intCondition = 1 ? "a" : "b";                //~ JS0600
+var stringCondition = if ("x") 1 else 2;          //~ JS0600
+String nullBranch = a > 3 ? "x" : null;           //~ JS0601
+int mixedBranches = a > 3 ? 1 : "x";             //~ JS0600
+String ifMixed = if (a > 3) "x" else 5;           //~ JS0600
+int nullableInt = a > 3 ? 1 : null;               //~ JS0600
+var bothNull = a > 3 ? null : null;               //~ JS0616
+var memberOnNullable = (a > 3 ? "x" : null).length();  //~ JS0608
+int narrowing = a > 3 ? 1 : 2L;                   //~ JS0600
+void nothing() { }
+var voidBranch = a > 3 ? nothing() : 1;           //~ JS0622

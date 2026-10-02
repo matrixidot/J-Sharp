@@ -1,0 +1,45 @@
+public class Account {
+    public String owner { get; }
+    public double balance { get; private set; }
+    public double fee => 1.5;
+    public int version { get; init; }
+    public static int count { get; private set; }
+
+    public Account(String owner) {
+        this.owner = owner;
+        version = 1;
+    }
+
+    public void rename(String n) {
+        owner = n;                                   //~ JS0609
+    }
+
+    public void bump() {
+        version = version + 1;                       //~ JS0628
+        balance = balance + 1;
+    }
+}
+
+public class Gauge {
+    public int level {
+        get => field;
+        set { field = Math.max(0, value); }
+    }
+    public String text { get => "x"; }
+}
+
+void main2() {
+    var a = new Account("ann");
+    a.owner = "bob";                                 //~ JS0609
+    a.balance = 100;                                 //~ JS0611
+    a.fee = 2.0;                                     //~ JS0609
+    a.version = 2;                                   //~ JS0628
+    a.balance += 1;                                  //~ JS0611
+    Account.count = 5;                               //~ JS0611
+    var g = new Gauge();
+    g.level = "high";                                //~ JS0600
+    g.text = "y";                                    //~ JS0609
+    String s = g.level;                              //~ JS0600
+    var b = new Account("c") { version = 3 };
+    var c = new Account("d") { fee = 3 };            //~ JS0609
+}

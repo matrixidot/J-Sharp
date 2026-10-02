@@ -1,0 +1,45 @@
+import java.util.*;
+
+public abstract class Stream2 {
+    public abstract int read();
+    public abstract void close();
+    public int skip(int n) => n;
+}
+
+public class Broken : Stream2 {                  //~ JS0620
+    public override int read() => -1;
+}
+
+public abstract class HalfDone : Stream2 {
+    public override void close() { }
+}
+
+public class Done : HalfDone {
+    public override int read() => 0;
+}
+
+public class StillBroken : HalfDone { }          //~ JS0620
+
+public interface Codec {
+    byte[] encode(String s);
+    String decode(byte[] b);
+}
+
+public class Utf8 : Codec {                      //~ JS0620
+    public override byte[] encode(String s) => s.getBytes();
+}
+
+public class NoCompare : Comparable<NoCompare> { }   //~ JS0620
+
+public class NotIterable : Iterable<String> { }  //~ JS0620
+
+void main2() {
+    var s = new Stream2();                       //~ JS0613
+    var h = new HalfDone();                      //~ JS0613
+    var c = new Codec();                         //~ JS0613
+    var d = new Done();
+    println(d.skip(3));
+    Stream2 st = d;
+    st.close();
+    var l = new AbstractList<String>();          //~ JS0613
+}

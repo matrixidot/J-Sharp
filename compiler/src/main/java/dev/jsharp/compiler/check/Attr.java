@@ -851,8 +851,8 @@ public final class Attr {
       captureSites.putIfAbsent(v, span);
       captureFiles.putIfAbsent(v, file());
     }
-    if (found.crossed().isEmpty()
-        && (v.kind() == VarSymbol.Kind.LOCAL)
+    if (found.crossed().stream().noneMatch(s -> s.boundary == Scope.Boundary.CLASS)
+        && (v.kind() == VarSymbol.Kind.LOCAL || v.kind() == VarSymbol.Kind.PATTERN)
         && !env.flow.assigned.get(v.id())
         && env.flow.alive) {
       report(
@@ -1023,7 +1023,53 @@ public final class Attr {
     return t instanceof ClassType ct ? types.capture(ct) : t;
   }
 
+  private final Set<FieldSymbol> constantsTried = new HashSet<>();
+
+  /**
+   * Computes the constant value of a static final primitive/String field with a constant
+   * initializer.
+   */
+  void ensureConstant(FieldSymbol f) {
+    if (!f.isStatic()
+        || !f.has(Flags.FINAL)
+        || f.declarator() == null
+        || f.declarator().init() == null
+        || f.constantValue() != null
+        || !constantsTried.add(f)) {
+      return;
+    }
+    Type t = f.type();
+    if (t != null
+        && !(t instanceof PrimType)
+        && !(t instanceof ClassType ct && ct.sym().binaryName().equals("java/lang/String"))) {
+      return;
+    }
+    Speculation<BExpr> s =
+        speculate(
+            () -> {
+              Env saved = env;
+              env = ClassChecker.fieldEnv(this, f);
+              try {
+                return f.type() == null
+                    ? value(f.declarator().init(), null)
+                    : exprCoerced(f.declarator().init(), f.type());
+              } finally {
+                env = saved;
+              }
+            });
+    if (!s.hasErrors()
+        && s.result() instanceof BExpr.Const k
+        && k.value() != null
+        && (f.type() != null || k.type() instanceof PrimType || k.value() instanceof String)) {
+      if (f.type() == null) {
+        f.setType(k.type());
+      }
+      f.setConstantValue(k.value());
+    }
+  }
+
   BExpr fieldGet(BExpr recv, Type site, FieldSymbol f, Span span) {
+    ensureConstant(f);
     checkAccess(f, f.owner(), recv == null ? null : site, span);
     checkDeprecated(f, span);
     Type t = types.uncapture(memberType(captureSite(site), f.owner(), ensureFieldType(f)));
@@ -1749,6 +1795,12 @@ public final class Attr {
           && ct.args().stream().anyMatch(a -> a instanceof Type.WildcardType)) {
         t = types.nonWildcard(ct);
       }
+      if (t instanceof ClassType ict && (ict.sym().isInterface() || ict.sym().isAbstract())) {
+        ClassSymbol impl = defaultImplementation(ict.sym());
+        if (impl != null) {
+          t = new ClassType(impl, ict.args(), Nullness.NON_NULL);
+        }
+      }
       if (!(t instanceof ClassType)) {
         error(
             Code.TYPE_MISMATCH, n.span(), "'new()' cannot create a value of type " + pt.display());
@@ -1810,6 +1862,31 @@ public final class Attr {
     }
     checkRequiredMembers(created.type(), List.of(), n.span());
     return created;
+  }
+
+  /**
+   * The class {@code new()} instantiates for a collection interface target (spec 3.4's {@code
+   * List<String> xs = new();}): ArrayList, HashMap, HashSet, ArrayDeque, TreeMap, TreeSet.
+   */
+  private ClassSymbol defaultImplementation(ClassSymbol iface) {
+    String impl =
+        switch (iface.binaryName()) {
+          case "java/util/List",
+              "java/util/Collection",
+              "java/lang/Iterable",
+              "java/util/SequencedCollection" ->
+              "java/util/ArrayList";
+          case "java/util/Map" -> "java/util/HashMap";
+          case "java/util/SequencedMap" -> "java/util/LinkedHashMap";
+          case "java/util/Set" -> "java/util/HashSet";
+          case "java/util/SequencedSet" -> "java/util/LinkedHashSet";
+          case "java/util/Queue", "java/util/Deque" -> "java/util/ArrayDeque";
+          case "java/util/SortedMap", "java/util/NavigableMap" -> "java/util/TreeMap";
+          case "java/util/SortedSet", "java/util/NavigableSet" -> "java/util/TreeSet";
+          case "java/util/concurrent/ConcurrentMap" -> "java/util/concurrent/ConcurrentHashMap";
+          default -> null;
+        };
+    return impl == null ? null : syms.lookup(impl);
   }
 
   private static boolean isDiamondOrRaw(TypeNode tn, ClassSymbol c) {

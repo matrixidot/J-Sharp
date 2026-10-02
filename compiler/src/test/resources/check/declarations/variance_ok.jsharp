@@ -1,0 +1,46 @@
+import java.util.*;
+
+public interface Source<out T> {
+    T next();
+    boolean hasMore();
+}
+
+public interface Sink<in T> {
+    void accept(T value);
+}
+
+public interface Transformer<in A, out B> {
+    B transform(A a);
+    default B twice(A a) { transform(a); return transform(a); }
+}
+
+public class Numbers : Source<Integer> {
+    private int i = 0;
+    public override Integer next() => i++;
+    public override boolean hasMore() => i < 3;
+}
+
+public class Printer : Sink<Object> {
+    public override void accept(Object value) => println(value);
+}
+
+public static void drain(Source<Number> src, Sink<Number> sink) {
+    while (src.hasMore()) {
+        sink.accept(src.next());
+    }
+}
+
+void main2() {
+    Source<Integer> ints = new Numbers();
+    Source<Number> nums = ints;
+    Source<Object> objs = ints;
+    Sink<Object> anything = new Printer();
+    Sink<String> strings = anything;
+    Sink<Integer> intSink = anything;
+    drain(new Numbers(), new Printer());
+    Transformer<Object, String> t = o => o.toString();
+    Transformer<String, Object> t2 = t;
+    println(t2.transform("x"));
+    strings.accept("hi");
+    println(nums.next());
+}

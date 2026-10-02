@@ -72,6 +72,7 @@ public final class Enter {
     for (ClassSymbol c : List.copyOf(entered)) {
       c.completeAll();
     }
+    memberEnter.resolver().flushBoundChecks();
   }
 
   // ------------------------------------------------------------------ classes

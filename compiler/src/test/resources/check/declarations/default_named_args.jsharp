@@ -1,0 +1,34 @@
+public class Client {
+    public static final int DEFAULT_PORT = 8080;
+
+    public static String connect(String host, int port = 80, boolean tls = false) =>
+        $"{host}:{port} tls={tls}";
+
+    public String request(String path, String method = "GET", int retries = DEFAULT_PORT / 1000, String? body = null) =>
+        method + " " + path + " " + retries + (body ?? "");
+
+    public void log(String msg, char level = 'I', double weight = 1.5, long id = -1L) { }
+}
+
+void main2() {
+    println(Client.connect("a"));
+    println(Client.connect("a", 443));
+    println(Client.connect("a", 443, true));
+    println(Client.connect("a", tls: true));
+    println(Client.connect(host: "b", port: 1));
+    println(Client.connect("c", tls: true, port: 22));
+    var c = new Client();
+    println(c.request("/x"));
+    println(c.request("/x", body: "{}"));
+    println(c.request("/x", "POST", retries: 3));
+    c.log("hello");
+    c.log("hello", weight: 2.0);
+
+    Client.connect("a", secure: true);               //~ JS0624
+    Client.connect("a", port: 1, port: 2);           //~ JS0624
+    Client.connect();                                //~ JS0614
+    Client.connect("a", tls: 1);                     //~ JS0600
+    Client.connect(port: 1);                         //~ JS0614
+    Client.connect("a", 1, false, 3);                //~ JS0614
+    c.request(path: "/y", "GET");                    //~ JS0624
+}

@@ -1,0 +1,24 @@
+// Narrowing does not apply outside the checked region or after reassignment.
+String? find(int id) => if (id > 0) "x" else null;
+
+String? a = find(1);
+if (a != null) { println("not null"); }
+println(a.length());                     //~ JS0608
+String? b = find(2);
+if (b == null) { println("null"); }
+println(b.length());                     //~ JS0608
+String? c = find(3);
+if (c != null) {
+    c = find(4);
+    println(c.length());                 //~ JS0608
+}
+String? d = find(5);
+if (d != null) { } else { println(d.length()); }  //~ JS0608
+String? e = find(6);
+boolean either = e != null || e.length() > 0;     //~ JS0608
+boolean both = e == null && e.length() > 0;       //~ JS0608
+int wrongBranch = e == null ? e.length() : 0;      //~ JS0608
+Object o = "text";
+if (o is String) { }
+println(o.length());                     //~ JS0603
+if (!(o is String)) { println(o.length()); }       //~ JS0603

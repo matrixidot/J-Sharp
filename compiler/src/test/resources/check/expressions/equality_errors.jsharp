@@ -1,0 +1,21 @@
+// `==`/`===` between types that can never be equal is an error.
+public record Meters(double value);
+public record Feet(double value);
+public interface Shape { }
+public record Circle(double r) : Shape;
+public class Label { }                   // final by default, does not implement Shape
+
+String s = "x";
+int i = 1;
+boolean t = true;
+var stringInt = s == 1;                  //~ JS0607
+var stringIntNot = s != i;               //~ JS0607
+var boolInt = t == 1;                    //~ JS0607
+var stringBuilder = s == new StringBuilder();  //~ JS0607
+var records = new Meters(1) == new Feet(1);    //~ JS0607
+var identityStringInt = s === 1;         //~ JS0607
+var identityRecords = new Meters(1) !== new Feet(1);  //~ JS0607
+Shape shape = getShape();
+var finalVsInterface = new Label() == shape;   //~ JS0607
+var boolString = t != s;                 //~ JS0607
+Shape getShape() => new Circle(1);
