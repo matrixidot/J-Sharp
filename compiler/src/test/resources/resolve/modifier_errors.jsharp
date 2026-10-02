@@ -1,0 +1,23 @@
+public private class A { }
+protected class B { }
+class C {
+    public abstract void f();
+    abstract void g() { }
+    void h();
+    static abstract void i();
+    default void j() { }
+    override int k;
+    private open void l() { }
+}
+open final class D { }
+static class E { }
+sealed open class F { }
+interface G {
+    int instanceField;
+    protected void p();
+}
+record H(int x) {
+    int extra;
+}
+open record I(int x);
+abstract interface J { }

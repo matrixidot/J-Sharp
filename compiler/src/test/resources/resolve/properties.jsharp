@@ -1,0 +1,19 @@
+public class Props {
+    public String name { get; set; }
+    public int age { get; init; }
+    public double width { get; set; } = 1.0;
+    public double height { get; private set; }
+    public double area => width * height;
+    private int _c;
+    public int count { get => _c; private set { _c = value; } }
+    public required String id { get; init; }
+    public String upper { get => field; set { field = value.trim(); } }
+    public boolean active { get; set; }
+    public boolean isVisible { get; set; }
+    public static int instances { get; set; }
+}
+
+public interface Named {
+    String name { get; }
+    String greeting => "Hello " + name;
+}

@@ -1,0 +1,14 @@
+access.jsharp:6:11 JS0414 class Outer.Secret is private and cannot be used here
+access.jsharp:8:36 JS0414 class ImmutableCollections.ListN is internal and cannot be used here
+---
+class Outer : Object [final]
+  method <init>(): void [generated]
+class Outer$Open : Object [public static final]
+  method <init>(): void [public generated]
+class Outer$Secret : Object [private static final]
+  method <init>(): void [private generated]
+class User : Object [final]
+  field s: <error>
+  field o: Outer.Open
+  field hidden: <error>
+  method <init>(): void [generated]

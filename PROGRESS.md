@@ -14,3 +14,10 @@
 - Tests: 5 golden parse files (all spec examples), 31 golden syntax-error files covering every JS00xx/JS01xx code, lexer/parser unit tests, 10k-mutation fuzz test (never throws; ~0.7 s).
 - Deferred: semantic checks of parsed-only features (operator overloading, list patterns → v0.2), doc-comment capture.
 - Known issues: `x ?[i]` with no space is read as null-safe indexing; generic-call disambiguation follows C# (`a < b > (c)` is a generic call).
+
+## M2 — Declarations, resolution, Java symbols (done)
+- Works: ClassFile-API class path (jrt image, dirs, jars) with lazy two-stage symbol completion; generic signatures, wildcards, F-bounds, inner/nested classes, records, sealed, enums, constants, parameter names, nullness annotations (declaration + type-use, `@NullMarked`), J# metadata annotations.
+- Works: source symbol entry for all declaration kinds (properties -> accessors/backing fields, records, enums, module classes + entry point), imports (single, on-demand, static, aliases), type resolution with "did you mean" and "add import" hints, inheritance/sealed/modifier/duplicate checks; `jsharp check` runs parse + resolution.
+- Tests: 16 golden resolution cases (symbol dumps + diagnostics, incl. multi-file), class-file loader tests against javac-compiled fixtures.
+- Deferred: override/implementation checks, type-argument bound checks and inferred member types (M3), annotation resolution for codegen (M4).
+- Known issues: compiles against the running JDK's class library (no `--release` ct.sym view).

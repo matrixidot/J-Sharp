@@ -1,0 +1,56 @@
+modifier_errors.jsharp:1:1 JS0410 conflicting access modifiers
+modifier_errors.jsharp:2:1 JS0410 top-level declarations cannot be 'protected'
+modifier_errors.jsharp:4:26 JS0410 abstract method 'f' in non-abstract class C [help: declare the class 'abstract']
+modifier_errors.jsharp:5:19 JS0428 abstract method 'g' cannot have a body
+modifier_errors.jsharp:5:19 JS0410 abstract method 'g' in non-abstract class C [help: declare the class 'abstract']
+modifier_errors.jsharp:6:10 JS0427 method 'h' needs a body
+modifier_errors.jsharp:7:26 JS0410 a method cannot be both 'static' and 'abstract'
+modifier_errors.jsharp:7:26 JS0410 abstract method 'i' in non-abstract class C [help: declare the class 'abstract']
+modifier_errors.jsharp:8:5 JS0410 'default' is only allowed on interface methods
+modifier_errors.jsharp:9:5 JS0410 'override' is not allowed on a field
+modifier_errors.jsharp:10:13 JS0410 static and private methods cannot be 'open'
+modifier_errors.jsharp:12:1 JS0410 a class cannot be both 'open' and 'final'
+modifier_errors.jsharp:13:1 JS0410 top-level types are never 'static'
+modifier_errors.jsharp:14:1 JS0410 'sealed' cannot be combined with 'open' or 'final'
+modifier_errors.jsharp:14:19 JS0412 sealed class F has no subtypes in this file
+modifier_errors.jsharp:16:5 JS0410 interfaces cannot have instance fields [help: declare a property instead, or make it 'static']
+modifier_errors.jsharp:16:9 JS0417 interface constants need an initializer
+modifier_errors.jsharp:17:5 JS0410 interface members cannot be 'protected'
+modifier_errors.jsharp:20:5 JS0410 records cannot declare instance fields [help: add a record component, or make the field 'static']
+modifier_errors.jsharp:22:1 JS0410 records cannot be 'open'
+modifier_errors.jsharp:23:1 JS0410 interfaces cannot be 'abstract'
+---
+class A : Object [public private final]
+  method <init>(): void [public private generated]
+class B : Object [protected final]
+  method <init>(): void [protected generated]
+class C : Object [final]
+  field k: int
+  method f(): void [public abstract]
+  method g(): void [abstract]
+  method h(): void
+  method i(): void [static abstract]
+  method j(): void
+  method l(): void [private open]
+  method <init>(): void [generated]
+class D : Object [open]
+  method <init>(): void [generated]
+class E : Object [final]
+  method <init>(): void [generated]
+class F : Object [abstract sealed open]
+  method <init>(): void [generated]
+interface G [abstract interface]
+  field instanceField: int [public static final]
+  method p(): void [protected abstract]
+record H : Record [final record]
+  field x: int [private final]
+  field extra: int
+  property x: int get=x set=- [public]
+  method x(): int [public getter generated]
+  method <init>(int x): void [public generated record]
+record I : Record [final record]
+  field x: int [private final]
+  property x: int get=x set=- [public]
+  method x(): int [public getter generated]
+  method <init>(int x): void [public generated record]
+interface J [abstract interface]

@@ -1,0 +1,27 @@
+public record Point(int x, int y);
+
+public record Person(String name, int age) {
+    public Person { require(age >= 0); }
+    public String describe() => $"{name} ({age})";
+    public String name() => name.toUpperCase();
+}
+
+public record Pair(int a, int b) {
+    public Pair(int a, int b) { this.a = a; this.b = b; }
+    public static Pair zero() => new Pair(0, 0);
+}
+
+public enum Color { Red, Green, Blue }
+
+public enum Planet(double mass, double radius) {
+    Earth(5.97e24, 6.37e6), Mars(6.42e23, 3.39e6);
+
+    public double gravity() => 6.67e-11 * mass / (radius * radius);
+}
+
+public sealed interface Expr;
+public record Num(double value) : Expr;
+public record Add(Expr left, Expr right) : Expr;
+public sealed class Animal { }
+public class Dog : Animal { }
+public class Cat : Animal { }

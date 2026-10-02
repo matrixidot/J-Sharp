@@ -1,0 +1,4 @@
+---
+class tools/Helpers : Object [public final module]
+  method answer(): int [public static]
+  method <init>(): void [private generated]

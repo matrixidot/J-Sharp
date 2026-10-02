@@ -1,0 +1,16 @@
+class Final { }
+class A : Final { }
+open class Cyc1 : Cyc2 { }
+open class Cyc2 : Cyc1 { }
+interface I : Final { }
+record R(int x) : Final;
+open class Base { }
+class Two : Runnable, Base { }
+class E : Enum<E> { }
+class S : String { }
+sealed interface Closed permits Inside;
+record Inside() : Closed;
+record Outside() : Closed;
+sealed class NoKids { }
+interface Self : Self { }
+class P : int { }

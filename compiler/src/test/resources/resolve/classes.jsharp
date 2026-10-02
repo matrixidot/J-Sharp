@@ -1,0 +1,38 @@
+public abstract class Shape {
+    public abstract double area();
+    public String describe() => "shape";
+    public open String name() => "shape";
+}
+
+public open class Base {
+    protected int x;
+    public Base(int x) { this.x = x; }
+    public open void hook() { }
+    public void fixed() { }
+    public final override String toString() => "Base";
+}
+
+public class Derived : Base, Runnable, Comparable<Derived> {
+    public Derived() { super(1); }
+    public override void hook() { }
+    public void run() { }
+    public int compareTo(Derived other) => 0;
+}
+
+public interface Greeter {
+    String greet(String name);
+    default String hi() => greet("hi");
+    static Greeter polite() => null!;
+    private String helper() => "x";
+}
+
+public class Outer {
+    public class Inner { Inner next; Outer owner; }
+    private interface Hidden { }
+    public enum Mode { On, Off }
+    static { }
+}
+
+class NoCtor { }
+public open class PublicNoCtor { }
+public abstract class AbstractNoCtor { }

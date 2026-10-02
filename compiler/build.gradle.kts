@@ -7,3 +7,8 @@ tasks.processResources {
     inputs.property("version", v)
     filesMatching("**/jsharp-version.properties") { expand("version" to v) }
 }
+
+dependencies {
+    // The runtime is needed on the compiler's *test* class path so tests can resolve jsharp.* names.
+    testImplementation(project(":runtime"))
+}

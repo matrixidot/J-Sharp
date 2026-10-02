@@ -1,0 +1,11 @@
+---
+class ModuleMembersModule : Object [public final module]
+  field PI: <inferred> [public static final inferred]
+  field LIMIT: int [private static final]
+  method square(int x): int [static]
+  method doubled(int x): int [public static extension]
+  method helper(int x): <inferred> [private static inferred]
+  method greet(String name, String greeting = ?, boolean shout = ?): String [public static]
+  method sum(int[] xs): int [public static varargs]
+  method main(String[] args): void [public static generated entry-point]
+  method <init>(): void [private generated]

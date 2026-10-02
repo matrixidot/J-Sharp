@@ -39,6 +39,37 @@ public enum Code {
   UNEXPECTED_TOKEN(113, "unexpected token"),
   INVALID_TUPLE(114, "invalid tuple"),
 
+  // ---- declarations & resolution ----
+  DUPLICATE_TYPE(400, "duplicate type declaration"),
+  UNRESOLVED_TYPE(401, "cannot find type"),
+  UNRESOLVED_PACKAGE(402, "package does not exist"),
+  UNRESOLVED_IMPORT(403, "cannot resolve import"),
+  AMBIGUOUS_TYPE(404, "ambiguous type name"),
+  WRONG_TYPE_ARG_COUNT(405, "wrong number of type arguments"),
+  CYCLIC_INHERITANCE(406, "cyclic inheritance"),
+  CANNOT_INHERIT_FINAL(407, "cannot inherit from a final class"),
+  INVALID_SUPERTYPE(408, "invalid supertype"),
+  DUPLICATE_MEMBER(409, "duplicate member"),
+  INVALID_MODIFIER(410, "invalid modifier"),
+  MULTIPLE_ENTRY_POINTS(411, "multiple files with top-level statements"),
+  INVALID_PERMITS(412, "invalid sealed hierarchy"),
+  MISSING_TYPE_ARGUMENTS(413, "missing type arguments"),
+  INACCESSIBLE_TYPE(414, "type is not accessible"),
+  INVALID_VOID(415, "void is not allowed here"),
+  EXTENSION_NOT_STATIC(416, "extension method must be static"),
+  INVALID_PROPERTY(417, "invalid property declaration"),
+  MISSING_RETURN_TYPE(418, "missing return type"),
+  DUPLICATE_PARAMETER(419, "duplicate parameter"),
+  INVALID_DEFAULT_ARGUMENT(420, "invalid default argument"),
+  MODULE_NAME_CLASH(421, "module class name clash"),
+  INVALID_TOP_LEVEL(422, "declaration not allowed at the top level"),
+  TYPE_ARGUMENT_BOUND(423, "type argument does not satisfy bound"),
+  INVALID_FILE_ANNOTATION(424, "invalid file annotation"),
+  NOT_A_TYPE(425, "not a type"),
+  INVALID_VARIANCE(426, "invalid variance"),
+  MISSING_BODY(427, "missing body"),
+  UNEXPECTED_BODY(428, "unexpected body"),
+
   // ---- internal ----
   INTERNAL_ERROR(9000, "internal compiler error");
 

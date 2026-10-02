@@ -1,0 +1,17 @@
+import java.util.*;
+import java.awt.*;
+
+class Holder {
+    Lisst<String> a;
+    Strng b;
+    Path c;
+    java.util.Mapp<String, int> d;
+    nope.pkg.Thing e;
+    Map<String> f;
+    Map g;
+    String<int> h;
+    List<void> i;
+    Map.Entri<String, String> j;
+    var k;
+    Runnable l;
+}

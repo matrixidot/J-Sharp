@@ -1,0 +1,44 @@
+inheritance_errors.jsharp:2:11 JS0407 cannot inherit from final class Final [help: J# classes are final by default; declare it 'open class Final']
+inheritance_errors.jsharp:3:12 JS0406 cyclic inheritance involving Cyc1
+inheritance_errors.jsharp:5:15 JS0408 an interface can only extend interfaces, but Final is a class
+inheritance_errors.jsharp:6:19 JS0408 records cannot extend classes; Final is a class
+inheritance_errors.jsharp:8:23 JS0408 the base class must be listed first and only once [help: write 'class Two : Base, ...']
+inheritance_errors.jsharp:9:11 JS0408 cannot extend java.lang.Enum directly; use 'enum'
+inheritance_errors.jsharp:10:11 JS0407 cannot inherit from final class String
+inheritance_errors.jsharp:13:8 JS0412 record Outside is not permitted to extend sealed interface Closed [help: add Outside to the 'permits' list of Closed]
+inheritance_errors.jsharp:14:14 JS0412 sealed class NoKids has no subtypes in this file
+inheritance_errors.jsharp:15:18 JS0406 interface Self cannot inherit from itself
+inheritance_errors.jsharp:16:11 JS0408 cannot inherit from int
+---
+class A : Object [final]
+  method <init>(): void [generated]
+class Base : Object [open]
+  method <init>(): void [generated]
+interface Closed permits Inside [abstract sealed interface]
+class Cyc1 : Object [open]
+  method <init>(): void [generated]
+class Cyc2 : Cyc1 [open]
+  method <init>(): void [generated]
+class E : Object [final]
+  method <init>(): void [generated]
+class Final : Object [final]
+  method <init>(): void [generated]
+interface I [abstract interface]
+record Inside : Record, Closed [final record]
+  method <init>(): void [public generated record]
+class NoKids : Object [abstract sealed]
+  method <init>(): void [generated]
+record Outside : Record, Closed [final record]
+  method <init>(): void [public generated record]
+class P : Object [final]
+  method <init>(): void [generated]
+record R : Record [final record]
+  field x: int [private final]
+  property x: int get=x set=- [public]
+  method x(): int [public getter generated]
+  method <init>(int x): void [public generated record]
+class S : Object [final]
+  method <init>(): void [generated]
+interface Self [abstract interface]
+class Two : Object, Runnable [final]
+  method <init>(): void [generated]

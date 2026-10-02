@@ -1,0 +1,4 @@
+class A {
+    public <T> T first(java.util.List<T> xs) => xs.get(0);
+    public int ok() => 1;
+}

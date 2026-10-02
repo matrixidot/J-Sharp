@@ -73,3 +73,57 @@ Format: **decision** — reason. *Rejected:* alternatives.
   nested syntactic levels.
 - **D021: Omitted return types** (spec 3.4) are accepted syntactically (`private helper(int x) =>
   x + 1;`); the checker enforces "private, non-recursive, expression-bodied only".
+
+## 2026-10-02 — M2 declarations & resolution
+
+- **D022: Default accessibility is `internal`** (JVM package-private) for types and members;
+  interface members default to `public`. `internal` is the explicit spelling. *Rejected:*
+  public-by-default (Kotlin) — the spec's examples write `public` explicitly and package-private
+  maps 1:1 to the JVM.
+- **D023: Named nested types are always static** (C#-like): they never capture an outer instance,
+  so outer type parameters are not visible inside them. Only local and anonymous classes capture.
+- **D024: Methods are final by default** in `open`/`abstract` classes (emitted `ACC_FINAL`);
+  `open`, `abstract` and `override` members are overridable, and an `override` stays open unless
+  marked `final override` (Kotlin model). Consistent with final-by-default classes.
+- **D025: `sealed class` is implicitly abstract** (Kotlin). `sealed` without `permits` permits the
+  direct subtypes declared in the same file (spec 4.1); permitted subtypes must be in the same
+  package (JVM rule for the unnamed module).
+- **D026: Java platform types are flexible** (Kotlin model): a platform `T!` is usable as `T` or
+  `T?` without `!`. Member access through them is silent by default; `--strict-platform-nullness`
+  turns on the spec's warning. Where a platform value flows into a non-null J# variable, parameter
+  or return, a runtime null check is inserted. *Reason:* the spec's literal rule (warn on every
+  member access, require `!` on every Java result) would flag `System.out.println` and
+  `"a".trim()`; that cost outweighs the benefit. Nullness annotations (JSpecify, JetBrains,
+  javax, Android, Checker, Eclipse, Spring...) and `@NullMarked` are honored.
+- **D027: Type variables are non-null by default inside generic code** unless written `T?`;
+  instantiation with nullable types (`List<String?>`) is allowed. This matches C# nullable
+  reference types and is knowingly unsound at the margins.
+- **D028: Primitive type arguments are boxed**: `List<int>` means `List<Integer>` (spec 7's
+  `Function<int, int>`).
+- **D029: Implicit imports** are `java.lang.*`, `jsharp.core.*`, and static imports of
+  `jsharp.core.Prelude` and the stdlib extension containers (`jsharp.collections.Sequences`,
+  `jsharp.text.Strings`). Explicit on-demand imports take precedence over implicit ones, and
+  ambiguities between explicit ones are errors. `string` resolves to `java.lang.String` unless a
+  type named `string` is in scope.
+- **D030: Property JVM shape**: `getX`/`setX`, `isX` for primitive `boolean` (a property already
+  named `isX` keeps its name; setter `setX`). An `init` accessor is a *synthetic* setter, so javac
+  will not let Java code call it. The backing field is private and named like the property.
+- **D031: Records** expose components as properties backed by the record accessor `x()`; records
+  may not declare instance fields or backed properties (JVM/Java record rules). Explicit accessors
+  must be public.
+- **D032: Enum header parameters** (`enum Planet(double mass)`) become private final fields with
+  public read-only properties (`getMass()`), plus a private constructor.
+- **D033: Module classes** are named from the file name in PascalCase plus `Module`
+  (`my_app.jsharp` -> `MyAppModule`), overridable with `@file:ClassName("X")`. At most one file per
+  compilation may contain top-level statements (C# rule), which become `public static void
+  main(String[])`.
+- **D034: Variance (`in`/`out`) is only allowed on interface type parameters** (C# rule; classes
+  have mutable state where variance would be unsound).
+- **D035: Default argument values must be compile-time constants** (C# rule). They are recorded
+  with `@jsharp.lang.DefaultValue` (class retention) so J# callers in other compilations can fill
+  them in; Java callers get real trailing overloads (M5).
+- **D036: J# metadata in class files** uses annotations in `jsharp.lang`: `@Metadata` (class
+  compiled by J#; unannotated types are non-null), `@Extension`, `@DefaultValue`, `@NoReturn`
+  (calls typed `never`, e.g. Prelude `error()`).
+- **D037: Java-style generic methods** (`<T> T first(...)`) get a targeted error pointing to the
+  J# order `T first<T>(...)`.

@@ -1,0 +1,23 @@
+import java.util.*;
+
+class Dup {
+    int x;
+    String x;
+    void f(List<String> a) { }
+    void f(List<Integer> b) { }
+    public String name { get; set; }
+    public String getName() => "clash";
+    void g(int a, int a) { }
+    void h(int a = 1, int b) { }
+    void i(params int[] xs, int y) { }
+    void j(params int xs) { }
+    void k(int a, this int b) { }
+    int ext(this int x) => x;
+    helper(int x) => x;
+    private block(int x) { return x; }
+    int noGet { set; }
+    static int s { get; init; }
+    int computed { get => 1; } = 5;
+    void v(void x) { }
+    var noInit;
+}

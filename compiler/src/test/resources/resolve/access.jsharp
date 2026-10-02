@@ -1,0 +1,9 @@
+class Outer {
+    private class Secret { }
+    public class Open { }
+}
+class User {
+    Outer.Secret s;
+    Outer.Open o;
+    java.util.ImmutableCollections.ListN<String> hidden;
+}

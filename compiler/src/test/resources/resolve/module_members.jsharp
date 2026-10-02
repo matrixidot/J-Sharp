@@ -1,0 +1,11 @@
+public val PI = 3.14159;
+private final int LIMIT = 10;
+
+int square(int x) => x * x;
+public static int doubled(this int x) => x * 2;
+private helper(int x) => x + 1;
+public static String greet(String name, String greeting = "Hello", boolean shout = false) => greeting + name;
+public static int sum(params int[] xs) => 0;
+
+var x = square(3);
+println(x);

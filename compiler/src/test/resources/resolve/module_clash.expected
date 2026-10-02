@@ -1,0 +1,4 @@
+module_clash/Util.jsharp:1:1 JS0421 the top-level members of this file compile to class UtilModule, which is already declared [help: rename the file or add @file:ClassName("OtherName")]
+---
+class UtilModule : Object [final]
+  method <init>(): void [generated]

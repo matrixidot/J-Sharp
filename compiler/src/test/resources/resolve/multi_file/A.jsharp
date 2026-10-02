@@ -1,0 +1,9 @@
+package app;
+
+import app.util.Strings2;
+
+public class Service {
+    private Repo repo;
+    private Strings2 helper;
+    public Shape first(java.util.List<Shape> shapes) => shapes.get(0);
+}

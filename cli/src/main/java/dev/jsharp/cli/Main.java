@@ -32,9 +32,54 @@ public final class Main {
     if (args[0].equals("parse") && args.length == 2) {
       return parse(Path.of(args[1]), out, err);
     }
+    if (args[0].equals("check")) {
+      return check(java.util.Arrays.copyOfRange(args, 1, args.length), out, err);
+    }
     err.println(LanguageInfo.ID + ": unknown command '" + args[0] + "'");
     printUsage(err);
     return 2;
+  }
+
+  /** {@code jsharp check [--diagnostics=json] [-cp path] files-or-dirs...}: diagnostics only. */
+  private static int check(String[] args, PrintStream out, PrintStream err) {
+    boolean json = false;
+    java.util.List<Path> cp = new java.util.ArrayList<>();
+    java.util.List<Path> inputs = new java.util.ArrayList<>();
+    for (int i = 0; i < args.length; i++) {
+      switch (args[i]) {
+        case "--diagnostics=json" -> json = true;
+        case "-cp", "--class-path" -> {
+          if (i + 1 >= args.length) {
+            err.println(LanguageInfo.ID + ": " + args[i] + " needs a value");
+            return 2;
+          }
+          cp.addAll(dev.jsharp.compiler.classpath.ClassPath.split(args[++i]));
+        }
+        default -> inputs.add(Path.of(args[i]));
+      }
+    }
+    java.util.List<SourceFile> files;
+    try {
+      files = SourceFiles.collect(inputs);
+    } catch (IOException e) {
+      err.println(LanguageInfo.ID + ": " + e.getMessage());
+      return 2;
+    }
+    if (files.isEmpty()) {
+      err.println(LanguageInfo.ID + ": no " + LanguageInfo.FILE_EXTENSION + " files to check");
+      return 2;
+    }
+    var options = dev.jsharp.compiler.driver.CompilerOptions.defaults().withClassPath(cp);
+    var comp = new dev.jsharp.compiler.driver.Compilation(files, options, null);
+    comp.analyze();
+    comp.close();
+    var ds = comp.diagnostics().sorted();
+    if (json) {
+      out.println(DiagnosticRenderer.renderJson(ds));
+    } else {
+      err.print(new DiagnosticRenderer(System.console() != null).renderAll(ds));
+    }
+    return comp.diagnostics().hasErrors() ? 1 : 0;
   }
 
   /** Debug command: parse one file and print its syntax tree and syntax diagnostics. */

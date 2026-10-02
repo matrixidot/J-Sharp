@@ -478,6 +478,17 @@ public final class Parser extends StmtParser {
       }
       return null;
     }
+    List<TypeParam> javaStyleTypeParams = List.of();
+    if (t.is(LT)) {
+      int ltPos = pos;
+      javaStyleTypeParams = parseTypeParams();
+      errorAt(
+          Code.UNEXPECTED_TOKEN,
+          tokAt(ltPos).span(),
+          "type parameters of a method go after its name",
+          "write 'ReturnType name<T>(...)' instead of '<T> ReturnType name(...)'");
+      t = tok();
+    }
     if (!startsType(t.kind())) {
       errorAt(
           Code.EXPECTED_DECLARATION,
@@ -501,7 +512,7 @@ public final class Parser extends StmtParser {
     Span nameSpan = tok().span();
     String name = expectIdent("member name");
     if (at(LT) || at(LPAREN)) {
-      List<TypeParam> tps = at(LT) ? parseTypeParams() : List.of();
+      List<TypeParam> tps = at(LT) ? parseTypeParams() : javaStyleTypeParams;
       return parseMethodNamed(mods, declStart, tps, type, name, nameSpan);
     }
     if (at(LBRACE)) {

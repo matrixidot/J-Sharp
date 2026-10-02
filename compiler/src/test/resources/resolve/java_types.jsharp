@@ -1,0 +1,26 @@
+import java.util.*;
+import java.util.function.Function;
+import java.util.concurrent.ConcurrentHashMap as CMap;
+import static java.lang.Math.max;
+import static java.util.Collections.*;
+
+class Holder {
+    String s;
+    string lower;
+    String? maybe;
+    int? boxed;
+    List<String> names;
+    Map<String, List<int>> index;
+    Optional<String?> opt;
+    Function<int, int> inc;
+    int[][] grid;
+    String?[] sparse;
+    (int, String) pair;
+    (int id, String name) named;
+    CMap<String, Long> concurrent;
+    Map.Entry<String, int> entry;
+    java.util.function.BiFunction<int, int, long> bi;
+    List<out Number> numbers;
+    Comparator<in String> cmp;
+    List<?> anything;
+}

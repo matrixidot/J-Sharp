@@ -1,0 +1,9 @@
+package app;
+
+public sealed interface Shape;
+public record Circle(double r) : Shape;
+public record Square(double side) : Shape;
+
+class Repo {
+    public Service owner;
+}
