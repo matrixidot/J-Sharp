@@ -1,0 +1,57 @@
+var lits = (42, 42L, 0xFF, 0b1010, 1_000_000, 3.14, 3.14f, 'c', "text", true, null, '\n', 1e10, 2.5d);
+var raw = """
+    raw text
+      indented "quotes" \n not escaped
+    """;
+var inline = """single "line" raw""";
+var greet = $"Hello {name}, {x + 1:F2} {{braces}} {obj.method(1, 2)} {$"nested {n}"}";
+var str = $"""
+    Dear {name},
+      total: {total:N2}
+    """;
+var arith = a + b * c - d / e % f;
+var shifts = (a << 2) + (b >> 1) + (c >>> 3);
+var logic = !a && b || c ^ d & e | f;
+var cmp = a < b && c > d && e <= f && g >= h && i == j && k != l && m === n && o !== p;
+var cond = x > 0 ? "pos" : "neg";
+var ifx = if (x > 0) "pos" else "neg";
+var coalesce = a ?? b ?? c;
+var safe = a?.b?.c()?.d;
+var idx = xs[0] + ys?[1];
+var range = xs[1..3];
+var end = xs[^1];
+var open1 = xs[..2];
+var open2 = xs[2..];
+var all = xs[..];
+var casted = (int) d + (String) o + (List<String>) obj;
+var neg = -x + +y + ~z;
+var incs = x++ + ++y - z-- - --w;
+var lambda1 = x => x + 1;
+var lambda2 = (x, y) => x * y;
+var lambda3 = (int x, int y) => { return x + y; };
+var lambda4 = () => println("hi");
+var lambda5 = async () => await fetch("u");
+Function<int, int> inc = x => x + 1;
+list.forEach(System.out::println);
+var ctor = ArrayList::new;
+var lenRef = String::length;
+var arrCtor = int[]::new;
+var gen = Collections.emptyList<String>();
+var gen2 = foo<int, String>(1);
+var tup = (id: 1, name: "a");
+var p2 = p with { x = 5 };
+var obj2 = new Person { name = "Ann", age = 30 };
+var obj3 = new Person("Ann") { age = 3 };
+var anon = new Runnable() { public void run() { println("run"); } };
+var arr2 = new int[] { 1, 2, 3 };
+var arr3 = new String[n][];
+var t1 = typeof(String);
+var n1 = nameof(x);
+var isStr = o is String s && s.length() > 3;
+var asStr = o as String;
+var thrower = maybe ?? throw new IllegalArgumentException();
+var assigned = (a = b = c);
+x += 1; x -= 1; x *= 2; x /= 2; x %= 3; x &= 1; x |= 2; x ^= 3; x <<= 1; x >>= 1; x >>>= 1;
+var awaited = await Task.whenAll(a(), b(), c());
+var qualifiedThis = Outer.this.value;
+var sup = super.toString();

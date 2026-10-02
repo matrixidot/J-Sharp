@@ -1,0 +1,2 @@
+error JS0105 1:7 expected class name, found '{'
+error JS0105 2:5 expected variable name, found keyword 'if'

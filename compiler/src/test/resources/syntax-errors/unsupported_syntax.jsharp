@@ -1,0 +1,8 @@
+public record Vec(int x, int y) {
+    public static Vec operator +(Vec a, Vec b) => new Vec(a.x + b.x, a.y + b.y);
+}
+public value class Money { }
+void outer() {
+    int helper(int x) => x * 2;
+}
+enum E { A { }, B }

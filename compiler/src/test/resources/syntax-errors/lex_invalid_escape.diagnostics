@@ -1,0 +1,2 @@
+error JS0004 1:14 invalid escape sequence '\q'
+error JS0004 2:10 \u escape requires exactly 4 hex digits

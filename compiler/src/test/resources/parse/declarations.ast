@@ -1,0 +1,118 @@
+(unit
+  (file-annotations (@file:ClassName "Util"))
+  (package com.example.app)
+  (import java.util.List)
+  (import java.util.*)
+  (import static java.lang.Math.*)
+  (import java.util.HashMap as Map2)
+  (class
+    Account
+    (mods public)
+    (: BaseEntity Auditable)
+    (field (mods private final) long id)
+    (field (mods private) double balance)
+    (field (mods public static final) int (= MAX_ACCOUNTS 1_000_000))
+    (ctor Account (mods public) (params (param long id)) (block (expr (= (. this id) id))))
+    (property total (mods public) double (get) (set (mods private)))
+    (method
+      deposit
+      (mods public)
+      void
+      (params (param double amount))
+      (block (expr (+= balance amount)))))
+  (class
+    Shape
+    (mods public abstract)
+    (method area (mods public abstract) double (params) <abstract>))
+  (interface
+    Greeter
+    (mods public)
+    (method greet String (params (param String name)) <abstract>)
+    (method hi (mods default) String (params) (=> (call greet "hi"))))
+  (enum Color (mods public) (const Red) (const Green) (const Blue))
+  (enum
+    Planet
+    (mods public)
+    (header (param double mass) (param double radius))
+    (const Earth (args 5.97e24 6.37e6))
+    (const Mars (args 6.42e23 3.39e6))
+    (method
+      gravity
+      (mods public)
+      double
+      (params)
+      (=> (/ (* 6.67e-11 mass) (paren (* radius radius))))))
+  (class
+    Base
+    (mods open)
+    (tparams (tparam T (: Comparable<T>) (: java.io.Serializable)))
+    (method value (mods protected open) T (params) (=> (!! null))))
+  (interface Shape2 (mods sealed) (permits Circle Square))
+  (record Circle (header (param double r)) (: Shape2))
+  (record Square (header (param double side)) (: Shape2))
+  (interface Source (tparams (tparam out T)) (method next T (params) <abstract>))
+  (interface Sink (tparams (tparam in T)) (method accept void (params (param T value)) <abstract>))
+  (record Point (mods public) (header (param int x) (param int y)))
+  (record
+    Person
+    (mods public)
+    (header (param String name) (param int age))
+    (compact-ctor Person (mods public) (block (expr (call require (>= age 0)))))
+    (method describe (mods public) String (params) (=> (interp (hole name) " (" (hole age) ")"))))
+  (class
+    Props
+    (mods public)
+    (property name (mods public) String (get) (set))
+    (property age (mods public) int (get) (init))
+    (property width (mods public) double (get) (set) (= 1.0))
+    (property height (mods public) double (get) (set) (= 2.0))
+    (property area (mods public) double (=> (* width height)))
+    (field (mods private) int _c)
+    (property
+      count
+      (mods public)
+      int
+      (get (=> _c))
+      (set (mods private) (block (expr (= _c value)))))
+    (property id (mods public required) String (get) (init))
+    (property
+      upper
+      (mods public)
+      String
+      (get (=> (call (. field toUpperCase))))
+      (set (block (expr (= field (call (. value trim))))))))
+  (method doubled (mods public static) int (params (param this int x)) (=> (* x 2)))
+  (method
+    first
+    (mods public static)
+    (tparams (tparam T (: Comparable<T>)))
+    T
+    (params (param List<T> xs))
+    (=> (call (. xs get) 0)))
+  (method
+    connect
+    void
+    (params (param String host) (param int port (= 80)) (param boolean tls (= false)))
+    (block))
+  (method
+    sum
+    (mods public static)
+    int
+    (params (param params int[] xs))
+    (block
+      (local var (= total 0))
+      (foreach var x (in xs) (block (expr (+= total x))))
+      (return total)))
+  (method
+    fetch
+    (mods public async)
+    Task<String>
+    (params (param String url))
+    (block (local var (= body (await (call (. http get) url)))) (return (call (. body trim)))))
+  (class
+    Outer
+    (mods public)
+    (class Inner (mods public))
+    (static-init (block (expr (call println "static init"))))
+    (method helper (mods private) <inferred> (params (param int x)) (=> (+ x 1)))
+    (method sync (mods public synchronized) void (params) (block))))

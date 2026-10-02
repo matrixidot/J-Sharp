@@ -1,0 +1,7 @@
+error JS0113 1:9 J# uses ':' for inheritance, not 'extends'
+error JS0113 2:10 J# has no checked exceptions; 'throws' clauses are not allowed
+error JS0113 3:1 enhanced for loops are written with 'foreach'
+error JS0100 4:1 a try statement needs at least one catch or finally
+error JS0113 4:5 try-with-resources is written with 'using'
+error JS0113 5:16 class literals are written typeof(T) in J#
+error JS0113 6:11 varargs are declared with 'params'

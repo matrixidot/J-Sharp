@@ -1,0 +1,5 @@
+error JS0100 2:30 expected ';', found '}'
+error JS0101 3:30 expected expression, found ';'
+error JS0100 4:31 expected ')', found ';'
+error JS0100 7:14 expected ';', found identifier 'println'
+error JS0113 9:1 unmatched '}'

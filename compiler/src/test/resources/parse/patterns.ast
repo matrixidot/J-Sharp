@@ -1,0 +1,40 @@
+(unit
+  (top
+    (local
+      var
+      (=
+        area
+        (switch
+          shape
+          (arm (type-pat Circle c) (* (* (. Math PI) (. c r)) (. c r)))
+          (arm (rec Rect (props (w: (var w)) (h: (var h)))) (when (== w h)) (* w w))
+          (arm (rec Rect (pos (var w) (var h))) (* w h))
+          (arm (const null) 0.0)))))
+  (top (if (is x (and (> 0) (< 10))) (expr (call println "small"))))
+  (top (if (is list (list-pat (var first) .. (var last))) (expr (call println first))))
+  (top
+    (local
+      var
+      (=
+        d
+        (switch
+          o
+          (arm (type-pat int i) (when (> i 0)) "positive int")
+          (arm (or (const 0) (const 1)) "binary")
+          (arm (rec String (props (length: (> 3))) s) s)
+          (arm (rec <no-type> (pos (var a) (var b))) "pair")
+          (arm (not (const null)) "something")
+          (arm _ (throw-expr (new MatchException (args null null))))))))
+  (top
+    (local
+      var
+      (=
+        colorName
+        (switch color (arm (const (. Color Red)) "r") (arm (const (. Color Green)) "g") (arm _ "?")))))
+  (top (local var (= e (switch k (arm (const 1) "one") (arm _ "many")))))
+  (top (if (is o (not (const String))) (return)))
+  (top (if (is o (rec Point (pos (> 0) _) p)) (expr (call println p))))
+  (top (if (is o (rec <no-type> (props (x.y: (const 3))))) (expr (call println "deep"))))
+  (top (if (is o (paren-pat (or (> 1) (< (- 1))))) (expr (call println "big"))))
+  (top (if (is o (type-pat List<String> strs)) (expr (call println strs))))
+  (top (if (is o (type-pat int[] ints)) (expr (call println (. ints length))))))

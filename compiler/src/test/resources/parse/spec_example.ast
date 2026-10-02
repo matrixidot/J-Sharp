@@ -1,0 +1,38 @@
+(unit
+  (package demo)
+  (import java.util.*)
+  (interface Expr (mods public sealed) (permits Num Add Mul))
+  (record Num (mods public) (header (param double value)) (: Expr))
+  (record Add (mods public) (header (param Expr left) (param Expr right)) (: Expr))
+  (record Mul (mods public) (header (param Expr left) (param Expr right)) (: Expr))
+  (method
+    eval
+    (mods public static)
+    double
+    (params (param Expr e))
+    (=>
+      (switch
+        e
+        (arm (type-pat Num n) (. n value))
+        (arm (rec Add (pos (var l) (var r))) (+ (call eval l) (call eval r)))
+        (arm (rec Mul (pos (var l) (var r))) (* (call eval l) (call eval r))))))
+  (top
+    (foreach
+      var
+      n
+      (in
+        (call
+          (.
+            (call
+              (. (call (. List of) 1 2 3 4) where)
+              (lambda (params (param x)) (=> (== (% x 2) 0))))
+            select)
+          (lambda (params (param x)) (=> (* x x)))))
+      (block (expr (call println (interp (hole n)))))))
+  (top
+    (expr
+      (call
+        println
+        (call
+          eval
+          (new Add (args (new Num (args 2)) (new Mul (args (new Num (args 3)) (new Num (args 4)))))))))))

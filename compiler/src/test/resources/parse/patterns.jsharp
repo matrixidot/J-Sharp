@@ -1,0 +1,24 @@
+var area = shape switch {
+    Circle c        => Math.PI * c.r * c.r,
+    Rect { w: var w, h: var h } when w == h => w * w,
+    Rect(var w, var h)                         => w * h,
+    null                                       => 0.0,
+};
+if (x is > 0 and < 10) println("small");
+if (list is [var first, .., var last]) println(first);
+var d = o switch {
+    int i when i > 0 => "positive int",
+    0 or 1 => "binary",
+    String { length: > 3 } s => s,
+    (var a, var b) => "pair",
+    not null => "something",
+    _ => throw new MatchException(null, null),
+};
+var colorName = color switch { Color.Red => "r", Color.Green => "g", _ => "?" };
+var e = switch (k) { 1 => "one", _ => "many" };
+if (o is not String) return;
+if (o is Point(> 0, _) p) println(p);
+if (o is { x.y: 3 }) println("deep");
+if (o is (> 1 or < -1)) println("big");
+if (o is List<String> strs) println(strs);
+if (o is int[] ints) println(ints.length);

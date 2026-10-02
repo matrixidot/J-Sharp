@@ -1,0 +1,2 @@
+error JS0007 1:9 empty character literal
+error JS0007 2:9 character literal must contain exactly one UTF-16 character; use a string for 'ab'

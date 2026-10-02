@@ -1,0 +1,64 @@
+(unit
+  (top (local var (= x 5)))
+  (top (local val (= y 10)))
+  (top (local int (= a 1) (= b 2)))
+  (top (local String? (= maybe (call lookup id))))
+  (top (local int (= len (?? (?. maybe length) 0))))
+  (top (local String (= s (!! maybe))))
+  (top (if (!= maybe null) (block (expr (call (. maybe length))))))
+  (top (expr (??= maybe "default")))
+  (field (mods final) var (= z 3))
+  (top (local List<String> (= xs (new <target-typed> (args)))))
+  (top (local List<List<String>> (= nested (new ArrayList<> (args)))))
+  (top (local int[] (= arr (array-init 1 2 3))))
+  (top (local int[][] (= grid (new-array int (dim 3) (dim 4)))))
+  (top (deconstruct var (targets px py) point))
+  (top (deconstruct typed (targets (int id) (String name)) tuple))
+  (top (local (int, String) (= t (tuple 1 "a"))))
+  (top (while (> x 0) (expr (post-- x))))
+  (top (do-while (block (expr (post++ x))) (< x 10)))
+  (top
+    (for
+      (init (local int (= i 0) (= j 10)))
+      (< i j)
+      (update (post++ i) (post-- j))
+      (block (continue))))
+  (top (for (init) <none> (update) (block (break))))
+  (top
+    (label outer
+      (for
+        (init (local var (= i 0)))
+        (< i 3)
+        (update (post++ i))
+        (block
+          (for
+            (init (local var (= j 0)))
+            (< j 3)
+            (update (post++ j))
+            (block (if (== j 1) (continue outer)) (if (== i 2) (break outer))))))))
+  (top (foreach String item (in xs) (expr (call println item))))
+  (top (foreach var (targets k v) (in (call (. map entries))) (expr (call println k))))
+  (top
+    (switch-stmt
+      color
+      (section
+        (case (const (. Color Red)))
+        (case (const (. Color Green)))
+        (expr (call println "warm-ish"))
+        (break))
+      (section (case (const (. Color Blue)) (when cold)) (expr (call println "blue")) (break))
+      (section default (expr (call println "other")) (break))))
+  (top
+    (try
+      (block (expr (call risky)))
+      (catch (types IOException SQLException) e (block (expr (call log e))))
+      (catch (types Exception) e (when (!= (call (. e getMessage)) null)) (block (throw <rethrow>)))
+      (catch (types) (block (expr (call println "anything"))))
+      (finally (block (expr (call cleanup))))))
+  (top (using (local var (= r (call open))) (block (expr (call (. r read))))))
+  (top (using-decl (local var (= r2 (call open)))))
+  (top (using (expr connection) (block)))
+  (top (lock obj (block (expr (post++ counter)))))
+  (top (checked-block (block (expr (= total (+ total 1))))))
+  (top (local var (= c (checked (* a b)))))
+  (top (throw (new IllegalStateException (args "bad")))))

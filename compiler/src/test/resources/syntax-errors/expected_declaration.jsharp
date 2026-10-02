@@ -1,0 +1,4 @@
+class A {
+    5;
+    public int ok() => 1;
+}

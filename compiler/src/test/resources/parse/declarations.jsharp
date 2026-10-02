@@ -1,0 +1,81 @@
+@file:ClassName("Util")
+package com.example.app;
+
+import java.util.List;
+import java.util.*;
+import static java.lang.Math.*;
+import java.util.HashMap as Map2;
+
+/// A documented account.
+public class Account : BaseEntity, Auditable {
+    private final long id;
+    private double balance;
+    public static final int MAX_ACCOUNTS = 1_000_000;
+
+    public Account(long id) { this.id = id; }
+
+    public double total { get; private set; }
+    public void deposit(double amount) { balance += amount; }
+}
+
+public abstract class Shape { public abstract double area(); }
+public interface Greeter { String greet(String name); default String hi() => greet("hi"); }
+public enum Color { Red, Green, Blue }
+public enum Planet(double mass, double radius) {
+    Earth(5.97e24, 6.37e6), Mars(6.42e23, 3.39e6);
+
+    public double gravity() => 6.67e-11 * mass / (radius * radius);
+}
+
+open class Base<T : Comparable<T>> where T : java.io.Serializable {
+    protected open T value() => null!;
+}
+
+sealed interface Shape2 permits Circle, Square;
+record Circle(double r) : Shape2;
+record Square(double side) : Shape2;
+
+interface Source<out T> { T next(); }
+interface Sink<in T> { void accept(T value); }
+
+public record Point(int x, int y);
+public record Person(String name, int age) {
+    public Person { require(age >= 0); }
+    public String describe() => $"{name} ({age})";
+}
+
+public class Props {
+    public String name { get; set; }
+    public int age { get; init; }
+    public double width { get; set; } = 1.0;
+    public double height { get; set; } = 2.0;
+    public double area => width * height;
+    private int _c;
+    public int count { get => _c; private set { _c = value; } }
+    public required String id { get; init; }
+    public String upper { get => field.toUpperCase(); set { field = value.trim(); } }
+}
+
+public static int doubled(this int x) => x * 2;
+
+public static T first<T>(List<T> xs) where T : Comparable<T> => xs.get(0);
+
+void connect(String host, int port = 80, boolean tls = false) { }
+
+public static int sum(params int[] xs) {
+    var total = 0;
+    foreach (var x in xs) { total += x; }
+    return total;
+}
+
+public async Task<String> fetch(String url) {
+    var body = await http.get(url);
+    return body.trim();
+}
+
+public class Outer {
+    public class Inner { }
+    static { println("static init"); }
+    private helper(int x) => x + 1;
+    public synchronized void sync() { }
+}

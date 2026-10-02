@@ -1,0 +1,1 @@
+error JS0110 2:13 expected 'get', 'set' or 'init', found identifier 'foo'

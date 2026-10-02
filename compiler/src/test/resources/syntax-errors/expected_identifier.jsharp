@@ -1,0 +1,2 @@
+class { }
+var if = 3;
