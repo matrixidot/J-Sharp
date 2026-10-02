@@ -1,0 +1,20 @@
+package demo;
+
+import java.util.*;
+
+public sealed interface Expr permits Num, Add, Mul;
+public record Num(double value) : Expr;
+public record Add(Expr left, Expr right) : Expr;
+public record Mul(Expr left, Expr right) : Expr;
+
+public static double eval(Expr e) => e switch {
+    Num n          => n.value,
+    Add(var l, var r) => eval(l) + eval(r),
+    Mul(var l, var r) => eval(l) * eval(r),
+};
+
+foreach (var n in List.of(1, 2, 3, 4).stream().filter(x => x % 2 == 0).map(x => x * x).toList()) {
+    println($"{n}");
+}
+println(eval(new Add(new Num(2), new Mul(new Num(3), new Num(4)))));  // 14
+println(new Add(new Num(1), new Num(2)));

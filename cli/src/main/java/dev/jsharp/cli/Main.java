@@ -3,20 +3,45 @@ package dev.jsharp.cli;
 import dev.jsharp.compiler.LanguageInfo;
 import dev.jsharp.compiler.ast.AstPrinter;
 import dev.jsharp.compiler.ast.CompilationUnit;
+import dev.jsharp.compiler.classpath.ClassPath;
 import dev.jsharp.compiler.diag.DiagnosticRenderer;
 import dev.jsharp.compiler.diag.Diagnostics;
+import dev.jsharp.compiler.driver.Compilation;
+import dev.jsharp.compiler.driver.CompilerOptions;
 import dev.jsharp.compiler.source.SourceFile;
 import dev.jsharp.compiler.syntax.Parser;
 import java.io.IOException;
 import java.io.PrintStream;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.List;
+import java.util.Map;
 
 /** Entry point of the {@code jsharp} command-line tool. */
 public final class Main {
   private Main() {}
 
   public static void main(String[] args) {
-    System.exit(run(args, System.out, System.err));
+    int code = run(args, System.out, System.err);
+    if (code != 0) {
+      System.exit(code);
+    }
+  }
+
+  /** Parsed common options. */
+  private static final class Options {
+    final List<Path> inputs = new ArrayList<>();
+    final List<Path> classPath = new ArrayList<>();
+    Path outDir;
+    Path jar;
+    boolean json;
+    boolean strictNullness;
+    boolean warningsAsErrors;
+    List<String> programArgs = List.of();
   }
 
   /** Runs the CLI and returns the process exit code. */
@@ -29,57 +54,208 @@ public final class Main {
       out.println(LanguageInfo.ID + " " + LanguageInfo.VERSION);
       return 0;
     }
-    if (args[0].equals("parse") && args.length == 2) {
-      return parse(Path.of(args[1]), out, err);
+    String cmd = args[0];
+    String[] rest = Arrays.copyOfRange(args, 1, args.length);
+    try {
+      return switch (cmd) {
+        case "parse" ->
+            rest.length == 1
+                ? parse(Path.of(rest[0]), out, err)
+                : usageError(err, "parse takes one file");
+        case "check" -> check(rest, out, err);
+        case "build" -> build(rest, out, err);
+        case "run" -> runProgram(rest, out, err);
+        default -> {
+          err.println(LanguageInfo.ID + ": unknown command '" + cmd + "'");
+          printUsage(err);
+          yield 2;
+        }
+      };
+    } catch (UsageException e) {
+      return usageError(err, e.getMessage());
     }
-    if (args[0].equals("check")) {
-      return check(java.util.Arrays.copyOfRange(args, 1, args.length), out, err);
+  }
+
+  private static final class UsageException extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
+    UsageException(String m) {
+      super(m);
     }
-    err.println(LanguageInfo.ID + ": unknown command '" + args[0] + "'");
-    printUsage(err);
+  }
+
+  private static int usageError(PrintStream err, String msg) {
+    err.println(LanguageInfo.ID + ": " + msg);
     return 2;
   }
 
-  /** {@code jsharp check [--diagnostics=json] [-cp path] files-or-dirs...}: diagnostics only. */
-  private static int check(String[] args, PrintStream out, PrintStream err) {
-    boolean json = false;
-    java.util.List<Path> cp = new java.util.ArrayList<>();
-    java.util.List<Path> inputs = new java.util.ArrayList<>();
+  /** Parses options; for {@code run}, everything after the first source file is program args. */
+  private static Options parseOptions(String[] args, boolean isRun) {
+    Options o = new Options();
     for (int i = 0; i < args.length; i++) {
-      switch (args[i]) {
-        case "--diagnostics=json" -> json = true;
-        case "-cp", "--class-path" -> {
-          if (i + 1 >= args.length) {
-            err.println(LanguageInfo.ID + ": " + args[i] + " needs a value");
-            return 2;
+      String a = args[i];
+      switch (a) {
+        case "-d" -> o.outDir = Path.of(need(args, ++i, a));
+        case "-cp", "--class-path" -> o.classPath.addAll(ClassPath.split(need(args, ++i, a)));
+        case "--jar" -> o.jar = Path.of(need(args, ++i, a));
+        case "--diagnostics=json" -> o.json = true;
+        case "--strict-platform-nullness" -> o.strictNullness = true;
+        case "-Werror" -> o.warningsAsErrors = true;
+        default -> {
+          if (a.startsWith("-") && o.inputs.isEmpty()) {
+            throw new UsageException("unknown option " + a);
           }
-          cp.addAll(dev.jsharp.compiler.classpath.ClassPath.split(args[++i]));
+          o.inputs.add(Path.of(a));
+          if (isRun) {
+            o.programArgs = List.of(Arrays.copyOfRange(args, i + 1, args.length));
+            return o;
+          }
         }
-        default -> inputs.add(Path.of(args[i]));
       }
     }
-    java.util.List<SourceFile> files;
+    return o;
+  }
+
+  private static String need(String[] args, int i, String opt) {
+    if (i >= args.length) {
+      throw new UsageException(opt + " needs a value");
+    }
+    return args[i];
+  }
+
+  private static CompilerOptions compilerOptions(Options o) {
+    return new CompilerOptions(o.classPath, o.outDir, o.warningsAsErrors, o.strictNullness, true);
+  }
+
+  /** Compiles; prints diagnostics; returns the compilation or null if sources could not be read. */
+  private static Compilation compileAll(
+      Options o, PrintStream out, PrintStream err, boolean generate) {
+    List<SourceFile> files;
     try {
-      files = SourceFiles.collect(inputs);
+      files = SourceFiles.collect(o.inputs);
     } catch (IOException e) {
       err.println(LanguageInfo.ID + ": " + e.getMessage());
-      return 2;
+      return null;
     }
     if (files.isEmpty()) {
-      err.println(LanguageInfo.ID + ": no " + LanguageInfo.FILE_EXTENSION + " files to check");
-      return 2;
+      err.println(LanguageInfo.ID + ": no " + LanguageInfo.FILE_EXTENSION + " files given");
+      return null;
     }
-    var options = dev.jsharp.compiler.driver.CompilerOptions.defaults().withClassPath(cp);
-    var comp = new dev.jsharp.compiler.driver.Compilation(files, options, null);
-    comp.analyze();
-    comp.close();
-    var ds = comp.diagnostics().sorted();
-    if (json) {
-      out.println(DiagnosticRenderer.renderJson(ds));
+    Compilation comp = new Compilation(files, compilerOptions(o), null);
+    if (generate) {
+      comp.compile();
     } else {
+      comp.analyze();
+    }
+    var ds = comp.diagnostics().sorted();
+    if (o.json) {
+      out.println(DiagnosticRenderer.renderJson(ds));
+    } else if (!ds.isEmpty()) {
       err.print(new DiagnosticRenderer(System.console() != null).renderAll(ds));
     }
+    return comp;
+  }
+
+  private static int check(String[] args, PrintStream out, PrintStream err) {
+    Options o = parseOptions(args, false);
+    Compilation comp = compileAll(o, out, err, false);
+    if (comp == null) {
+      return 2;
+    }
+    comp.close();
     return comp.diagnostics().hasErrors() ? 1 : 0;
+  }
+
+  private static int build(String[] args, PrintStream out, PrintStream err) {
+    Options o = parseOptions(args, false);
+    if (o.outDir == null && o.jar == null) {
+      o.outDir = Path.of("out");
+    }
+    Compilation comp = compileAll(o, out, err, true);
+    if (comp == null) {
+      return 2;
+    }
+    comp.close();
+    if (comp.diagnostics().hasErrors()) {
+      return 1;
+    }
+    if (o.jar != null) {
+      try {
+        Jars.write(o.jar, comp.classFiles(), comp.mainClass());
+      } catch (IOException e) {
+        err.println(LanguageInfo.ID + ": cannot write " + o.jar + ": " + e.getMessage());
+        return 2;
+      }
+    }
+    return 0;
+  }
+
+  /** Compiles in memory and runs the entry point in this JVM. */
+  private static int runProgram(String[] args, PrintStream out, PrintStream err) {
+    Options o = parseOptions(args, true);
+    Compilation comp = compileAll(o, out, err, true);
+    if (comp == null) {
+      return 2;
+    }
+    comp.close();
+    if (comp.diagnostics().hasErrors()) {
+      return 1;
+    }
+    if (comp.mainClass() == null) {
+      err.println(
+          LanguageInfo.ID + ": no entry point (top-level statements or a static main(String[]))");
+      return 2;
+    }
+    List<java.net.URL> urls = new ArrayList<>();
+    for (Path p : o.classPath) {
+      try {
+        urls.add(p.toUri().toURL());
+      } catch (java.net.MalformedURLException e) {
+        throw new UsageException("bad class path entry " + p);
+      }
+    }
+    var parent =
+        new java.net.URLClassLoader(urls.toArray(java.net.URL[]::new), Main.class.getClassLoader());
+    var loader = new MemoryClassLoader(comp.classFiles(), parent);
+    try {
+      Class<?> main = Class.forName(comp.mainClass(), true, loader);
+      Method m = main.getMethod("main", String[].class);
+      m.invoke(null, (Object) o.programArgs.toArray(String[]::new));
+      return 0;
+    } catch (InvocationTargetException e) {
+      Throwable cause = e.getCause();
+      err.println("Exception in thread \"main\" " + cause);
+      for (StackTraceElement el : cause.getStackTrace()) {
+        if (el.getClassName().startsWith("java.lang.reflect")
+            || el.getClassName().startsWith("jdk.internal.reflect")) {
+          break;
+        }
+        err.println("\tat " + el);
+      }
+      return 1;
+    } catch (ReflectiveOperationException | LinkageError e) {
+      err.println(LanguageInfo.ID + ": cannot run " + comp.mainClass() + ": " + e);
+      return 1;
+    }
+  }
+
+  /** Loads compiled classes from memory. */
+  static final class MemoryClassLoader extends ClassLoader {
+    private final Map<String, byte[]> classes;
+
+    MemoryClassLoader(Map<String, byte[]> classes, ClassLoader parent) {
+      super(parent);
+      this.classes = classes;
+    }
+
+    @Override
+    protected Class<?> findClass(String name) throws ClassNotFoundException {
+      byte[] b = classes.get(name.replace('.', '/'));
+      if (b == null) {
+        throw new ClassNotFoundException(name);
+      }
+      return defineClass(name, b, 0, b.length);
+    }
   }
 
   /** Debug command: parse one file and print its syntax tree and syntax diagnostics. */
@@ -102,14 +278,20 @@ public final class Main {
     out.println("usage: " + LanguageInfo.ID + " <command> [options]");
     out.println();
     out.println("commands:");
-    out.println("  build <src...> -d <dir> [-cp <path>] [--jar <file>]   compile sources");
+    out.println("  run <file|dir...> [args...]          compile in memory and run the entry point");
     out.println(
-        "  run <file"
-            + LanguageInfo.FILE_EXTENSION
-            + "> [args...]                    compile and run");
-    out.println("  check <src...>                                        report diagnostics only");
-    out.println(
-        "  parse <file>                                          print the syntax tree (debug)");
-    out.println("  --version                                             print version");
+        "  build <src...> [-d dir] [--jar f]    compile to class files (default ./out) or a jar");
+    out.println("  check <src...>                       report diagnostics only");
+    out.println("  parse <file>                         print the syntax tree (debug)");
+    out.println("  --version                            print version");
+    out.println();
+    out.println("options:");
+    out.println("  -cp, --class-path <path>             extra class path (jars and directories)");
+    out.println("  --diagnostics=json                   machine-readable diagnostics");
+    out.println("  --strict-platform-nullness           warn on member access through Java types");
+    out.println("  -Werror                              treat warnings as errors");
+    if (Files.exists(Path.of("."))) {
+      out.flush();
+    }
   }
 }

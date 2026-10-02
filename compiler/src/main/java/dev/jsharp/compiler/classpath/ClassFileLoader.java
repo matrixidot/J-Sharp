@@ -381,8 +381,11 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
     resolveBounds(tps, tvs, scope);
 
     Nullness retNull = pick(typeUseNullness(typeAnns, -1), nullnessOf(anns), unannotated);
-    ms.setReturnType(
-        noReturn ? Type.NeverType.INSTANCE : toType(resultSig, scope, retNull, unannotated));
+    Type declaredRet = toType(resultSig, scope, retNull, unannotated);
+    ms.setReturnType(noReturn ? Type.NeverType.INSTANCE : declaredRet);
+    if (noReturn) {
+      ms.setJvmReturnType(declaredRet);
+    }
 
     List<String> names = new ArrayList<>();
     mm.findAttribute(Attributes.methodParameters())

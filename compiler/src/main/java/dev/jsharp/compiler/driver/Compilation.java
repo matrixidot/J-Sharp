@@ -114,6 +114,80 @@ public final class Compilation {
         });
   }
 
+  private final java.util.Map<String, byte[]> classFiles = new java.util.LinkedHashMap<>();
+  private String mainClass;
+
+  /**
+   * Runs all phases and generates class files (kept in memory and, if an output directory is set,
+   * written there). Returns true on success.
+   */
+  public boolean compile() {
+    if (!analyze()) {
+      return false;
+    }
+    return guarded(
+        () -> {
+          var types = attr.types();
+          var lowerer =
+              new dev.jsharp.compiler.lower.Lowerer(ctx, types, attr.anonymousSuperConstructors());
+          List<BClass> lowered = lowerer.lowerAll(checked);
+          java.util.Map<
+                  dev.jsharp.compiler.symbols.ClassSymbol,
+                  List<dev.jsharp.compiler.symbols.ClassSymbol>>
+              nests = new java.util.IdentityHashMap<>();
+          for (BClass c : lowered) {
+            if (c.sym().outer() != null) {
+              nests.computeIfAbsent(c.sym().outermost(), k -> new ArrayList<>()).add(c.sym());
+            }
+          }
+          var gen = new dev.jsharp.compiler.codegen.ClassGen(types, options.emitDebugInfo(), nests);
+          for (BClass c : lowered) {
+            currentFile =
+                c.sym().outermost().unit() != null ? c.sym().outermost().unit().file() : null;
+            classFiles.put(c.sym().binaryName(), gen.generate(c));
+            for (var m : c.methods()) {
+              if (m.sym().has(dev.jsharp.compiler.symbols.Flags.ENTRY_POINT)
+                  || mainClass == null && isMain(m.sym())) {
+                mainClass = c.sym().binaryName().replace('/', '.');
+              }
+            }
+          }
+          currentFile = null;
+          if (options.outputDir() != null) {
+            writeClassFiles(options.outputDir());
+          }
+        });
+  }
+
+  private static boolean isMain(dev.jsharp.compiler.symbols.MethodSymbol m) {
+    return m.name().equals("main")
+        && m.isStatic()
+        && m.params().size() == 1
+        && m.params().getFirst().type() instanceof dev.jsharp.compiler.types.Type.ArrayType;
+  }
+
+  private void writeClassFiles(Path dir) {
+    try {
+      for (var e : classFiles.entrySet()) {
+        Path out = dir.resolve(e.getKey() + ".class");
+        java.nio.file.Files.createDirectories(out.getParent());
+        java.nio.file.Files.write(out, e.getValue());
+      }
+    } catch (IOException ex) {
+      throw new UncheckedIOException(ex);
+    }
+  }
+
+  /** Generated class files by JVM internal name. */
+  public java.util.Map<String, byte[]> classFiles() {
+    return classFiles;
+  }
+
+  /** The class containing the entry point (top-level statements or main), or null. */
+  public String mainClass() {
+    return mainClass;
+  }
+
   /** Checked classes (after a successful {@link #analyze()}). */
   public List<BClass> checkedClasses() {
     return checked;

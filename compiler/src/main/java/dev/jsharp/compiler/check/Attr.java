@@ -123,6 +123,11 @@ public final class Attr {
     return types;
   }
 
+  /** The superclass constructor each anonymous class's constructor delegates to. */
+  public Map<ClassSymbol, MethodSymbol> anonymousSuperConstructors() {
+    return patterns.superCtors;
+  }
+
   public void registerModule(ClassSymbol module) {
     packageModules.computeIfAbsent(module.packageName(), k -> new ArrayList<>()).add(module);
   }

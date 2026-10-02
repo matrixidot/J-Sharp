@@ -46,6 +46,7 @@ public final class MethodSymbol implements Symbol {
   private Decl decl;
   private PropertySymbol property;
   private String jvmName;
+  private Type jvmReturnType;
 
   public MethodSymbol(String name, ClassSymbol owner, long flags) {
     this.name = name;
@@ -122,6 +123,15 @@ public final class MethodSymbol implements Symbol {
 
   public void setReturnType(Type t) {
     this.returnType = t;
+  }
+
+  /** The JVM return type when it differs from {@link #returnType()} (never-returning methods). */
+  public Type jvmReturnType() {
+    return jvmReturnType;
+  }
+
+  public void setJvmReturnType(Type t) {
+    this.jvmReturnType = t;
   }
 
   public Decl decl() {

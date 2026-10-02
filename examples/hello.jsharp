@@ -1,0 +1,3 @@
+// The classic first program: top-level statements become the entry point.
+var name = args.length > 0 ? args[0] : "world";
+println($"Hello, {name}!");
