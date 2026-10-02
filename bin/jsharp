@@ -1,0 +1,9 @@
+#!/usr/bin/env sh
+# Convenience launcher: runs the locally built `jsharp` CLI, building it first if needed.
+# Set JSHARP_REBUILD=1 to force a rebuild of the CLI distribution.
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+BIN="$ROOT/cli/build/install/jsharp/bin/jsharp"
+if [ ! -x "$BIN" ] || [ -n "$JSHARP_REBUILD" ]; then
+  "$ROOT/gradlew" -q -p "$ROOT" :cli:installDist >&2 || exit 1
+fi
+exec "$BIN" "$@"
