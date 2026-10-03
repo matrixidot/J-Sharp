@@ -1051,12 +1051,8 @@ public final class Attr {
         && env.method != null
         && !env.method.has(Flags.ENTRY_POINT)
         && isTopLevelLocal(name)) {
-      d.help(
-          "'"
-              + name
-              + "' is a local variable of the top-level statements; functions cannot see it. Declare it as a top-level value: 'val "
-              + name
-              + " = ...;' with a modifier, e.g. 'private val'");
+      d.note("'" + name + "' is a local of the top-level statements, which functions cannot see")
+          .help("make it a top-level value: 'private val " + name + " = ...;'");
     }
     report(d.label("not found"));
   }

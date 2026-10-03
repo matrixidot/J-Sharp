@@ -40,6 +40,7 @@ Then read the [language tour](docs/TOUR.md) (about 15 minutes) and try the demo 
 
 ```
 jsharp run <file|dir> [args...]                  compile in memory and run
+jsharp run <src...> -- [args...]                 several sources (e.g. a script and its helpers)
 jsharp build <src...> -d out                     compile to class files
 jsharp build <src...> --jar app.jar --include-runtime
                                                  a self-contained jar for `java -jar app.jar`
@@ -49,7 +50,10 @@ jsharp lsp                                       language server for editors (st
 ```
 
 Editor support: the VS Code extension in [`editors/vscode`](editors/vscode) adds highlighting,
-live errors, hover, go to definition, outline and completion. Other editors can run `jsharp lsp`.
+live errors, hover, go to definition, references, rename, parameter hints, completion, outline
+and a ▶ Run button. It bundles the compiler, so `./gradlew installVscodeExtension` is all it takes
+(with Java 25 installed). Other editors can run `jsharp lsp`. For a first look, open
+[`examples/showcase`](examples/showcase) and press Run.
 
 `bin/jsharp` runs the locally built CLI (`cli/build/install/jsharp`), building it if needed; set
 `JSHARP_REBUILD=1` after changing the compiler. On first use the launcher records a class-data
@@ -125,9 +129,8 @@ sources compiled by `jsharp build`; use Gradle for those.
 
 ## Status
 
-Version 0.1 (milestones M0–M7 of the roadmap). The compiler implements the full v0.1 language
-and is covered by 402 automated tests, including 129 programs run under `-Xverify:all`.
-Editor support is new (language server and VS Code extension). Not yet available: a
-Maven Central release, incremental compilation, rename/refactoring in the editor, and the
-v0.2+ features (list patterns, collection literals, query syntax). See
-[PROGRESS.md](PROGRESS.md).
+Version 0.1 plus the v0.2 language features (collection literals, list patterns, operator
+overloading), functions as values, local functions, `atomic` locals, and Java and J# sources
+compiled together in one module. 452 automated tests, including 133 programs run under
+`-Xverify:all`. Not yet available: a Maven Central release, incremental compilation, renaming
+types in the editor, structured concurrency and query syntax. See [PROGRESS.md](PROGRESS.md).

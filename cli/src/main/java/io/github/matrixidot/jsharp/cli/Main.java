@@ -94,8 +94,18 @@ public final class Main {
     return 2;
   }
 
-  /** Parses options; for {@code run}, everything after the first source file is program args. */
+  /**
+   * Parses options. For {@code run}, everything after the first source file is program args, unless
+   * {@code --} separates several sources from the program args ({@code run a.jsharp b.jsharp --
+   * x}).
+   */
   private static Options parseOptions(String[] args, boolean isRun) {
+    int dashes = isRun ? Arrays.asList(args).indexOf("--") : -1;
+    if (dashes >= 0) {
+      Options o = parseOptions(Arrays.copyOfRange(args, 0, dashes), false);
+      o.programArgs = List.of(Arrays.copyOfRange(args, dashes + 1, args.length));
+      return o;
+    }
     Options o = new Options();
     for (int i = 0; i < args.length; i++) {
       String a = args[i];
@@ -349,7 +359,8 @@ public final class Main {
     out.println("usage: " + LanguageInfo.ID + " <command> [options]");
     out.println();
     out.println("commands:");
-    out.println("  run <file|dir...> [args...]          compile in memory and run the entry point");
+    out.println("  run <file|dir> [args...]            compile in memory and run the entry point");
+    out.println("  run <src...> -- [args...]            the same, with several sources");
     out.println(
         "  build <src...> [-d dir] [--jar f]    compile to class files (default ./out) or a jar");
     out.println(

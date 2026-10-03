@@ -96,13 +96,15 @@ final class LocalFunctions {
       Type t = p.type() == null ? Type.ErrorType.INSTANCE : a.resolveType(p.type());
       params.add(MethodSymbol.Param.of(p.name(), t));
     }
-    MethodSymbol sym = new MethodSymbol(name, env.cls, Flags.PRIVATE);
+    MethodSymbol sym = new MethodSymbol(name, env.cls, Flags.PRIVATE | Flags.LOCAL);
     sym.setReturnType(ret);
     sym.setParams(params);
+    sym.setDecl(d);
     MethodSymbol impl =
         new MethodSymbol(
             jvmBase(env) + "$" + name + "$" + counter++, env.cls, Flags.PRIVATE | Flags.SYNTHETIC);
     impl.setReturnType(ret);
+    impl.setSourceView(sym);
     Fn fn = new Fn(sym, impl);
     env.scope.functions.put(name, fn);
     env.scope.laterFunctions.remove(name);
@@ -163,7 +165,7 @@ final class LocalFunctions {
     fn.captures = List.copyOf(params);
     fn.capturesThis = viaThis;
     long flags = Flags.PRIVATE | (viaThis ? 0 : Flags.STATIC);
-    fn.sym.setFlags(flags);
+    fn.sym.setFlags(flags | Flags.LOCAL);
     fn.impl.setFlags(flags | Flags.SYNTHETIC);
   }
 
@@ -255,7 +257,9 @@ final class LocalFunctions {
   List<BExpr> captureArgs(Fn fn, Span span) {
     List<BExpr> out = new ArrayList<>();
     for (VarSymbol v : fn.captures) {
-      out.add(a.captureValue(v, span));
+      // No source span: editors must not see a captured variable at the call (D083).
+      BExpr value = a.captureValue(v, span);
+      out.add(value instanceof BExpr.Local l ? new BExpr.Local(l.var(), Span.NONE) : value);
     }
     return out;
   }

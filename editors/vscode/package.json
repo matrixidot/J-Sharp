@@ -1,7 +1,7 @@
 {
   "name": "jsharp",
   "displayName": "J#",
-  "description": "J# language support: syntax highlighting, diagnostics, hover, go to definition, outline and completion.",
+  "description": "J# language support: highlighting, errors as you type, hover, go to definition, references, rename, parameter hints, completion, outline, and Run.",
   "version": "0.1.0",
   "publisher": "matrixidot",
   "repository": { "type": "git", "url": "https://github.com/matrixidot/J-Sharp" },
@@ -27,17 +27,30 @@
         "jsharp.server.path": {
           "type": "string",
           "default": "",
-          "description": "Path to the `jsharp` launcher (for example <repo>/cli/build/install/jsharp/bin/jsharp). Empty means `jsharp` on the PATH."
+          "description": "Path to a `jsharp` launcher to use instead of the one bundled with the extension (for example <repo>/cli/build/install/jsharp/bin/jsharp)."
         },
         "jsharp.classPath": {
           "type": "array",
           "items": { "type": "string" },
           "default": [],
-          "description": "Extra jars and class directories for analysis (passed as -cp)."
+          "description": "Extra jars and class directories, for analysis and Run (passed as -cp)."
         }
       }
     },
-    "commands": [{ "command": "jsharp.restartServer", "title": "J#: Restart Language Server" }]
-  },
-  "dependencies": { "vscode-languageclient": "^9.0.1" }
+    "commands": [
+      { "command": "jsharp.run", "title": "J#: Run Program", "icon": "$(play)" },
+      { "command": "jsharp.restartServer", "title": "J#: Restart Language Server" }
+    ],
+    "menus": {
+      "editor/title/run": [
+        { "command": "jsharp.run", "when": "resourceLangId == jsharp", "group": "navigation" }
+      ],
+      "commandPalette": [
+        { "command": "jsharp.run", "when": "editorLangId == jsharp" }
+      ]
+    },
+    "keybindings": [
+      { "command": "jsharp.run", "key": "ctrl+f5", "mac": "cmd+f5", "when": "editorLangId == jsharp" }
+    ]
+  }
 }

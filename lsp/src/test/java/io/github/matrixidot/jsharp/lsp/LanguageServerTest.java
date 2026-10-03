@@ -217,6 +217,183 @@ class LanguageServerTest {
     assertThat(exitCode[0]).isZero();
   }
 
+  /** The position of {@code needle} (plus {@code delta} characters) in {@code text}. */
+  private static Map<String, Object> posOf(String text, String needle, int delta) {
+    int off = text.indexOf(needle);
+    assertThat(off).as(needle).isNotNegative();
+    off += delta;
+    int line = 0;
+    int lineStart = 0;
+    for (int i = 0; i < off; i++) {
+      if (text.charAt(i) == '\n') {
+        line++;
+        lineStart = i + 1;
+      }
+    }
+    return pos(line, off - lineStart);
+  }
+
+  /** The position right after the last occurrence of {@code needle}. */
+  private static Map<String, Object> posAfterLast(String text, String needle) {
+    int off = text.lastIndexOf(needle) + needle.length();
+    String before = text.substring(0, off);
+    int line = (int) before.chars().filter(c -> c == '\n').count();
+    return pos(line, off - (before.lastIndexOf('\n') + 1));
+  }
+
+  private Map<String, Object> errorOf(String method, Object params) throws Exception {
+    int id = nextId++;
+    client.write(
+        Json.write(Json.obj("jsonrpc", "2.0", "id", id, "method", method, "params", params)));
+    while (true) {
+      Map<String, Object> m = fromServer.poll(30, TimeUnit.SECONDS);
+      assertThat(m).as("response to " + method).isNotNull();
+      if (m.get("id") instanceof Number n && n.intValue() == id) {
+        @SuppressWarnings("unchecked")
+        Map<String, Object> error = (Map<String, Object>) m.get("error");
+        assertThat(error).as("error from " + method).isNotNull();
+        return error;
+      }
+    }
+  }
+
+  private static Map<String, Object> at(URI uri, Map<String, Object> pos) {
+    return Json.obj("textDocument", Json.obj("uri", uri.toString()), "position", pos);
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void navigationRenameSignaturesAndRun() throws Exception {
+    Path lib = dir.resolve("greetings.jsharp");
+    String libText =
+        """
+        public String greet(String name, String greeting = "Hello") => $"{greeting}, {name}!";
+        public class Counter {
+            public Counter(int start) { }
+            public void bump(int by) { }
+        }
+        """;
+    Files.writeString(lib, libText);
+    Path main = dir.resolve("main.jsharp");
+    String text =
+        """
+        import java.util.*;
+        int total(List<int> xs) {
+            atomic var sum = 0;
+            int sq(int x) => x * x;
+            xs.forEach(x => sum += sq(x));
+            return sum;
+        }
+        var count = 1;
+        count = count + total([1, 2]);
+        println(greet("Ada"));
+        var c = new Counter(3);
+        c.bump(count);
+        """;
+    Files.writeString(main, text);
+    URI uri = main.toUri();
+    request("initialize", Json.obj("rootUri", dir.toUri().toString()));
+    notifyServer(
+        "textDocument/didOpen",
+        Json.obj(
+            "textDocument",
+            Json.obj("uri", uri.toString(), "languageId", "jsharp", "version", 1, "text", text)));
+    assertThat(nextDiagnostics(uri)).isEmpty();
+
+    // Hover: a local function shows as declared, an atomic local says so.
+    Map<String, Object> hover =
+        (Map<String, Object>) request("textDocument/hover", at(uri, posOf(text, "sq(x))", 0)));
+    assertThat((String) ((Map<String, Object>) hover.get("contents")).get("value"))
+        .contains("int sq(int x)")
+        .doesNotContain("local$");
+    hover = (Map<String, Object>) request("textDocument/hover", at(uri, posOf(text, "sum;", 0)));
+    assertThat((String) ((Map<String, Object>) hover.get("contents")).get("value"))
+        .contains("atomic var sum: int");
+
+    // Go to definition of a local function.
+    Map<String, Object> def =
+        (Map<String, Object>) request("textDocument/definition", at(uri, posOf(text, "sq(x))", 0)));
+    assertThat(((Map<String, Object>) ((Map<String, Object>) def.get("range")).get("start")))
+        .containsEntry("line", 3L);
+
+    // References include writes; highlights stay in the file.
+    List<Object> refs =
+        (List<Object>)
+            request(
+                "textDocument/references",
+                Json.obj(
+                    "textDocument", Json.obj("uri", uri.toString()),
+                    "position", posOf(text, "count = 1", 0),
+                    "context", Json.obj("includeDeclaration", true)));
+    assertThat(refs).hasSize(4); // declaration, write, read, argument
+
+    // Rename a top-level function across files.
+    Map<String, Object> edit =
+        (Map<String, Object>)
+            request(
+                "textDocument/rename",
+                Json.obj(
+                    "textDocument", Json.obj("uri", uri.toString()),
+                    "position", posOf(text, "greet(", 1),
+                    "newName", "welcome"));
+    Map<String, Object> changes = (Map<String, Object>) edit.get("changes");
+    assertThat(changes).containsKeys(uri.toString(), lib.toUri().toString());
+    // Types and library members are refused with a reason.
+    assertThat(errorOf("textDocument/prepareRename", at(uri, posOf(text, "Counter(3)", 0))))
+        .containsEntry("message", "Renaming types is not supported yet.");
+    assertThat(errorOf("textDocument/prepareRename", at(uri, posOf(text, "forEach", 0))))
+        .containsEntry("message", "'forEach' is declared outside this project.");
+    assertThat(
+            errorOf(
+                "textDocument/rename",
+                Json.obj(
+                    "textDocument", Json.obj("uri", uri.toString()),
+                    "position", posOf(text, "count = 1", 0),
+                    "newName", "if")))
+        .containsEntry("message", "'if' is not a valid name.");
+
+    // Signature help while typing an unclosed call: function, method, constructor.
+    String[][] cases = {
+      {"greet(\"x\", ", "greet(String name, String greeting = \"Hello\"): String", "1"},
+      {"c.bump(", "bump(int by): void", "0"},
+      {"new Counter(", "new Counter(int start)", "0"},
+    };
+    int version = 2;
+    for (String[] k : cases) {
+      String typing = text + k[0];
+      notifyServer(
+          "textDocument/didChange",
+          Json.obj(
+              "textDocument", Json.obj("uri", uri.toString(), "version", version++),
+              "contentChanges", List.of(Json.obj("text", typing))));
+      nextDiagnostics(uri);
+      Map<String, Object> sig =
+          (Map<String, Object>)
+              request("textDocument/signatureHelp", at(uri, posAfterLast(typing, k[0])));
+      assertThat(sig).as(k[0]).isNotNull();
+      assertThat(
+              ((Map<String, Object>) ((List<Object>) sig.get("signatures")).getFirst())
+                  .get("label"))
+          .isEqualTo(k[1]);
+      assertThat(sig.get("activeParameter")).isEqualTo(Long.parseLong(k[2]));
+    }
+
+    // A Run lens on the program, and the files it needs.
+    List<Object> lenses =
+        (List<Object>)
+            request(
+                "textDocument/codeLens", Json.obj("textDocument", Json.obj("uri", uri.toString())));
+    assertThat(lenses).hasSize(1);
+    List<Object> files =
+        (List<Object>)
+            request(
+                "jsharp/programFiles", Json.obj("textDocument", Json.obj("uri", uri.toString())));
+    assertThat(files).hasSize(2);
+
+    request("shutdown", null);
+    notifyServer("exit", null);
+  }
+
   @Test
   void jsonRoundTrip() {
     Object v = Json.parse("{\"a\":[1,2.5,\"x\\n\\u0041\",true,null],\"b\":{}}");

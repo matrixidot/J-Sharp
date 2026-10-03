@@ -1,0 +1,31 @@
+// Types used by showcase.jsharp. A file with no top-level statements is a library:
+// other files in the folder use its types and functions directly.
+
+public record Vec(double x, double y) {
+    public static Vec operator +(Vec a, Vec b) => new Vec(a.x + b.x, a.y + b.y);
+    public static Vec operator *(Vec v, double k) => new Vec(v.x * k, v.y * k);
+    public double length => Math.sqrt(x * x + y * y);
+}
+
+public sealed interface Shape permits Circle, Rect, Triangle {}
+public record Circle(Vec center, double radius) : Shape;
+public record Rect(Vec corner, double width, double height) : Shape;
+public record Triangle(Vec a, Vec b, Vec c) : Shape;
+
+/** The compiler checks that every kind of Shape is handled. */
+public double area(Shape s) => s switch {
+    Circle c => Math.PI * c.radius * c.radius,
+    Rect { width: var w, height: var h } => w * h,
+    Triangle t => Math.abs((t.b.x - t.a.x) * (t.c.y - t.a.y) - (t.c.x - t.a.x) * (t.b.y - t.a.y)) / 2,
+};
+
+public String describe(Shape s) => s switch {
+    Circle { radius: > 10 } => "a big circle",
+    Circle _ => "a circle",
+    Rect r when r.width == r.height => "a square",
+    Rect _ => "a rectangle",
+    Triangle _ => "a triangle",
+};
+
+/** An extension method: callable as if String had it. */
+public String shout(this String s) => s.toUpperCase() + "!";

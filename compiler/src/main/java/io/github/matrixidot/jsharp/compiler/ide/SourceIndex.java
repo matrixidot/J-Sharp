@@ -47,8 +47,11 @@ public final class SourceIndex {
    * @param symbol the referenced symbol, or null for a plain expression
    * @param type the type of the expression or declaration (may be null)
    * @param declaration true at the declaring occurrence of {@code symbol}
+   * @param nameSpan the identifier naming {@code symbol} inside {@code span} (for references and
+   *     rename), or null when there is none (plain expressions)
    */
-  public record Ref(Span span, Kind kind, Symbol symbol, Type type, boolean declaration) {}
+  public record Ref(
+      Span span, Kind kind, Symbol symbol, Type type, boolean declaration, Span nameSpan) {}
 
   /** A source location. */
   public record Location(SourceFile file, Span span) {}
@@ -128,11 +131,56 @@ public final class SourceIndex {
     return Optional.ofNullable(best);
   }
 
+  /**
+   * The symbol editors treat {@code sym} as: a property for its accessors and backing field, the
+   * declared local function for its hoisted method.
+   */
+  public static Symbol canonical(Symbol sym) {
+    return switch (sym) {
+      case MethodSymbol m when m.sourceView() != null -> m.sourceView();
+      case MethodSymbol m when m.property() != null -> m.property();
+      case FieldSymbol f when f.property() != null -> f.property();
+      case null, default -> sym;
+    };
+  }
+
+  /**
+   * Every occurrence of {@code sym} in the indexed files (declaration included), as identifier
+   * locations. For a class, its constructor calls count too.
+   */
+  public List<Location> references(Symbol sym) {
+    Symbol target = canonical(sym);
+    List<Location> out = new ArrayList<>();
+    java.util.Set<String> seen = new java.util.HashSet<>();
+    for (var e : byFile.entrySet()) {
+      for (Ref r : e.getValue()) {
+        if (r.symbol() == null || r.nameSpan() == null) {
+          continue;
+        }
+        Symbol s = canonical(r.symbol());
+        boolean match =
+            s == target
+                || target instanceof ClassSymbol c
+                    && s instanceof MethodSymbol m
+                    && m.isConstructor()
+                    && m.owner() == c;
+        if (match && seen.add(System.identityHashCode(e.getKey()) + ":" + r.nameSpan().start())) {
+          out.add(new Location(e.getKey(), r.nameSpan()));
+        }
+      }
+    }
+    out.sort(
+        Comparator.comparing((Location l) -> l.file().path())
+            .thenComparingInt(l -> l.span().start()));
+    return out;
+  }
+
   /** Where {@code sym} is declared, if it comes from source. */
   public Optional<Location> declaration(Symbol sym) {
     return switch (sym) {
       case VarSymbol v -> Optional.ofNullable(localDecls.get(v));
       case ClassSymbol c -> classLocation(c);
+      case MethodSymbol m when m.sourceView() != null -> declaration(m.sourceView());
       case MethodSymbol m -> {
         if (m.property() != null) {
           yield declaration(m.property());
@@ -148,10 +196,20 @@ public final class SourceIndex {
             : Optional.empty();
       }
       case PropertySymbol p ->
-          p.decl() != null ? located(p.owner(), p.decl().nameSpan()) : Optional.empty();
+          p.decl() != null
+              ? located(p.owner(), p.decl().nameSpan())
+              : located(p.owner(), headerSpan(p.owner(), p.name()));
       case FieldSymbol f -> {
         if (f.property() != null) {
           yield declaration(f.property());
+        }
+        if (f.has(io.github.matrixidot.jsharp.compiler.symbols.Flags.ENUM_CONSTANT)
+            && f.owner().decl() != null) {
+          for (var ec : f.owner().decl().enumConstants()) {
+            if (ec.name().equals(f.name())) {
+              yield located(f.owner(), ec.nameSpan());
+            }
+          }
         }
         if (f.decl() instanceof Decl.Field df) {
           for (VarDeclarator v : df.vars()) {
@@ -167,6 +225,19 @@ public final class SourceIndex {
       }
       default -> Optional.empty();
     };
+  }
+
+  /** The span of record component {@code name} in its record's header, or null. */
+  private static Span headerSpan(ClassSymbol c, String name) {
+    if (c.decl() == null || c.decl().header() == null) {
+      return null;
+    }
+    for (var p : c.decl().header()) {
+      if (p.name().equals(name)) {
+        return p.nameSpan();
+      }
+    }
+    return null;
   }
 
   private static Optional<Location> classLocation(ClassSymbol c) {
@@ -189,10 +260,77 @@ public final class SourceIndex {
   private SourceFile file;
 
   private void add(Span span, Kind kind, Symbol sym, Type type, boolean decl) {
+    // Declarations and locals are exactly their names.
+    add(span, kind, sym, type, decl, sym != null && (decl || kind == Kind.LOCAL) ? span : null);
+  }
+
+  private void add(Span span, Kind kind, Symbol sym, Type type, boolean decl, Span nameSpan) {
     if (span == null || span == Span.NONE || file == null || span.end() <= span.start()) {
       return;
     }
-    byFile.computeIfAbsent(file, k -> new ArrayList<>()).add(new Ref(span, kind, sym, type, decl));
+    byFile
+        .computeIfAbsent(file, k -> new ArrayList<>())
+        .add(new Ref(span, kind, sym, type, decl, nameSpan));
+  }
+
+  /**
+   * The identifier {@code name} inside {@code span}: the first whole-word occurrence after the
+   * explicit receiver (or from the start when there is none), else the last one.
+   */
+  private Span nameIn(Span span, BExpr receiver, String name) {
+    if (span == null || span == Span.NONE || name == null || file == null) {
+      return null;
+    }
+    String text = file.content();
+    int from = span.start();
+    if (receiver != null && isExplicit(receiver) && receiver.span().end() <= span.end()) {
+      from = Math.max(from, receiver.span().end());
+    }
+    int found = wordAt(text, name, from, span.end());
+    if (found < 0) {
+      found = wordAt(text, name, span.start(), span.end());
+    }
+    return found < 0 ? null : new Span(found, found + name.length());
+  }
+
+  /** False for the implicit {@code this} of {@code f()} or {@code x}, which has no own text. */
+  private boolean isExplicit(BExpr receiver) {
+    Span s = receiver.span();
+    if (s == null || s == Span.NONE || s.end() <= s.start()) {
+      return false;
+    }
+    if (receiver instanceof BExpr.This || receiver instanceof BExpr.OuterThis) {
+      String t = file.content().substring(s.start(), s.end());
+      return t.equals("this") || t.endsWith(".this");
+    }
+    return true;
+  }
+
+  private static int wordAt(String text, String word, int from, int to) {
+    for (int i = text.indexOf(word, from);
+        i >= 0 && i + word.length() <= to;
+        i = text.indexOf(word, i + 1)) {
+      boolean startOk = i == 0 || !Character.isJavaIdentifierPart(text.charAt(i - 1));
+      int end = i + word.length();
+      boolean endOk = end >= text.length() || !Character.isJavaIdentifierPart(text.charAt(end));
+      if (startOk && endOk) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private static int lastWordAt(String text, String word, int from, int to) {
+    int last = -1;
+    for (int i = wordAt(text, word, from, to); i >= 0; i = wordAt(text, word, i + 1, to)) {
+      last = i;
+    }
+    return last;
+  }
+
+  /** What editors show for a method: the declared local function for a hoisted one. */
+  private static MethodSymbol view(MethodSymbol m) {
+    return m.sourceView() != null ? m.sourceView() : m;
   }
 
   private void indexClass(BClass c) {
@@ -212,12 +350,21 @@ public final class SourceIndex {
       }
     }
     for (PropertySymbol p : sym.properties()) {
-      if (p.decl() != null) {
-        add(p.decl().nameSpan(), Kind.PROPERTY, p, p.type(), true);
+      Span decl = p.decl() != null ? p.decl().nameSpan() : headerSpan(sym, p.name());
+      if (decl != null) {
+        add(decl, Kind.PROPERTY, p, p.type(), true); // record components are declared in the header
+      }
+    }
+    if (sym.isEnum() && sym.decl() != null) {
+      for (var ec : sym.decl().enumConstants()) {
+        FieldSymbol f = sym.field(ec.name());
+        if (f != null) {
+          add(ec.nameSpan(), Kind.FIELD, f, f.type(), true);
+        }
       }
     }
     for (BClass.Method m : c.methods()) {
-      MethodSymbol ms = m.sym();
+      MethodSymbol ms = view(m.sym());
       if (ms.property() == null && ms.decl() instanceof Decl.Method dm) {
         add(dm.nameSpan(), Kind.METHOD, ms, ms.returnType(), true);
       }
@@ -235,8 +382,13 @@ public final class SourceIndex {
   }
 
   private void declareVar(VarSymbol v) {
-    if (v == null || v.name().startsWith("$") || v.name().equals("_") || v.span() == null) {
-      return;
+    if (v == null
+        || v.name().startsWith("$")
+        || v.name().equals("_")
+        || v.span() == null
+        || v.has(io.github.matrixidot.jsharp.compiler.symbols.Flags.SYNTHETIC)
+        || localDecls.containsKey(v)) {
+      return; // synthetic, or a captured variable seen again as a hoisted function's parameter
     }
     localDecls.put(v, new Location(file, v.span()));
     add(v.span(), Kind.LOCAL, v, v.type(), true);
@@ -360,10 +512,22 @@ public final class SourceIndex {
     }
   }
 
-  private void lvalue(BLValue lv) {
+  /** An assignment target; {@code span} is the whole assignment or increment. */
+  private void lvalue(BLValue lv, Span span) {
     switch (lv) {
-      case BLValue.LocalLV l -> {}
-      case BLValue.FieldLV f -> expr(f.receiver());
+      case BLValue.LocalLV l -> {
+        Span name = nameIn(span, null, l.var().name());
+        if (name != null) {
+          add(name, Kind.LOCAL, l.var(), l.var().type(), false, name);
+        }
+      }
+      case BLValue.FieldLV f -> {
+        expr(f.receiver());
+        Span name = nameIn(span, f.receiver(), f.field().name());
+        if (name != null) {
+          add(name, Kind.FIELD, f.field(), f.type(), false, name);
+        }
+      }
       case BLValue.ArrayLV a -> {
         expr(a.array());
         expr(a.index());
@@ -371,6 +535,10 @@ public final class SourceIndex {
       case BLValue.PropertyLV p -> {
         expr(p.receiver());
         p.extraArgs().forEach(this::expr);
+        Span name = nameIn(span, p.receiver(), p.property().name());
+        if (name != null) {
+          add(name, Kind.PROPERTY, p.property(), p.type(), false, name);
+        }
       }
     }
   }
@@ -383,21 +551,46 @@ public final class SourceIndex {
       case BExpr.Local l -> add(l.span(), Kind.LOCAL, l.var(), l.var().type(), false);
       case BExpr.Field f -> {
         expr(f.receiver());
-        add(f.span(), Kind.FIELD, f.field(), f.type(), false);
+        add(
+            f.span(),
+            Kind.FIELD,
+            f.field(),
+            f.type(),
+            false,
+            nameIn(f.span(), f.receiver(), f.field().name()));
       }
       case BExpr.Call c -> {
         expr(c.receiver());
         c.args().forEach(this::expr);
-        MethodSymbol m = c.method();
+        MethodSymbol m = view(c.method());
+        // An extension call's receiver is its first argument: the name follows it.
+        BExpr before =
+            c.receiver() != null
+                ? c.receiver()
+                : m.isExtension() && !c.args().isEmpty() ? c.args().getFirst() : null;
         if (m.property() != null) {
-          add(c.span(), Kind.PROPERTY, m.property(), c.type(), false);
+          add(
+              c.span(),
+              Kind.PROPERTY,
+              m.property(),
+              c.type(),
+              false,
+              nameIn(c.span(), before, m.property().name()));
+        } else if (m.isConstructor()) {
+          add(c.span(), Kind.CONSTRUCTOR, m, c.type(), false, null);
         } else {
-          add(c.span(), m.isConstructor() ? Kind.CONSTRUCTOR : Kind.METHOD, m, c.type(), false);
+          add(c.span(), Kind.METHOD, m, c.type(), false, nameIn(c.span(), before, m.name()));
         }
       }
       case BExpr.New n -> {
         n.args().forEach(this::expr);
-        add(n.span(), Kind.CONSTRUCTOR, n.ctor(), n.type(), false);
+        add(
+            n.span(),
+            Kind.CONSTRUCTOR,
+            n.ctor(),
+            n.type(),
+            false,
+            n.ctor() == null ? null : nameIn(n.span(), null, n.ctor().owner().name()));
       }
       case BExpr.ObjectInit oi -> {
         expr(oi.creation());
@@ -433,14 +626,14 @@ public final class SourceIndex {
         expr(v.right());
       }
       case BExpr.Assign a -> {
-        lvalue(a.target());
+        lvalue(a.target(), a.span());
         expr(a.value());
       }
       case BExpr.CompoundAssign c -> {
-        lvalue(c.target());
+        lvalue(c.target(), c.span());
         expr(c.value());
       }
-      case BExpr.IncDec i -> lvalue(i.target());
+      case BExpr.IncDec i -> lvalue(i.target(), i.span());
       case BExpr.Conv c -> expr(c.expr());
       case BExpr.InstanceOf i -> expr(i.expr());
       case BExpr.Conditional c -> {
@@ -459,7 +652,17 @@ public final class SourceIndex {
       }
       case BExpr.MethodRef m -> {
         expr(m.receiver());
-        add(m.span(), Kind.METHOD, m.target(), m.type(), false);
+        if (m.target() != null) {
+          MethodSymbol t = view(m.target());
+          int at = lastWordAt(file.content(), t.name(), m.span().start(), m.span().end());
+          add(
+              m.span(),
+              Kind.METHOD,
+              t,
+              m.type(),
+              false,
+              at < 0 ? null : new Span(at, at + t.name().length()));
+        }
       }
       case BExpr.Let l -> {
         expr(l.init());

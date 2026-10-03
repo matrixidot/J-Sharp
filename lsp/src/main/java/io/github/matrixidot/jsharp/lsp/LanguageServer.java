@@ -5,6 +5,7 @@ import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.diag.Note;
 import io.github.matrixidot.jsharp.compiler.ide.SourceIndex;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
+import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
@@ -28,9 +29,10 @@ import java.util.Set;
 
 /**
  * A Language Server Protocol server for J#, speaking JSON-RPC over a byte stream (stdio in
- * practice). Supports full-document sync, diagnostics, hover, go-to-definition, document symbols
- * and completion. Every edit re-analyzes the document's unit with the real compiler, so editor
- * errors match {@code jsharp check} exactly.
+ * practice). Supports full-document sync, diagnostics, hover, go-to-definition, references,
+ * highlights, rename, signature help, document symbols, completion, and a "Run" code lens on
+ * programs. Every edit re-analyzes the document's unit with the real compiler, so editor errors
+ * match {@code jsharp check} exactly.
  */
 public final class LanguageServer {
   private static final String COMPLETION_MARKER = "__jsharpComplete";
@@ -135,6 +137,10 @@ public final class LanguageServer {
         if (id != null) {
           respondError(id, -32601, "method not found: " + method);
         }
+      } catch (RequestFailed e) {
+        if (id != null) {
+          respondError(id, -32803, e.getMessage()); // shown to the user as is
+        }
       } catch (RuntimeException e) {
         log.println("[jsharp-lsp] error handling " + method + ": " + e);
         if (Boolean.getBoolean("jsharp.debug")) {
@@ -202,6 +208,14 @@ public final class LanguageServer {
       case "textDocument/definition" -> definition(uri(p), map(p, "position"));
       case "textDocument/documentSymbol" -> documentSymbols(uri(p));
       case "textDocument/completion" -> completion(uri(p), map(p, "position"));
+      case "textDocument/references" ->
+          references(uri(p), map(p, "position"), bool(map(p, "context"), "includeDeclaration"));
+      case "textDocument/documentHighlight" -> highlights(uri(p), map(p, "position"));
+      case "textDocument/prepareRename" -> prepareRename(uri(p), map(p, "position"));
+      case "textDocument/rename" -> rename(uri(p), map(p, "position"), (String) p.get("newName"));
+      case "textDocument/signatureHelp" -> signatureHelp(uri(p), map(p, "position"));
+      case "textDocument/codeLens" -> codeLenses(uri(p));
+      case "jsharp/programFiles" -> programFiles(uri(p));
       default -> {
         if (method.startsWith("$/")) {
           yield null; // optional notifications may be ignored
@@ -222,11 +236,26 @@ public final class LanguageServer {
     workspace();
     Map<String, Object> capabilities =
         Json.obj(
-            "textDocumentSync", Json.obj("openClose", true, "change", 1, "save", true),
-            "hoverProvider", true,
-            "definitionProvider", true,
-            "documentSymbolProvider", true,
-            "completionProvider", Json.obj("triggerCharacters", List.of(".")));
+            "textDocumentSync",
+            Json.obj("openClose", true, "change", 1, "save", true),
+            "hoverProvider",
+            true,
+            "definitionProvider",
+            true,
+            "documentSymbolProvider",
+            true,
+            "completionProvider",
+            Json.obj("triggerCharacters", List.of(".")),
+            "referencesProvider",
+            true,
+            "documentHighlightProvider",
+            true,
+            "renameProvider",
+            Json.obj("prepareProvider", true),
+            "signatureHelpProvider",
+            Json.obj("triggerCharacters", List.of("(", ","), "retriggerCharacters", List.of(",")),
+            "codeLensProvider",
+            Json.obj("resolveProvider", false));
     return Json.obj(
         "capabilities",
         capabilities,
@@ -297,11 +326,27 @@ public final class LanguageServer {
         "range", Workspace.range(f.content(), r.span().start(), r.span().end()));
   }
 
+  /** A request the server understood but cannot carry out; the message is for the user. */
+  static final class RequestFailed extends RuntimeException {
+    private static final long serialVersionUID = 1L;
+
+    RequestFailed(String message) {
+      super(message, null, false, false);
+    }
+  }
+
   /** A J#-style one-line description of what a reference denotes. */
   static String describe(SourceIndex.Ref r) {
     return switch (r.symbol()) {
       case null -> r.type() == null ? null : r.type().display();
-      case VarSymbol v -> (v.has(Flags.FINAL) ? "val " : "var ") + v.name() + ": " + show(v.type());
+      case VarSymbol v when v.kind() == VarSymbol.Kind.PARAM ->
+          "(parameter) " + v.name() + ": " + show(v.type());
+      case VarSymbol v ->
+          (v.isAtomic() ? "atomic " : "")
+              + (v.has(Flags.FINAL) ? "val " : "var ")
+              + v.name()
+              + ": "
+              + show(v.type());
       case FieldSymbol fs -> modifiers(fs) + show(fs.type()) + " " + owner(fs.owner()) + fs.name();
       case PropertySymbol ps ->
           show(ps.type()) + " " + owner(ps.owner()) + ps.name() + accessors(ps);
@@ -340,6 +385,8 @@ public final class LanguageServer {
     }
     if (m.isConstructor()) {
       sb.append("new ").append(m.owner().displayName());
+    } else if (m.has(Flags.LOCAL)) {
+      sb.append(m.name()); // a local function
     } else {
       sb.append(owner(m.owner())).append(m.name());
     }
@@ -359,7 +406,10 @@ public final class LanguageServer {
       if (i == 0 && m.isExtension()) {
         sb.append("this ");
       }
-      sb.append(show(p.type())).append(' ').append(p.name());
+      sb.append(show(p.type()));
+      if (!isPlaceholderName(p.name())) {
+        sb.append(' ').append(p.name()); // JDK class files keep no names: arg0, arg1, ...
+      }
       if (p.hasDefault()) {
         sb.append(" = ")
             .append(
@@ -369,6 +419,10 @@ public final class LanguageServer {
       }
     }
     return sb.append(')').toString();
+  }
+
+  private static boolean isPlaceholderName(String name) {
+    return name == null || name.matches("arg\\d+");
   }
 
   private static String classHeader(ClassSymbol c) {
@@ -403,6 +457,422 @@ public final class LanguageServer {
     return Json.obj(
         "uri", target.toString(),
         "range", Workspace.range(text, loc.get().span().start(), loc.get().span().end()));
+  }
+
+  // ------------------------------------------------------------------ references & rename
+
+  /** The symbol whose name is at {@code offset}, preferring an exact identifier match. */
+  private static Optional<SourceIndex.Ref> symbolAt(SourceIndex index, SourceFile f, int offset) {
+    for (SourceIndex.Ref r : index.refs(f)) {
+      Span n = r.nameSpan();
+      if (r.symbol() != null && n != null && n.start() <= offset && offset <= n.end()) {
+        return Optional.of(r);
+      }
+    }
+    return index.at(f, offset).filter(r -> r.symbol() != null);
+  }
+
+  private Object references(URI uri, Map<String, Object> pos, boolean includeDeclaration) {
+    Workspace.Unit unit = workspace().unit(uri);
+    SourceFile f = unit.file(uri);
+    SourceIndex index = unit.comp.index();
+    Optional<SourceIndex.Ref> ref = symbolAt(index, f, offset(f, pos));
+    if (ref.isEmpty()) {
+      return List.of();
+    }
+    Optional<SourceIndex.Location> decl =
+        index.declaration(SourceIndex.canonical(ref.get().symbol()));
+    List<Object> out = new ArrayList<>();
+    for (SourceIndex.Location loc : index.references(ref.get().symbol())) {
+      boolean isDecl =
+          decl.isPresent()
+              && decl.get().file() == loc.file()
+              && decl.get().span().start() == loc.span().start();
+      URI target = unit.uris.get(loc.file());
+      if (target != null && (includeDeclaration || !isDecl)) {
+        out.add(location(target, loc));
+      }
+    }
+    return out;
+  }
+
+  private Object highlights(URI uri, Map<String, Object> pos) {
+    Workspace.Unit unit = workspace().unit(uri);
+    SourceFile f = unit.file(uri);
+    SourceIndex index = unit.comp.index();
+    Optional<SourceIndex.Ref> ref = symbolAt(index, f, offset(f, pos));
+    if (ref.isEmpty()) {
+      return List.of();
+    }
+    List<Object> out = new ArrayList<>();
+    for (SourceIndex.Location loc : index.references(ref.get().symbol())) {
+      if (loc.file() == f) {
+        out.add(
+            Json.obj("range", Workspace.range(f.content(), loc.span().start(), loc.span().end())));
+      }
+    }
+    return out;
+  }
+
+  /** The renameable symbol at a position, or a {@link RequestFailed} explaining why not. */
+  private SourceIndex.Ref renameTarget(Workspace.Unit unit, SourceFile f, int offset) {
+    SourceIndex index = unit.comp.index();
+    SourceIndex.Ref ref =
+        symbolAt(index, f, offset).orElseThrow(() -> new RequestFailed("Nothing to rename here."));
+    Symbol s = SourceIndex.canonical(ref.symbol());
+    if (s instanceof ClassSymbol || s instanceof MethodSymbol m && m.isConstructor()) {
+      throw new RequestFailed("Renaming types is not supported yet.");
+    }
+    if (s instanceof MethodSymbol m && m.has(Flags.OPERATOR)) {
+      throw new RequestFailed("Operators cannot be renamed.");
+    }
+    if (index.declaration(s).isEmpty()
+        || ref.nameSpan() == null
+        || unit.uris.get(index.declaration(s).get().file()) == null) {
+      throw new RequestFailed("'" + s.name() + "' is declared outside this project.");
+    }
+    return ref;
+  }
+
+  private Object prepareRename(URI uri, Map<String, Object> pos) {
+    Workspace.Unit unit = workspace().unit(uri);
+    SourceFile f = unit.file(uri);
+    SourceIndex.Ref ref = renameTarget(unit, f, offset(f, pos));
+    Span n = ref.nameSpan();
+    return Json.obj(
+        "range", Workspace.range(f.content(), n.start(), n.end()),
+        "placeholder", f.content().substring(n.start(), n.end()));
+  }
+
+  private Object rename(URI uri, Map<String, Object> pos, String newName) {
+    Workspace.Unit unit = workspace().unit(uri);
+    SourceFile f = unit.file(uri);
+    if (newName == null
+        || !newName.matches("[A-Za-z_][A-Za-z0-9_]*")
+        || io.github.matrixidot.jsharp.compiler.syntax.TokenKind.keyword(newName) != null) {
+      throw new RequestFailed("'" + newName + "' is not a valid name.");
+    }
+    SourceIndex.Ref ref = renameTarget(unit, f, offset(f, pos));
+    Map<String, Object> changes = new LinkedHashMap<>();
+    for (SourceIndex.Location loc : unit.comp.index().references(ref.symbol())) {
+      URI target = unit.uris.get(loc.file());
+      if (target == null) {
+        continue;
+      }
+      @SuppressWarnings("unchecked")
+      List<Object> edits =
+          (List<Object>) changes.computeIfAbsent(target.toString(), k -> new ArrayList<>());
+      edits.add(
+          Json.obj(
+              "range",
+              Workspace.range(loc.file().content(), loc.span().start(), loc.span().end()),
+              "newText",
+              newName));
+    }
+    return Json.obj("changes", changes);
+  }
+
+  private static Map<String, Object> location(URI uri, SourceIndex.Location loc) {
+    return Json.obj(
+        "uri",
+        uri.toString(),
+        "range",
+        Workspace.range(loc.file().content(), loc.span().start(), loc.span().end()));
+  }
+
+  // ------------------------------------------------------------------ signature help
+
+  /** An open call around the cursor: the '(' and how many arguments precede the cursor. */
+  private record OpenCall(int paren, int commas) {}
+
+  /**
+   * The innermost unclosed '(' before {@code offset}, skipping strings, characters and comments;
+   * commas count only directly inside it (not in nested brackets, braces or calls).
+   */
+  static OpenCall openCall(String text, int offset) {
+    java.util.ArrayDeque<int[]> stack = new java.util.ArrayDeque<>(); // {position, commas, char}
+    int i = 0;
+    while (i < offset && i < text.length()) {
+      char c = text.charAt(i);
+      if (c == '"' || c == '\'') {
+        i++;
+        while (i < offset && i < text.length() && text.charAt(i) != c && text.charAt(i) != '\n') {
+          i += text.charAt(i) == '\\' ? 2 : 1;
+        }
+      } else if (c == '/' && i + 1 < text.length() && text.charAt(i + 1) == '/') {
+        while (i < text.length() && text.charAt(i) != '\n') {
+          i++;
+        }
+      } else if (c == '/' && i + 1 < text.length() && text.charAt(i + 1) == '*') {
+        int end = text.indexOf("*/", i + 2);
+        i = end < 0 ? text.length() : end + 1;
+      } else if (c == '(' || c == '[' || c == '{') {
+        stack.push(new int[] {i, 0, c});
+      } else if (c == ')' || c == ']' || c == '}') {
+        if (!stack.isEmpty()) {
+          stack.pop();
+        }
+      } else if (c == ',' && !stack.isEmpty() && stack.peek()[2] == '(') {
+        stack.peek()[1]++;
+      }
+      i++;
+    }
+    for (int[] top : stack) {
+      if (top[2] == '(') {
+        return new OpenCall(top[0], top[1]);
+      }
+      return null; // inside a block or brackets, not directly in a call
+    }
+    return null;
+  }
+
+  private Object signatureHelp(URI uri, Map<String, Object> pos) {
+    String text = workspace().text(uri);
+    int offset = Workspace.offset(text, num(pos, "line"), num(pos, "character"));
+    OpenCall call = openCall(text, offset);
+    if (call == null) {
+      return null;
+    }
+    int nameEnd = call.paren();
+    while (nameEnd > 0 && Character.isWhitespace(text.charAt(nameEnd - 1))) {
+      nameEnd--;
+    }
+    int nameStart = nameEnd;
+    while (nameStart > 0 && Character.isJavaIdentifierPart(text.charAt(nameStart - 1))) {
+      nameStart--;
+    }
+    if (nameStart == nameEnd) {
+      return null;
+    }
+    String name = text.substring(nameStart, nameEnd);
+    List<MethodSymbol> cands = callCandidates(uri, text, name, nameStart, call.paren());
+    if (cands.isEmpty()) {
+      return null;
+    }
+    List<Object> sigs = new ArrayList<>();
+    int active = 0;
+    for (int i = 0; i < cands.size(); i++) {
+      MethodSymbol m = cands.get(i);
+      sigs.add(signatureInfo(m));
+      if (active == 0 && visibleParams(m).size() > call.commas()) {
+        active = i;
+      }
+    }
+    return Json.obj(
+        "signatures", sigs, "activeSignature", active, "activeParameter", call.commas());
+  }
+
+  private static List<MethodSymbol.Param> visibleParams(MethodSymbol m) {
+    List<MethodSymbol.Param> ps = m.params();
+    return m.isExtension() && !ps.isEmpty() ? ps.subList(1, ps.size()) : ps;
+  }
+
+  private static Map<String, Object> signatureInfo(MethodSymbol m) {
+    StringBuilder label = new StringBuilder();
+    label.append(m.isConstructor() ? "new " + m.owner().displayName() : m.name()).append('(');
+    List<Object> params = new ArrayList<>();
+    List<MethodSymbol.Param> ps = visibleParams(m);
+    for (int i = 0; i < ps.size(); i++) {
+      if (i > 0) {
+        label.append(", ");
+      }
+      int start = label.length();
+      MethodSymbol.Param p = ps.get(i);
+      label.append(show(p.type()));
+      if (!isPlaceholderName(p.name())) {
+        label.append(' ').append(p.name());
+      }
+      if (p.hasDefault()) {
+        label
+            .append(" = ")
+            .append(p.defaultValue() instanceof String s ? "\"" + s + "\"" : p.defaultValue());
+      }
+      params.add(Json.obj("label", List.of(start, label.length())));
+    }
+    label.append(')');
+    if (!m.isConstructor()) {
+      label.append(": ").append(show(m.returnType()));
+    }
+    return Json.obj("label", label.toString(), "parameters", params);
+  }
+
+  /** The overloads a call written as {@code ...name(} may mean. */
+  private List<MethodSymbol> callCandidates(
+      URI uri, String text, String name, int nameStart, int paren) {
+    int before = nameStart;
+    while (before > 0 && Character.isWhitespace(text.charAt(before - 1))) {
+      before--;
+    }
+    // new Name(
+    if (before >= 3 && text.startsWith("new", before - 3)) {
+      for (String end : List.of("", ";")) {
+        String patched =
+            text.substring(0, before - 3) + "typeof(" + name + ")" + end + skipCall(text, paren);
+        Workspace.Unit unit = workspace().analyzePatched(uri, patched);
+        SourceFile f = unit.file(uri);
+        Optional<SourceIndex.Ref> lit =
+            unit.comp.index().endingAt(f, before - 3 + 8 + name.length());
+        if (lit.isPresent()
+            && lit.get().type() instanceof Type.ClassType cls
+            && !cls.args().isEmpty()
+            && cls.args().getFirst() instanceof Type.ClassType target) {
+          return target.sym().methods(MethodSymbol.CONSTRUCTOR).stream()
+              .filter(m -> visible(m.flags()))
+              .toList();
+        }
+      }
+      return List.of();
+    }
+    // receiver.name(
+    if (before > 0 && text.charAt(before - 1) == '.') {
+      int dot = before - 1;
+      for (String patch : List.of(COMPLETION_MARKER, COMPLETION_MARKER + ";")) {
+        String patched = text.substring(0, dot + 1) + patch + skipCall(text, paren);
+        Workspace.Unit unit = workspace().analyzePatched(uri, patched);
+        SourceFile f = unit.file(uri);
+        Optional<SourceIndex.Ref> recv = unit.comp.index().endingAt(f, dot);
+        if (recv.isPresent() && recv.get().type() != null) {
+          return methodsNamed(unit, recv.get().type(), name);
+        }
+      }
+      return List.of();
+    }
+    // name(: local functions, enclosing classes, top-level functions, the Prelude. The open call
+    // is cut out so the rest of the file parses.
+    Workspace.Unit unit =
+        workspace().analyzePatched(uri, text.substring(0, nameStart) + skipCall(text, paren));
+    SourceFile f = unit.file(uri);
+    List<MethodSymbol> out = new ArrayList<>();
+    for (SourceIndex.Ref r : unit.comp.index().refs(f)) {
+      if (r.declaration()
+          && r.symbol() instanceof MethodSymbol m
+          && m.name().equals(name)
+          && (m.has(Flags.LOCAL) ? r.span().start() < nameStart : true)
+          && !out.contains(m)) {
+        out.add(m);
+      }
+    }
+    for (SourceFile other : unit.uris.keySet()) {
+      for (SourceIndex.Ref r : unit.comp.index().refs(other)) {
+        if (r.declaration()
+            && r.symbol() instanceof MethodSymbol m
+            && m.name().equals(name)
+            && m.owner().has(Flags.MODULE)
+            && !out.contains(m)) {
+          out.add(m);
+        }
+      }
+    }
+    ClassSymbol prelude = unit.comp.lookupClass("jsharp/core/Prelude");
+    if (out.isEmpty() && prelude != null) {
+      out.addAll(prelude.methods(name).stream().filter(m -> m.has(Flags.PUBLIC)).toList());
+    }
+    return out;
+  }
+
+  /** The text after the call starting at {@code paren}: from its ')' (or the line's end). */
+  private static String skipCall(String text, int paren) {
+    int depth = 0;
+    for (int i = paren; i < text.length(); i++) {
+      char c = text.charAt(i);
+      if (c == '(') {
+        depth++;
+      } else if (c == ')' && --depth == 0) {
+        return text.substring(i + 1);
+      } else if (c == '\n') {
+        return text.substring(i);
+      }
+    }
+    return "";
+  }
+
+  /** Methods named {@code name} on {@code type}, including applicable stdlib extensions. */
+  private static List<MethodSymbol> methodsNamed(Workspace.Unit unit, Type type, String name) {
+    List<MethodSymbol> out = new ArrayList<>();
+    if (!(type.erasure() instanceof Type.ClassType ct)) {
+      return out;
+    }
+    Set<ClassSymbol> hierarchy = new java.util.LinkedHashSet<>();
+    collectHierarchy(ct.sym(), hierarchy);
+    Set<String> seen = new java.util.HashSet<>();
+    for (ClassSymbol c : hierarchy) {
+      for (MethodSymbol m : c.methods(name)) {
+        if (visible(m.flags()) && !m.has(Flags.SYNTHETIC) && seen.add(signature(m))) {
+          out.add(m);
+        }
+      }
+    }
+    for (String container :
+        List.of(
+            "jsharp/collections/Sequences",
+            "jsharp/collections/LongSums",
+            "jsharp/collections/DoubleSums",
+            "jsharp/text/Strings")) {
+      ClassSymbol ext = unit.comp.lookupClass(container);
+      if (ext == null) {
+        continue;
+      }
+      for (MethodSymbol m : ext.methods(name)) {
+        if (m.isExtension()
+            && !m.params().isEmpty()
+            && accepts(m.params().getFirst().type(), hierarchy, type)) {
+          out.add(m);
+        }
+      }
+    }
+    return out;
+  }
+
+  // ------------------------------------------------------------------ run
+
+  /** "Run" above a program's entry point: top-level statements or a main method. */
+  private Object codeLenses(URI uri) {
+    String text = workspace().text(uri);
+    int at = -1;
+    if (Workspace.hasTopLevelStatements(text)) {
+      at = Workspace.firstStatementOffset(text);
+    } else {
+      Workspace.Unit unit = workspace().unit(uri);
+      SourceFile f = unit.file(uri);
+      for (SourceIndex.Ref r : unit.comp.index().refs(f)) {
+        if (r.declaration()
+            && r.symbol() instanceof MethodSymbol m
+            && m.name().equals("main")
+            && m.isStatic()) {
+          at = r.span().start();
+          break;
+        }
+      }
+    }
+    if (at < 0) {
+      return List.of();
+    }
+    Map<String, Object> range = Workspace.range(text, at, at);
+    return List.of(
+        Json.obj(
+            "range",
+            range,
+            "command",
+            Json.obj(
+                "title",
+                "\u25B6 Run",
+                "command",
+                "jsharp.run",
+                "arguments",
+                List.of(uri.toString()))));
+  }
+
+  /** The files {@code jsharp run} needs for the program in {@code uri}: its unit. */
+  private Object programFiles(URI uri) {
+    List<Object> out = new ArrayList<>();
+    for (URI u : workspace().unitMembers(uri)) {
+      try {
+        out.add(Path.of(u).toString());
+      } catch (RuntimeException e) {
+        // not a file (an untitled buffer): cannot be run from disk
+      }
+    }
+    return out;
   }
 
   // ------------------------------------------------------------------ symbols
@@ -616,6 +1086,10 @@ public final class LanguageServer {
 
   private int offset(SourceFile f, Map<String, Object> pos) {
     return Workspace.offset(f.content(), num(pos, "line"), num(pos, "character"));
+  }
+
+  private static boolean bool(Map<String, Object> m, String key) {
+    return Boolean.TRUE.equals(m.get(key));
   }
 
   private static int num(Map<String, Object> m, String key) {

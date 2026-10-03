@@ -248,6 +248,16 @@ final class Workspace {
     return false;
   }
 
+  /** Where the first top-level statement starts, or -1. */
+  static int firstStatementOffset(String text) {
+    for (Decl d : quickParse(text).members()) {
+      if (d instanceof Decl.TopLevelStmt s) {
+        return s.span().start();
+      }
+    }
+    return -1;
+  }
+
   // ------------------------------------------------------------------ positions
 
   /** Converts LSP (line, UTF-16 character) to a string offset. */

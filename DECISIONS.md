@@ -455,3 +455,29 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - Java members without an access modifier are "package-private", not J#'s "internal".
   - "Did you mean" only suggests close names (case-insensitive, at most 1 edit for names of up
     to 4 letters, 2 up to 8, 3 beyond; names of 1 or 2 letters only by case).
+- **D086: The VS Code extension has no dependencies and bundles the compiler**, so a single
+  `.vsix` works with only Java 25 installed (the owner wants to show J# to people).
+  - `extension.js` speaks LSP itself (JSON-RPC with Content-Length framing over the server's
+    stdio) and maps responses onto VS Code's provider API. There is no `vscode-languageclient`,
+    no npm and no `vsce`.
+  - `./gradlew vscodeExtension` zips the extension with `cli/build/install/jsharp` under
+    `extension/server`; `installVscodeExtension` also runs `code --install-extension`.
+  - The launcher comes from the `jsharp.server.path` setting, else the bundled one, else `PATH`.
+    The extension sets the bundled launcher's executable bit, which unzipping may drop.
+  - New server features:
+    - references and document highlights;
+    - rename, with prepare (refused with a reason for types, operators and symbols declared
+      outside the project);
+    - signature help: for unclosed calls the call is cut out or patched before analysis, like
+      completion, and a constructor's class is found through `typeof(Name)`;
+    - a "Run" code lens on a program's first statement or `main`, plus a `jsharp/programFiles`
+      request giving the files to run with it.
+  - The index now records each reference's identifier span (the first whole-word occurrence after
+    an explicit receiver), and indexes assignment targets, record components (declared in the
+    header) and enum constants.
+  - Hover shows a local function as declared, through `MethodSymbol.sourceView` of its hoisted
+    method. It marks atomic locals and parameters, and drops the `argN` names of JDK parameters
+    (their class files keep none).
+  - `jsharp run a.jsharp b.jsharp -- args` runs several sources (Run passes the program's
+    library files with it).
+  - Renaming types is not supported yet, because uses of a type in type positions are not indexed.

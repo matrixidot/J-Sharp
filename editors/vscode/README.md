@@ -1,39 +1,54 @@
 # J# for Visual Studio Code
 
-Syntax highlighting for `.jsharp` files, plus, through the J# language server (`jsharp lsp`):
+- Syntax highlighting for `.jsharp` files.
+- Errors and warnings as you type: the same diagnostics as `jsharp check`.
+- Hover: types and signatures.
+- Go to definition, find references, highlighting of the symbol under the cursor.
+- Rename (variables, functions, methods, fields, properties).
+- Parameter hints while typing a call.
+- Completion after `.` and of names in scope, and a document outline.
+- **▶ Run** above a program's first statement (or its `main`), in the editor title bar, or with
+  Ctrl+F5. It runs the program together with the library files next to it.
 
-- errors and warnings as you type (the same diagnostics as `jsharp check`)
-- hover: the type of an expression, or the signature of a method, property, field or class
-- go to definition (locals, members, classes and top-level functions in your sources)
-- document outline
-- completion after `.` (members and extension methods) and of names in scope
+The J# compiler is bundled in the extension: the only requirement is **Java 25** (`JAVA_HOME`,
+or `java` on the `PATH`).
 
-## Install from this repository
+## Install
 
-1. Build the J# CLI: `./gradlew :cli:installDist` (from the repository root).
-2. Install the extension's one dependency and package it (needs Node.js with npm):
-   ```
-   cd editors/vscode
-   npm install
-   npx @vscode/vsce package          # creates jsharp-0.1.0.vsix
-   code --install-extension jsharp-0.1.0.vsix
-   ```
-   For development instead, open `editors/vscode` in VS Code and press F5.
-3. Point the extension at the CLI in your settings, unless `jsharp` is on your `PATH`:
-   ```json
-   "jsharp.server.path": "/path/to/J-Sharp/cli/build/install/jsharp/bin/jsharp"
-   ```
-   Add jars your code uses with `"jsharp.classPath": ["lib/foo.jar"]`.
+From the repository root:
 
-Without `npm install`, the extension still provides highlighting and tells you how to enable
-the rest.
+```
+./gradlew installVscodeExtension     # builds and installs build/vscode/jsharp-<version>.vsix
+```
+
+or build the file and install it by hand (or share it):
+
+```
+./gradlew vscodeExtension
+code --install-extension build/vscode/jsharp-0.1.0.vsix
+```
+
+No Node.js or npm is needed. To work on the extension itself, open `editors/vscode` in VS Code
+and press F5. Without a bundled server it uses `jsharp` from the `PATH` or the
+`jsharp.server.path` setting.
+
+## Settings
+
+- `jsharp.server.path`: a `jsharp` launcher to use instead of the bundled one, for example a
+  local build at `<repo>/cli/build/install/jsharp/bin/jsharp`.
+- `jsharp.classPath`: jars and class directories your code uses (for analysis and Run).
 
 ## How files are grouped
 
-The server analyzes each open file together with the other `.jsharp` files under its source
-root: its directory, or the directory its package path starts from. Files with top-level
-statements (programs) are analyzed separately from each other, so a folder of scripts works as
-well as a multi-file project.
+Each open file is analyzed with the other `.jsharp` (and `.java`) files under its source root:
+its directory, or the directory its package path starts from. Files with top-level statements
+are separate programs, so a folder of scripts works as well as a multi-file project.
+
+## Limits
+
+- Renaming types (classes, records, interfaces) is not supported yet: the extension says so
+  instead of renaming part of the uses.
+- References and rename cover the files analyzed together with the current file.
 
 ## Other editors
 

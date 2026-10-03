@@ -1,0 +1,52 @@
+// A quick tour of J#. Press the Run button in VS Code, or: jsharp run examples/showcase/src
+import java.util.*;
+import java.util.concurrent.Executors;
+
+// Records, operators and properties.
+val v = new Vec(3, 4) + new Vec(1, 1) * 2;
+println($"v = {v}, length {v.length:F2}");
+
+// Collection literals, sealed types and exhaustive switches.
+List<Shape> shapes = [
+    new Circle(new Vec(0, 0), 12),
+    new Rect(new Vec(0, 0), 2, 2),
+    new Triangle(new Vec(0, 0), new Vec(4, 0), new Vec(0, 3)),
+];
+foreach (var s in shapes) {
+    println($"{describe(s)}: area {area(s):F1}");
+}
+
+// Sequences, with functions passed by name.
+val total = shapes.select(area).sumDouble(a => a);
+println($"total area {total:F1}");
+val biggest = shapes.maxBy(area);
+println($"biggest: {describe(biggest)}");
+
+// Null safety: a '?' value must be checked before use.
+Map<String, int> stock = {"apples": 3, "pears": 0};
+int? plums = stock.get("plums");
+println($"plums in stock: {plums ?? 0}");
+
+// List patterns.
+String summary(List<int> xs) => xs switch {
+    [] => "nothing",
+    [var only] => $"just {only}",
+    [var first, .., var last] => $"{first} to {last}",
+};
+println(summary([1, 2, 3, 4]));
+
+// Local functions and atomic variables updated from many threads.
+int countWords(List<String> lines) {
+    atomic var words = 0;
+    int wordsIn(String line) => line.isBlank() ? 0 : line.strip().split("\\s+").length;
+    using (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
+        foreach (var line in lines) {
+            pool.submit(() => words += wordsIn(line));
+        }
+    }
+    return words;
+}
+println(countWords(["the quick brown fox", "jumps over", "the lazy dog"]));
+
+// Extension methods.
+println("j sharp".shout());

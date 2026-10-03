@@ -126,3 +126,8 @@
 ## Post-v0.1: atomic locals
 - `atomic var count = 0;` lets lambdas, local functions and local classes update a local, atomically (D084). Uses java.util.concurrent.atomic cells, single atomic operations for `++`/`+=`/`-=`, compare-and-set loops otherwise, and warnings for two-step updates and needless `atomic`.
 - Tests: e2e `atomic_locals` (1000 virtual threads, no lost updates, under `-Xverify:all`), checker files for each diagnostic, and a tour example.
+
+## Post-v0.1: editor for demos
+- VS Code extension rebuilt: no npm dependency, bundles the compiler (one `.vsix`, needs only Java 25), `./gradlew installVscodeExtension`. Adds references, highlights, rename, parameter hints and a ▶ Run button, plus hover and definition fixes for local functions, atomic locals, record components and enum constants (D086).
+- `examples/showcase`: a multi-file tour program for demos, run by ExamplesTest.
+- Tests: an LSP session test for hover, definition, references (writes included), rename across files and its refusals, signature help on unclosed calls, and the Run lens. The extension client was smoke-tested in Node against the bundled server, with a stub `vscode` module.

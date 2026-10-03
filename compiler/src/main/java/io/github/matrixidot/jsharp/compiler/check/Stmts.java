@@ -265,7 +265,7 @@ final class Stmts {
                 .newVar(
                     d.name(),
                     atomicCellType(type),
-                    Flags.FINAL,
+                    Flags.FINAL | Flags.SYNTHETIC,
                     VarSymbol.Kind.LOCAL,
                     d.nameSpan()));
         if (!a.isSpeculative()) {

@@ -134,6 +134,20 @@ public final class MethodSymbol implements Symbol {
     this.jvmReturnType = t;
   }
 
+  private MethodSymbol sourceView;
+
+  /**
+   * For the hoisted method of a local function (D083): the function as declared (its name and
+   * parameters without captures), which editors show and navigate to. Null otherwise.
+   */
+  public MethodSymbol sourceView() {
+    return sourceView;
+  }
+
+  public void setSourceView(MethodSymbol m) {
+    this.sourceView = m;
+  }
+
   public Decl decl() {
     return decl;
   }
