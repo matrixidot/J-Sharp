@@ -1,0 +1,17 @@
+added rect (#1)
+added circle (#2)
+added rect (#3)
+rect with area 1.00
+circle with area 3.14
+rect with area 6.00
+rect
+2
+3 shapes, total 10.14
+int 1
+long 1
+object x
+1
+rect
+none
+caught: checked from Java
+3

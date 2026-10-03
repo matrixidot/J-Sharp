@@ -929,6 +929,11 @@ final class Ops {
     ClassType site = c.thisType();
     PropertySymbol p = a.lookup.findProperty(site, name);
     FieldSymbol f = p == null ? a.lookup.findField(site, name) : null;
+    if (f != null
+        && !c.has(Flags.MODULE)
+        && a.hiddenByAccessor(f, site, a.lookup.findSetter(site, name))) {
+      f = null;
+    }
     MethodSymbol setter =
         p == null && f == null && !c.has(Flags.MODULE) ? a.lookup.findSetter(site, name) : null;
     if (p == null && f == null && setter == null) {
@@ -979,7 +984,7 @@ final class Ops {
       return errorLV();
     }
     FieldSymbol f = a.lookup.findField(site, name);
-    if (f != null) {
+    if (f != null && !a.hiddenByAccessor(f, site, a.lookup.findSetter(site, name))) {
       return fieldLValue(recv, site, f, span, onThis);
     }
     MethodSymbol setter = a.lookup.findSetter(site, name);

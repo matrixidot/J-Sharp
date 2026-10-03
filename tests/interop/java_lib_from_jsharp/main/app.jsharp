@@ -1,0 +1,44 @@
+import shapes.*;
+
+public class Circle : Shape {
+    private final double r;
+    public Circle(double r) { super("circle"); this.r = r; }
+    public override double area() => Math.PI * r * r;
+}
+
+public class Rect : Shape {
+    private final double w, h;
+    public Rect(double w, double h) { super("rect"); this.w = w; this.h = h; }
+    public override double area() => w * h;
+}
+
+var reg = new Registry<Shape>();
+reg.setListener((s, n) => println($"added {s.name} (#{n})"));
+reg.add(new Rect(2, 3));
+reg.addAll(new Circle(1), new Rect(1, 1));
+foreach (var s in reg.sorted(Registry.Order.ASCENDING)) println(s.describe());
+println(reg.sorted(Registry.Order.DESCENDING).get(0).name);
+println(reg.where(s => s.area() > 2).size());
+var stats = reg.stats();
+println($"{stats.count} shapes, total {stats.total:F2}");
+println(reg.format(1));
+println(reg.format(1L));
+println(reg.format("x"));
+println(Registry.instances);
+Shape? first = reg.first();
+println(first?.name ?? "none");
+println(new Registry<Circle>().first()?.name ?? "none");
+try {
+    Registry.mayThrow(true);
+} catch (java.io.IOException e) {
+    println("caught: " + e.getMessage());
+}
+class Logger : Registry.Listener<Shape> {
+    public int seen;
+    public override void added(Shape s, int count) { seen += count; }
+}
+var log = new Logger();
+var reg2 = new Registry<Rect>();
+reg2.setListener(log);
+reg2.addAll(new Rect(1, 2), new Rect(3, 4));
+println(log.seen);

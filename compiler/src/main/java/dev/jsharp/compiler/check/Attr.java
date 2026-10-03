@@ -933,6 +933,11 @@ public final class Attr {
     ClassType site = c.thisType();
     PropertySymbol p = lookup.findProperty(site, name);
     FieldSymbol f = p == null ? lookup.findField(site, name) : null;
+    if (f != null
+        && !c.has(Flags.MODULE)
+        && hiddenByAccessor(f, site, lookup.findGetter(site, name))) {
+      f = null;
+    }
     MethodSymbol getter =
         p == null && f == null && !c.has(Flags.MODULE) ? lookup.findGetter(site, name) : null;
     if (p == null && f == null && getter == null) {
@@ -1128,6 +1133,18 @@ public final class Attr {
     return m.owner().isInterface() ? BExpr.CallKind.INTERFACE : BExpr.CallKind.VIRTUAL;
   }
 
+  /**
+   * True if {@code f} is not accessible here but an accessible JavaBeans accessor of the same name
+   * is: {@code shape.name} then means {@code shape.getName()} (a private Java field must not hide
+   * its public getter).
+   */
+  boolean hiddenByAccessor(FieldSymbol f, Type site, MethodSymbol accessor) {
+    return f != null
+        && accessor != null
+        && !lookup.isAccessible(f, f.owner(), site, env.cls)
+        && lookup.isAccessible(accessor, accessor.owner(), site, env.cls);
+  }
+
   void checkAccess(Symbol member, ClassSymbol owner, Type site, Span span) {
     if (!lookup.isAccessible(member, owner, site, env.cls)) {
       error(
@@ -1178,7 +1195,7 @@ public final class Attr {
       return propertyGet(recv, site, p, span);
     }
     FieldSymbol f = lookup.findField(site, name);
-    if (f != null) {
+    if (f != null && !hiddenByAccessor(f, site, lookup.findGetter(site, name))) {
       return fieldGet(recv, site, f, span);
     }
     MethodSymbol acc = lookup.findRecordAccessor(site, name);

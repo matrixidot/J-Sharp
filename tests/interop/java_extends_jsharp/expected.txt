@@ -1,0 +1,6 @@
+host registered lambda
+host registered anon
+Host | lambda greets you | anon waves at you
+LOUD p
+LoudHost | p greets me
+10

@@ -2165,7 +2165,14 @@ public final class Lowerer {
             || target.has(Flags.PROTECTED)
                 && !target.owner().packageName().equals(cls.packageName());
     if (needsSynthetic) {
-      return lambda(syntheticLambda(m, ft));
+      BExpr.Lambda synthetic = syntheticLambda(m, ft);
+      BExpr lowered = lambda(synthetic);
+      if (m.kind() == BExpr.RefKind.BOUND) {
+        // The receiver is evaluated (and null-checked) once, when the reference is created.
+        VarSymbol recv = synthetic.captures().getFirst();
+        return new BExpr.Let(recv, requireNonNull(lx(m.receiver()), null, span), lowered, span);
+      }
+      return lowered;
     }
     BExpr.ImplKind kind =
         switch (m.kind()) {
@@ -2227,10 +2234,9 @@ public final class Lowerer {
                 span);
       }
       case BOUND -> {
-        // The receiver is evaluated once, at creation: bind it to a captured local.
+        // Bound by methodRef() to the receiver, evaluated once at creation.
         VarSymbol recvVar = temp("recv", m.receiver().type(), span);
         captures.add(recvVar);
-        pendingReceiverBindings.put(recvVar, m.receiver());
         body =
             new BExpr.Call(
                 new BExpr.Local(recvVar, span),
@@ -2248,8 +2254,6 @@ public final class Lowerer {
             : new BStmt.Return(adapt(body, ft.ret()), span);
     return new BExpr.Lambda(m.type(), m.sam(), params, stmt, ft.ret(), captures, false, span);
   }
-
-  private final Map<VarSymbol, BExpr> pendingReceiverBindings = new IdentityHashMap<>();
 
   /**
    * Arguments for calling {@code target} with lambda params from index {@code from} (packing
@@ -2283,11 +2287,6 @@ public final class Lowerer {
   /** Unused helper retained for symmetry. */
   static boolean isSynthetic(Symbol s) {
     return s.has(Flags.SYNTHETIC);
-  }
-
-  /** The receiver bound for a synthetic method-reference lambda (evaluated at creation). */
-  BExpr pendingReceiver(VarSymbol v) {
-    return pendingReceiverBindings.get(v);
   }
 
   /** Local helper so generic list creation reads cleanly. */

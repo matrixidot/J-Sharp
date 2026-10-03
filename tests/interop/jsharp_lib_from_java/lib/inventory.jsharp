@@ -1,0 +1,40 @@
+package inventory;
+
+import java.util.*;
+
+public enum Category(String label) {
+    Tool("tools"), Food("food");
+}
+
+public record Item(String name, Category category, int quantity);
+
+public sealed interface Event permits Added, Removed;
+public record Added(Item item) : Event;
+public record Removed(String name) : Event;
+
+public class Inventory<K> {
+    private final TreeMap<String, Item> items = new TreeMap<>();
+    public String owner { get; set; } = "nobody";
+    public boolean locked { get; set; }
+    public int size => items.size();
+    public String? note { get; set; }
+
+    public void add(Item item) { items.put(item.name, item); }
+    public Item? find(String name) => items.get(name);
+    public List<Item> byCategory(Category c) => items.values().stream().filter(i => i.category == c).toList();
+    public String describe(String prefix = "inv", int width = 3) => prefix + ":" + String.valueOf(size).repeat(width);
+    public K tag(K key) => key;
+}
+
+public static String summarize(Event e) => e switch {
+    Added a => "added " + a.item.name,
+    Removed r => "removed " + r.name,
+};
+
+public static int total(List<Item> xs) {
+    var t = 0;
+    foreach (var i in xs) t += i.quantity;
+    return t;
+}
+
+public static String shout(this String s) => s.toUpperCase() + "!";

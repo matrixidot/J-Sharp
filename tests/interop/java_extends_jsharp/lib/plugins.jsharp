@@ -1,0 +1,27 @@
+package plugins;
+
+import java.util.*;
+
+public interface Plugin {
+    String name();
+    default String greet(String who) => name() + " greets " + who;
+}
+
+public open class Host {
+    private final ArrayList<Plugin> plugins = new ArrayList<>();
+    public void register(Plugin p) { plugins.add(p); onRegister(p); }
+    protected open void onRegister(Plugin p) { println("host registered " + p.name()); }
+    public open String banner() => "Host";
+    public String run(String who) {
+        var sb = new StringBuilder(banner());
+        foreach (var p in plugins) sb.append(" | ").append(p.greet(who));
+        return sb.toString();
+    }
+    public static Host create() => new Host();
+}
+
+public abstract class Counter {
+    protected int count;
+    public abstract int step();
+    public int tick() { count += step(); return count; }
+}

@@ -9,8 +9,6 @@ import dev.jsharp.compiler.driver.CompilerOptions;
 import dev.jsharp.compiler.source.SourceFile;
 import java.io.IOException;
 import java.io.UncheckedIOException;
-import java.lang.classfile.ClassFile;
-import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -96,70 +94,20 @@ class EndToEndTest {
           "",
           -1);
     }
-    List<String> verify = new ArrayList<>();
-    var generated = comp.classFiles();
-    var resolver =
-        java.lang.classfile.ClassHierarchyResolver.ofResourceParsing(
-                d -> {
-                  String ds = d.descriptorString();
-                  byte[] b =
-                      ds.length() > 2 ? generated.get(ds.substring(1, ds.length() - 1)) : null;
-                  return b == null ? null : new java.io.ByteArrayInputStream(b);
-                })
-            .orElse(java.lang.classfile.ClassHierarchyResolver.defaultResolver());
-    ClassFile verifier = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(resolver));
-    for (var e : generated.entrySet()) {
-      for (var err : verifier.verify(e.getValue())) {
-        verify.add(e.getKey() + ": " + err.getMessage());
-      }
-    }
+    List<String> verify = TestSupport.verify(comp.classFiles());
     if (comp.mainClass() == null) {
       return new Result("no entry point", verify, "", "", -1);
     }
-    List<String> cmd =
-        new ArrayList<>(
-            List.of(
-                JAVA,
-                "-Xverify:all",
-                "-XX:+UseSerialGC",
-                "-XX:TieredStopAtLevel=1",
-                "-Xshare:auto",
-                "-cp",
-                out + java.io.File.pathSeparator + RUNTIME,
-                comp.mainClass()));
+    List<String> args = new ArrayList<>();
     Path argsFile = c.resolveSibling(base(c) + ".args");
     if (Files.exists(argsFile)) {
-      cmd.addAll(Files.readAllLines(argsFile));
+      args.addAll(Files.readAllLines(argsFile));
     }
-    ProcessBuilder pb = new ProcessBuilder(cmd);
     Path stdin = c.resolveSibling(base(c) + ".stdin");
-    pb.redirectInput(
-        Files.exists(stdin)
-            ? ProcessBuilder.Redirect.from(stdin.toFile())
-            : ProcessBuilder.Redirect.from(new java.io.File("/dev/null")));
-    Process p = pb.start();
-    var stdoutF = p.getInputStream();
-    var stderrF = p.getErrorStream();
-    byte[] so;
-    byte[] se;
-    try (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
-      var a = pool.submit(stdoutF::readAllBytes);
-      var b = pool.submit(stderrF::readAllBytes);
-      if (!p.waitFor(60, TimeUnit.SECONDS)) {
-        p.destroyForcibly();
-        return new Result("", verify, "", "timeout", -2);
-      }
-      so = a.get();
-      se = b.get();
-    } catch (java.util.concurrent.ExecutionException e) {
-      throw new IOException(e);
-    }
-    return new Result(
-        "",
-        verify,
-        new String(so, StandardCharsets.UTF_8),
-        new String(se, StandardCharsets.UTF_8),
-        p.exitValue());
+    TestSupport.Run run =
+        TestSupport.runJava(
+            List.of(out), comp.mainClass(), args, Files.exists(stdin) ? stdin : null);
+    return new Result("", verify, run.stdout(), run.stderr(), run.exitCode());
   }
 
   private static void check(Path c, Result r) {
