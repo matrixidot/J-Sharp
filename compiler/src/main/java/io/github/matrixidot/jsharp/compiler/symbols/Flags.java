@@ -91,6 +91,31 @@ public final class Flags {
     return (int) (flags & JVM_MASK);
   }
 
+  /**
+   * The access of {@code s} in words. A member of a Java class without an access modifier is
+   * "package-private" (J#'s default, "internal", is module-wide).
+   */
+  public static String accessOf(Symbol s) {
+    ClassSymbol owner =
+        switch (s) {
+          case ClassSymbol c -> c;
+          case MethodSymbol m -> m.owner();
+          case FieldSymbol f -> f.owner();
+          case PropertySymbol p -> p.owner();
+          default -> null;
+        };
+    long f = s.flags();
+    if (!is(f, PUBLIC)
+        && !is(f, PROTECTED)
+        && !is(f, PRIVATE)
+        && owner != null
+        && !owner.isSource()
+        && !owner.has(JSHARP)) {
+      return "package-private";
+    }
+    return access(f);
+  }
+
   /** {@code public}/{@code protected}/{@code private}/package-private rendering. */
   public static String access(long flags) {
     if (is(flags, PUBLIC)) {

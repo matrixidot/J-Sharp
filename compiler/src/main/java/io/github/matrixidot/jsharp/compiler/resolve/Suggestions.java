@@ -19,13 +19,15 @@ public final class Suggestions {
       if (c.toLowerCase(Locale.ROOT).equals(lower)) {
         return c; // case-only difference is the strongest signal
       }
-      int d = distance(name, c);
+      int d = distance(lower, c.toLowerCase(Locale.ROOT));
       if (d < bestDist || (d == bestDist && best != null && c.compareTo(best) < 0)) {
         bestDist = d;
         best = c;
       }
     }
-    int threshold = name.length() <= 3 ? 1 : name.length() <= 6 ? 2 : 3;
+    // Short names are only suggested for small, likely typos ('s' -> 'o' would be noise).
+    int len = name.length();
+    int threshold = len <= 2 ? 0 : len <= 4 ? 1 : len <= 8 ? 2 : 3;
     return bestDist <= threshold ? best : null;
   }
 

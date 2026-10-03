@@ -1427,7 +1427,7 @@ public final class Attr {
               + "' of "
               + owner.displayName()
               + " is "
-              + Flags.access(member.flags()));
+              + Flags.accessOf(member));
     }
   }
 
@@ -1506,15 +1506,8 @@ public final class Attr {
         String n = l.var().name();
         report(
             err(Code.NULLABLE_RECEIVER, at, "value of type " + t.display() + " may be null")
-                .note(
-                    "'"
-                        + n
-                        + "' is atomic: another thread may change it after a null check, so"
-                        + " checks do not narrow it")
-                .help(
-                    "read it once into a val and check that: 'val current = "
-                        + n
-                        + "; if (current != null) ...', or use '?.'"));
+                .note("'" + n + "' is atomic, so another thread may change it after a null check")
+                .help("check a copy: 'val current = " + n + "; if (current != null) ...'"));
         return;
       }
       report(
@@ -2368,11 +2361,8 @@ public final class Attr {
   ClassType functionalTarget(Type pt, Span span, String what) {
     if (pt == null) {
       report(
-          err(
-                  Code.LAMBDA_MISMATCH,
-                  span,
-                  "cannot infer a functional interface type for this " + what)
-              .help("declare the variable type, e.g. 'Function<int, int> f = x => x + 1;'"));
+          err(Code.LAMBDA_MISMATCH, span, "cannot infer a function type for this " + what)
+              .help("declare the variable's type, e.g. 'Function<int, int> f = x => x + 1;'"));
       return null;
     }
     if (pt.isError()) {
@@ -2587,6 +2577,44 @@ public final class Attr {
   }
 
   /**
+   * A {@code java.util.function} type for the only function named {@code name} ({@code
+   * Function<int, int>}, {@code Predicate<String>}, ...), or null if there is none or several.
+   */
+  private String functionTypeFor(String name) {
+    LocalFunctions.Fn local = env.scope.lookupFunction(name);
+    List<MethodSymbol> ms =
+        local != null
+            ? List.of(local.sym)
+            : calls.functionGroup(name) == null ? List.of() : calls.functionGroup(name).methods();
+    if (ms.size() != 1 || !ms.getFirst().typeParams().isEmpty()) {
+      return null;
+    }
+    MethodSymbol m = ms.getFirst();
+    List<String> ps = m.params().stream().map(p -> p.type().display()).toList();
+    Type ret = m.returnType();
+    if (ret == null) {
+      return null;
+    }
+    boolean isVoid = ret == PrimType.VOID;
+    boolean isBool = ret == PrimType.BOOLEAN;
+    String r = ret.display();
+    return switch (ps.size()) {
+      case 0 -> isVoid ? "Runnable" : "Supplier<" + r + ">";
+      case 1 ->
+          isVoid
+              ? "Consumer<" + ps.get(0) + ">"
+              : isBool ? "Predicate<" + ps.get(0) + ">" : "Function<" + ps.get(0) + ", " + r + ">";
+      case 2 -> {
+        String two = ps.get(0) + ", " + ps.get(1);
+        yield isVoid
+            ? "BiConsumer<" + two + ">"
+            : isBool ? "BiPredicate<" + two + ">" : "BiFunction<" + two + ", " + r + ">";
+      }
+      default -> null;
+    };
+  }
+
+  /**
    * The error for a function named without a call (D083) where no function type is expected, or
    * null when {@code pt} is a functional interface.
    */
@@ -2597,24 +2625,27 @@ public final class Attr {
     if (!functional) {
       Expr.MethodRef m = new Expr.MethodRef(null, null, name, span, span);
       if (pt == null) {
+        String type = functionTypeFor(name);
         report(
             err(
                     Code.LAMBDA_MISMATCH,
                     m.span(),
-                    "function '" + m.name() + "' is used as a value, but no function type is known")
+                    "cannot infer a function type for '" + m.name() + "'")
                 .help(
-                    "call it with '"
+                    "declare the variable's type ('"
+                        + (type != null ? type : "Function<int, int>")
+                        + " f = "
                         + m.name()
-                        + "(...)', or declare the type, e.g. 'Function<int, int> f = "
+                        + ";'), or call it: '"
                         + m.name()
-                        + ";'"));
+                        + "(...)'"));
       } else {
         report(
             err(
                     Code.LAMBDA_MISMATCH,
                     m.span(),
                     "function '" + m.name() + "' is not a value of type " + pt.display())
-                .help("call it with '" + m.name() + "(...)'"));
+                .help("call it: '" + m.name() + "(...)'"));
       }
       return new BExpr.Error(pt == null ? Type.ErrorType.INSTANCE : pt, m.span());
     }

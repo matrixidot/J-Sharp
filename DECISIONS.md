@@ -444,3 +444,14 @@ Format: **decision** — reason. *Rejected:* alternatives.
     with the one-step form suggested (`x += e`); JS0661 when `atomic` is unnecessary (the
     variable never changes, or nothing that captures it exists).
   - The "cannot assign to a captured variable" error now suggests `atomic var`.
+- **D085: Diagnostic style** (the owner's request: concise, but enough to act on).
+  - The message states the problem in one short clause, in the user's terms. Avoid compiler
+    jargon ("target type", "functional interface") where a plain word works ("function type").
+  - A `help` gives one concrete fix, with a code example built from the user's own names and
+    types (`'Predicate<int> f = isEven;'`, `'counter += x'`). A `note` explains why only when
+    the reason is not obvious (atomic locals and null checks).
+  - Types print as the user writes them: Java's unknown nullness is not shown (no `T!`), since
+    J# source cannot write it and `!` means "assert non-null".
+  - Java members without an access modifier are "package-private", not J#'s "internal".
+  - "Did you mean" only suggests close names (case-insensitive, at most 1 edit for names of up
+    to 4 letters, 2 up to 8, 3 beyond; names of 1 or 2 letters only by case).

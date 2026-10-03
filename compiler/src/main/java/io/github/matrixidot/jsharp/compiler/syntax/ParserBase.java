@@ -99,9 +99,8 @@ abstract class ParserBase {
         word.span(),
         "J# has no '" + word.text() + "' " + (argument ? "arguments" : "parameters"),
         word.text().equals("out")
-            ? "return a tuple ('(boolean, int) tryParse(String s)', then 'var (ok, n) = "
-                + "tryParse(s);') or a nullable value checked with 'is' ('if (parse(s) is int n)')"
-            : "return the new value (or a tuple of values) and assign it at the call site");
+            ? "return a tuple instead: 'var (ok, n) = tryParse(s);'"
+            : "return the new value and assign it at the call site");
     if (argument) {
       // `out var e` / `out int e`: skip the declaration part, keep the name as the argument.
       if (atContextual("var") && kind(pos + 1) == IDENTIFIER) {

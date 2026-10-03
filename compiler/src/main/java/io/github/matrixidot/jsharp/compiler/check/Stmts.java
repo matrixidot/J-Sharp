@@ -239,7 +239,10 @@ final class Stmts {
                       + " "
                       + d.name()
                       + "' needs an initializer")
-              .help("write the type explicitly, e.g. 'int " + d.name() + ";'"));
+              .help(
+                  kind == LocalKind.VAL
+                      ? "give it a value: 'val " + d.name() + " = ...;'"
+                      : "give it a value, or write its type: 'int " + d.name() + ";'"));
       type = Type.ErrorType.INSTANCE;
     }
     VarSymbol v =

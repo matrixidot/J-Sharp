@@ -983,7 +983,7 @@ final class Calls {
           a.error(
               Code.INACCESSIBLE_MEMBER,
               span,
-              m.kindName() + " " + m.signature() + " is " + Flags.access(m.flags()));
+              m.kindName() + " " + m.signature() + " is " + Flags.accessOf(m));
           return null;
         }
       }
@@ -995,7 +995,7 @@ final class Calls {
                 + " "
                 + inaccessible.signature()
                 + " is "
-                + Flags.access(inaccessible.flags()));
+                + Flags.accessOf(inaccessible));
       } else {
         int before = a.reported;
         reportNotApplicable(
@@ -1970,7 +1970,11 @@ final class Calls {
         a.err(
             Code.NO_APPLICABLE_METHOD,
             span,
-            "no overload of '" + what + "' accepts arguments " + argDesc);
+            (what.contains("constructor of ")
+                    ? "no " + what.replaceFirst("^(this |super )", "")
+                    : "no overload of '" + what + "'")
+                + " accepts arguments "
+                + argDesc);
     int shown = 0;
     for (MethodSymbol m : cands) {
       if (shown++ < 5) {
@@ -2093,11 +2097,13 @@ final class Calls {
           Code.WRONG_TYPE_ARG_COUNT,
           span,
           m.signature()
-              + " has "
+              + " takes "
               + m.typeParams().size()
-              + " type parameter(s), but "
+              + (m.typeParams().size() == 1 ? " type argument" : " type arguments")
+              + ", but "
               + explicit.size()
-              + " type argument(s) were given");
+              + (explicit.size() == 1 ? " was" : " were")
+              + " given");
       return;
     }
     // Find the first mismatching argument (after a best-effort inference).

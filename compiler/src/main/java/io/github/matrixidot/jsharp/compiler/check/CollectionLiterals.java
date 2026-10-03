@@ -127,12 +127,11 @@ final class CollectionLiterals {
                 .help("use '{k1: v1, k2: v2}' instead of '[...]'"));
         return error(lit);
       } else {
-        a.error(
-            Code.INVALID_LITERAL,
-            span,
-            "a collection literal cannot be a "
-                + ct.display()
-                + " (it can be an array, a List, a Set, or a collection class with a public no-argument constructor)");
+        a.report(
+            a.err(Code.INVALID_LITERAL, span, "a collection literal cannot be a " + ct.display())
+                .help(
+                    "use an array, a List, a Set, or a collection class with a public"
+                        + " no-argument constructor"));
         return error(lit);
       }
     } else {
@@ -380,7 +379,9 @@ final class CollectionLiterals {
         a.error(
             Code.INVALID_LITERAL,
             lit.entries().get(i).key().span(),
-            "duplicate key " + k + " in map literal");
+            "duplicate key "
+                + (k instanceof String str ? "\"" + str + "\"" : k)
+                + " in map literal");
       }
     }
     List<BExpr> kv = new ArrayList<>();

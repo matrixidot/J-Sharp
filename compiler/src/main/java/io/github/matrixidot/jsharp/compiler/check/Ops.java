@@ -713,10 +713,9 @@ final class Ops {
             a.err(
                     Code.NON_ATOMIC_UPDATE,
                     span,
-                    "'"
+                    "this reads and writes '"
                         + l.var().name()
-                        + "' is read and written in two steps; another thread can change it in"
-                        + " between")
+                        + "' separately; another thread may update it in between")
                 .help(oneStepUpdate(as.value(), l.var())));
       }
       return new BExpr.Assign(lv, v, lv.type(), span);
@@ -1063,10 +1062,7 @@ final class Ops {
                         + "' inside a lambda, local function or local class")
                 .note("captured variables must be effectively final, as in Java");
         if (v.kind() == VarSymbol.Kind.LOCAL) {
-          d.help(
-              "declare it 'atomic var "
-                  + name
-                  + " = ...;' to update it here (safe from any thread)");
+          d.help("declare it 'atomic var " + name + " = ...;' to allow this");
         }
         a.report(d);
         return new BLValue.LocalLV(v);

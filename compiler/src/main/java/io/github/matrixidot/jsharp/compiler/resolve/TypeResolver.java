@@ -345,7 +345,7 @@ public final class TypeResolver {
             + " "
             + c.displayName()
             + " is "
-            + Flags.access(c.flags())
+            + Flags.accessOf(c)
             + " and cannot be used here");
     return false;
   }

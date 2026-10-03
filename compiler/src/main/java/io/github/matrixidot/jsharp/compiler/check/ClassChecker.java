@@ -849,7 +849,7 @@ public final class ClassChecker {
                   + "' cannot reduce visibility of "
                   + o.signature()
                   + " ("
-                  + Flags.access(o.flags())
+                  + Flags.accessOf(o)
                   + ")");
         }
         ClassType as = a.types.asSuper(c.thisType(), o.owner());
@@ -1197,14 +1197,14 @@ public final class ClassChecker {
                     at,
                     "variable '"
                         + v.name()
-                        + "' is captured by a lambda or local class but reassigned")
+                        + "' is reassigned, but a lambda or local function captures it")
                 .note("captured variables must be effectively final, as in Java")
                 .help(
-                    "copy it into a 'val' before the lambda ('val "
+                    "capture a copy ('val "
                         + v.name()
                         + "Copy = "
                         + v.name()
-                        + ";'), or declare it 'atomic var' to share updates"));
+                        + ";'), or declare it 'atomic var'"));
       }
     }
     a.capturedVars.clear();

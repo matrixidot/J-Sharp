@@ -153,9 +153,9 @@ public sealed interface Type {
         }
         sb.append('>');
       }
-      return sb.append(
-              nullness == Nullness.NULLABLE ? "?" : nullness == Nullness.PLATFORM ? "!" : "")
-          .toString();
+      // Java's unknown nullness is not shown: J# source cannot write it, and '!' means "assert
+      // non-null" in J#.
+      return sb.append(nullness == Nullness.NULLABLE ? "?" : "").toString();
     }
 
     @Override

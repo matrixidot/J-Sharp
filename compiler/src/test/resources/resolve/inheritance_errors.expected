@@ -4,7 +4,7 @@ inheritance_errors.jsharp:5:15 JS0408 an interface can only extend interfaces, b
 inheritance_errors.jsharp:6:19 JS0408 records cannot extend classes; Final is a class
 inheritance_errors.jsharp:8:23 JS0408 the base class must be listed first and only once [help: write 'class Two : Base, ...']
 inheritance_errors.jsharp:9:11 JS0408 cannot extend java.lang.Enum directly; use 'enum'
-inheritance_errors.jsharp:9:11 JS0423 type argument E does not satisfy the bound Enum<E!> of E
+inheritance_errors.jsharp:9:11 JS0423 type argument E does not satisfy the bound Enum<E> of E
 inheritance_errors.jsharp:10:11 JS0407 cannot inherit from final class String
 inheritance_errors.jsharp:13:8 JS0412 record Outside is not permitted to extend sealed interface Closed [help: add Outside to the 'permits' list of Closed]
 inheritance_errors.jsharp:14:14 JS0412 sealed class NoKids has no subtypes in this file
