@@ -1,0 +1,224 @@
+// LINQ-style extension methods on Iterable, arrays and streams, plus sequence factories.
+// Every J# file imports these implicitly (D029); members of the receiver always win.
+@file:ClassName("Sequences")
+package jsharp.collections;
+
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.Stream;
+
+// -------------------------------------------------------------------- factories
+
+/** Integers from {@code start} (inclusive) to {@code end} (exclusive), by {@code step}. */
+public static IntSequence range(int start, int end, int step = 1) {
+    require(step != 0, "step must not be zero");
+    return new IntRange(start, end, step);
+}
+
+/** The given elements as a sequence. */
+public static Sequence<T> sequenceOf<T>(params T[] items) => new ArraySource<T>(items);
+
+public static Sequence<T> emptySequence<T>() => new IterableSource<T>(List.of());
+
+/** An infinite sequence: seed, next(seed), next(next(seed)), ... (use take/takeWhile). */
+public static Sequence<T> generate<T>(T seed, UnaryOperator<T> next) => new GenerateSource<T>(seed, next);
+
+/** A sequence whose source is created anew for each traversal. */
+public static Sequence<T> deferred<T>(Supplier<Iterable<T>> factory) => new DeferredSource<T>(factory);
+
+/** A sequence defined by its push traversal (iteration materializes it). */
+public static Sequence<T> deferredPush<T>(PushTraversal<T> traversal) => new PushStage<T>(traversal);
+
+// -------------------------------------------------------------------- Iterable<T>
+
+public static Sequence<T> asSequence<T>(this Iterable<T> xs) =>
+    xs is Sequence<T> s ? s : new IterableSource<T>(xs);
+
+public static Sequence<T> where<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).where(predicate);
+
+public static Sequence<R> select<T, R>(this Iterable<T> xs, Function<T, R> selector) => asSequence(xs).select(selector);
+
+public static IntSequence selectInt<T>(this Iterable<T> xs, ToIntFunction<T> selector) => asSequence(xs).selectInt(selector);
+
+public static LongSequence selectLong<T>(this Iterable<T> xs, ToLongFunction<T> selector) => asSequence(xs).selectLong(selector);
+
+public static DoubleSequence selectDouble<T>(this Iterable<T> xs, ToDoubleFunction<T> selector) =>
+    asSequence(xs).selectDouble(selector);
+
+public static Sequence<R> selectMany<T, R>(this Iterable<T> xs, Function<T, Iterable<R>> selector) =>
+    asSequence(xs).selectMany(selector);
+
+public static Sequence<T> take<T>(this Iterable<T> xs, int count) => asSequence(xs).take(count);
+
+public static Sequence<T> skip<T>(this Iterable<T> xs, int count) => asSequence(xs).skip(count);
+
+public static Sequence<T> takeWhile<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).takeWhile(predicate);
+
+public static Sequence<T> skipWhile<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).skipWhile(predicate);
+
+public static Sequence<T> distinct<T>(this Iterable<T> xs) => asSequence(xs).distinct();
+
+public static Sequence<T> concat<T>(this Iterable<T> xs, Iterable<T> other) => asSequence(xs).concat(other);
+
+public static Sequence<(T, U)> zip<T, U>(this Iterable<T> xs, Iterable<U> other) => asSequence(xs).zip(other);
+
+public static OrderedSequence<T> orderBy<T, K : Comparable<K>>(this Iterable<T> xs, Function<T, K> key) =>
+    asSequence(xs).orderBy(key);
+
+public static OrderedSequence<T> orderByDescending<T, K : Comparable<K>>(this Iterable<T> xs, Function<T, K> key) =>
+    asSequence(xs).orderByDescending(key);
+
+public static OrderedSequence<T> sorted<T>(this Iterable<T> xs, Comparator<T> comparator) => asSequence(xs).sorted(comparator);
+
+public static Sequence<T> reverse<T>(this Iterable<T> xs) => asSequence(xs).reverse();
+
+public static ArrayList<T> toList<T>(this Iterable<T> xs) => asSequence(xs).toList();
+
+public static LinkedHashSet<T> toSet<T>(this Iterable<T> xs) => asSequence(xs).toSet();
+
+public static LinkedHashMap<K, V> toMap<T, K, V>(this Iterable<T> xs, Function<T, K> key, Function<T, V> value) =>
+    asSequence(xs).toMap(key, value);
+
+public static LinkedHashMap<K, List<T>> groupBy<T, K>(this Iterable<T> xs, Function<T, K> key) => asSequence(xs).groupBy(key);
+
+public static int count<T>(this Iterable<T> xs) => xs is Collection<T> c ? c.size() : asSequence(xs).count();
+
+public static int count<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).count(predicate);
+
+public static boolean any<T>(this Iterable<T> xs) => xs.iterator().hasNext();
+
+public static boolean any<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).any(predicate);
+
+public static boolean all<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).all(predicate);
+
+public static boolean none<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).none(predicate);
+
+public static T first<T>(this Iterable<T> xs) => asSequence(xs).first();
+
+public static T first<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).first(predicate);
+
+public static T? firstOrNull<T>(this Iterable<T> xs) => asSequence(xs).firstOrNull();
+
+public static T? firstOrNull<T>(this Iterable<T> xs, Predicate<T> predicate) => asSequence(xs).firstOrNull(predicate);
+
+public static T last<T>(this Iterable<T> xs) => asSequence(xs).last();
+
+public static T? lastOrNull<T>(this Iterable<T> xs) => asSequence(xs).lastOrNull();
+
+public static T single<T>(this Iterable<T> xs) => asSequence(xs).single();
+
+public static A aggregate<T, A>(this Iterable<T> xs, A seed, BiFunction<A, T, A> combine) => asSequence(xs).aggregate(seed, combine);
+
+public static T reduce<T>(this Iterable<T> xs, BinaryOperator<T> combine) => asSequence(xs).reduce(combine);
+
+public static int sum<T>(this Iterable<T> xs, ToIntFunction<T> selector) => asSequence(xs).sum(selector);
+
+public static long sumLong<T>(this Iterable<T> xs, ToLongFunction<T> selector) => asSequence(xs).sumLong(selector);
+
+public static double sumDouble<T>(this Iterable<T> xs, ToDoubleFunction<T> selector) => asSequence(xs).sumDouble(selector);
+
+public static double average<T>(this Iterable<T> xs, ToDoubleFunction<T> selector) => asSequence(xs).average(selector);
+
+public static T minBy<T, K : Comparable<K>>(this Iterable<T> xs, Function<T, K> key) => asSequence(xs).minBy(key);
+
+public static T maxBy<T, K : Comparable<K>>(this Iterable<T> xs, Function<T, K> key) => asSequence(xs).maxBy(key);
+
+public static String joinToString<T>(this Iterable<T> xs, String separator = ", ", String prefix = "", String suffix = "") =>
+    asSequence(xs).joinToString(separator, prefix, suffix);
+
+// -------------------------------------------------------------------- arrays
+
+public static Sequence<T> asSequence<T>(this T[] xs) => new ArraySource<T>(xs);
+
+public static Sequence<T> where<T>(this T[] xs, Predicate<T> predicate) => asSequence(xs).where(predicate);
+
+public static Sequence<R> select<T, R>(this T[] xs, Function<T, R> selector) => asSequence(xs).select(selector);
+
+public static OrderedSequence<T> orderBy<T, K : Comparable<K>>(this T[] xs, Function<T, K> key) => asSequence(xs).orderBy(key);
+
+public static ArrayList<T> toList<T>(this T[] xs) => asSequence(xs).toList();
+
+public static boolean any<T>(this T[] xs, Predicate<T> predicate) => asSequence(xs).any(predicate);
+
+public static boolean all<T>(this T[] xs, Predicate<T> predicate) => asSequence(xs).all(predicate);
+
+public static T first<T>(this T[] xs, Predicate<T> predicate) => asSequence(xs).first(predicate);
+
+public static T? firstOrNull<T>(this T[] xs, Predicate<T> predicate) => asSequence(xs).firstOrNull(predicate);
+
+public static String joinToString<T>(this T[] xs, String separator = ", ") => asSequence(xs).joinToString(separator);
+
+public static IntSequence asSequence(this int[] xs) => new IntArraySource(xs);
+
+public static IntSequence where(this int[] xs, IntPredicate predicate) => asSequence(xs).where(predicate);
+
+public static IntSequence select(this int[] xs, IntUnaryOperator selector) => asSequence(xs).select(selector);
+
+public static Sequence<R> selectObj<R>(this int[] xs, IntFunction<R> selector) => asSequence(xs).selectObj(selector);
+
+public static int sum(this int[] xs) {
+    var total = 0;
+    foreach (var x in xs) total += x;
+    return total;
+}
+
+public static int min(this int[] xs) => asSequence(xs).min();
+
+public static int max(this int[] xs) => asSequence(xs).max();
+
+public static double average(this int[] xs) => asSequence(xs).average();
+
+public static boolean any(this int[] xs, IntPredicate predicate) => asSequence(xs).any(predicate);
+
+public static boolean all(this int[] xs, IntPredicate predicate) => asSequence(xs).all(predicate);
+
+public static boolean contains(this int[] xs, int value) {
+    foreach (var x in xs) if (x == value) return true;
+    return false;
+}
+
+public static LongSequence asSequence(this long[] xs) => new LongArraySource(xs);
+
+public static long sum(this long[] xs) {
+    long total = 0;
+    foreach (var x in xs) total += x;
+    return total;
+}
+
+public static DoubleSequence asSequence(this double[] xs) => new DoubleArraySource(xs);
+
+public static double sum(this double[] xs) {
+    double total = 0;
+    foreach (var x in xs) total += x;
+    return total;
+}
+
+public static double average(this double[] xs) => asSequence(xs).average();
+
+// -------------------------------------------------------------------- streams
+
+public static Sequence<T> asSequence<T>(this Stream<T> s) {
+    val it = s.iterator();
+    return new IterableSource<T>(() => it);
+}
+
+// -------------------------------------------------------------------- implementation
+
+/** A push traversal of a sequence, as a function of its sink. */
+public interface PushTraversal<T> {
+    boolean run(Predicate<T> sink);
+}
+
+final class PushStage<T> : Sequence<T> {
+    private final PushTraversal<T> traversal;
+
+    PushStage(PushTraversal<T> traversal) { this.traversal = traversal; }
+
+    public override boolean forEachWhile(Predicate<T> sink) => traversal.run(sink);
+
+    public override Iterator<T> iterator() {
+        val out = new ArrayList<T>();
+        forEachWhile(x => out.add(x));
+        return out.iterator();
+    }
+}

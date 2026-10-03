@@ -1,0 +1,109 @@
+// String extensions, imported implicitly by every J# file (D029). String's own methods win, so
+// these only add what java.lang.String lacks.
+@file:ClassName("Strings")
+package jsharp.text;
+
+import java.util.*;
+
+/** True if the string is null or has length zero. */
+public static boolean isNullOrEmpty(this String? s) => s == null || s.isEmpty();
+
+/** True if the string is null, empty, or only whitespace. */
+public static boolean isNullOrWhiteSpace(this String? s) => s == null || s.isBlank();
+
+/** Pads on the left to {@code width} characters (no-op if already as wide). */
+public static String padLeft(this String s, int width, char pad = ' ') {
+    if (s.length() >= width) return s;
+    return String.valueOf(pad).repeat(width - s.length()) + s;
+}
+
+/** Pads on the right to {@code width} characters (no-op if already as wide). */
+public static String padRight(this String s, int width, char pad = ' ') {
+    if (s.length() >= width) return s;
+    return s + String.valueOf(pad).repeat(width - s.length());
+}
+
+/** The characters in reverse order (by UTF-16 code unit pairs, keeping surrogates intact). */
+public static String reversed(this String s) => new StringBuilder(s).reverse().toString();
+
+public static String capitalize(this String s) =>
+    s.isEmpty() ? s : s.substring(0, 1).toUpperCase(Locale.ROOT) + s.substring(1);
+
+public static String removePrefix(this String s, String prefix) =>
+    s.startsWith(prefix) ? s.substring(prefix.length()) : s;
+
+public static String removeSuffix(this String s, String suffix) =>
+    s.endsWith(suffix) ? s.substring(0, s.length() - suffix.length()) : s;
+
+/** The part before the first {@code delimiter}, or the whole string if it does not occur. */
+public static String substringBefore(this String s, String delimiter) {
+    val i = s.indexOf(delimiter);
+    return i < 0 ? s : s.substring(0, i);
+}
+
+/** The part after the first {@code delimiter}, or the whole string if it does not occur. */
+public static String substringAfter(this String s, String delimiter) {
+    val i = s.indexOf(delimiter);
+    return i < 0 ? s : s.substring(i + delimiter.length());
+}
+
+/** Number of occurrences of {@code c}. */
+public static int count(this String s, char c) {
+    var n = 0;
+    for (int i = 0; i < s.length(); i++) {
+        if (s.charAt(i) == c) n++;
+    }
+    return n;
+}
+
+/** Splits on a literal separator (not a regex, unlike String.split) and keeps empty parts. */
+public static List<String> splitOn(this String s, String separator) {
+    require(!separator.isEmpty(), "separator must not be empty");
+    val parts = new ArrayList<String>();
+    var start = 0;
+    while (true) {
+        val i = s.indexOf(separator, start);
+        if (i < 0) break;
+        parts.add(s.substring(start, i));
+        start = i + separator.length();
+    }
+    parts.add(s.substring(start));
+    return parts;
+}
+
+/** Whitespace-separated words (no empty entries). */
+public static List<String> words(this String s) {
+    val out = new ArrayList<String>();
+    foreach (var w in s.trim().split("\\s+")) {
+        if (!w.isEmpty()) out.add(w);
+    }
+    return out;
+}
+
+public static Integer? toIntOrNull(this String s) {
+    try {
+        return Integer.parseInt(s.trim());
+    } catch (NumberFormatException e) {
+        return null;
+    }
+}
+
+public static Long? toLongOrNull(this String s) {
+    try {
+        return Long.parseLong(s.trim());
+    } catch (NumberFormatException e) {
+        return null;
+    }
+}
+
+public static Double? toDoubleOrNull(this String s) {
+    try {
+        return Double.parseDouble(s.trim());
+    } catch (NumberFormatException e) {
+        return null;
+    }
+}
+
+/** Repeats the string joined by a separator: "ab".repeatJoined(3, "-") is "ab-ab-ab". */
+public static String repeatJoined(this String s, int times, String separator) =>
+    String.join(separator, Collections.nCopies(Math.max(0, times), s));

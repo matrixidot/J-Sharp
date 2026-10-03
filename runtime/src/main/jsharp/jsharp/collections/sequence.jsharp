@@ -1,0 +1,730 @@
+// Lazy LINQ-style sequences. A pipeline is a chain of stages; terminal operations push elements
+// through the chain (internal iteration, like java.util.stream) and `foreach` pulls them through
+// iterators. Nothing runs until a terminal operation or iteration starts.
+@file:ClassName("SequenceStages")
+package jsharp.collections;
+
+import java.util.*;
+import java.util.function.*;
+
+/**
+ * A lazily evaluated sequence of elements, the J# counterpart of C#'s IEnumerable. Every
+ * intermediate operation returns a new sequence; terminal operations (toList, count, sum, first,
+ * ...) run the pipeline. A sequence can be iterated more than once if its source can.
+ */
+public abstract class Sequence<T> : Iterable<T> {
+    /**
+     * Pushes elements into {@code sink} in order until it returns false. Returns false if the
+     * sink stopped the traversal early, true if the sequence was exhausted.
+     */
+    public abstract boolean forEachWhile(Predicate<T> sink);
+
+    public abstract override Iterator<T> iterator();
+
+    public override void forEach(Consumer<T> action) {
+        forEachWhile(x => { action.accept(x); return true; });
+    }
+
+    // ---------------------------------------------------------------- intermediate operations
+
+    public Sequence<T> where(Predicate<T> predicate) => new WhereStage<T>(this, predicate);
+
+    public Sequence<R> select<R>(Function<T, R> selector) => new SelectStage<T, R>(this, selector);
+
+    public IntSequence selectInt(ToIntFunction<T> selector) => new SelectIntStage<T>(this, selector);
+
+    public LongSequence selectLong(ToLongFunction<T> selector) => new SelectLongStage<T>(this, selector);
+
+    public DoubleSequence selectDouble(ToDoubleFunction<T> selector) =>
+        new SelectDoubleStage<T>(this, selector);
+
+    public Sequence<R> selectMany<R>(Function<T, Iterable<R>> selector) =>
+        new SelectManyStage<T, R>(this, selector);
+
+    public Sequence<T> take(int count) => new TakeStage<T>(this, count);
+
+    public Sequence<T> skip(int count) => new SkipStage<T>(this, count);
+
+    public Sequence<T> takeWhile(Predicate<T> predicate) => new TakeWhileStage<T>(this, predicate);
+
+    public Sequence<T> skipWhile(Predicate<T> predicate) => new SkipWhileStage<T>(this, predicate);
+
+    public Sequence<T> distinct() => new DistinctStage<T>(this);
+
+    public Sequence<T> concat(Iterable<T> other) => new ConcatStage<T>(this, Sequences.asSequence(other));
+
+    public Sequence<(T, U)> zip<U>(Iterable<U> other) => new ZipStage<T, U>(this, other);
+
+    public OrderedSequence<T> orderBy<K : Comparable<K>>(Function<T, K> key) =>
+        new OrderedSequence<T>(this, Comparator.comparing(key));
+
+    public OrderedSequence<T> orderByDescending<K : Comparable<K>>(Function<T, K> key) =>
+        new OrderedSequence<T>(this, Comparator.comparing(key).reversed());
+
+    public OrderedSequence<T> sorted(Comparator<T> comparator) => new OrderedSequence<T>(this, comparator);
+
+    public Sequence<T> reverse() {
+        val self = this;
+        return Sequences.deferred(() => {
+            var list = self.toList();
+            Collections.reverse(list);
+            return list;
+        });
+    }
+
+    /** Runs {@code action} on each element as it flows past (for debugging pipelines). */
+    public Sequence<T> peek(Consumer<T> action) => select(x => { action.accept(x); return x; });
+
+    // ---------------------------------------------------------------- terminal operations
+
+    public ArrayList<T> toList() {
+        var out = new ArrayList<T>();
+        forEachWhile(x => out.add(x));
+        return out;
+    }
+
+    public LinkedHashSet<T> toSet() {
+        var out = new LinkedHashSet<T>();
+        forEachWhile(x => { out.add(x); return true; });
+        return out;
+    }
+
+    /** A map in encounter order; a duplicate key is an error. */
+    public LinkedHashMap<K, V> toMap<K, V>(Function<T, K> key, Function<T, V> value) {
+        var out = new LinkedHashMap<K, V>();
+        forEachWhile(x => {
+            val k = key.apply(x);
+            if (out.containsKey(k)) {
+                throw new IllegalStateException("duplicate key " + k);
+            }
+            out.put(k, value.apply(x));
+            return true;
+        });
+        return out;
+    }
+
+    /** Groups elements by key, preserving encounter order of keys and of elements. */
+    public LinkedHashMap<K, List<T>> groupBy<K>(Function<T, K> key) {
+        var out = new LinkedHashMap<K, List<T>>();
+        forEachWhile(x => {
+            out.computeIfAbsent(key.apply(x), k => new ArrayList<T>()).add(x);
+            return true;
+        });
+        return out;
+    }
+
+    public int count() {
+        val c = new Counter();
+        forEachWhile(x => { c.n++; return true; });
+        return c.n;
+    }
+
+    public int count(Predicate<T> predicate) {
+        val c = new Counter();
+        forEachWhile(x => { if (predicate.test(x)) c.n++; return true; });
+        return c.n;
+    }
+
+    public boolean any() => !forEachWhile(x => false);
+
+    public boolean any(Predicate<T> predicate) => !forEachWhile(x => !predicate.test(x));
+
+    public boolean all(Predicate<T> predicate) => forEachWhile(x => predicate.test(x));
+
+    public boolean none(Predicate<T> predicate) => forEachWhile(x => !predicate.test(x));
+
+    public boolean contains(T value) => !forEachWhile(x => !Objects.equals(x, value));
+
+    public T first() {
+        val box = new Box<T>();
+        if (forEachWhile(x => { box.value = x; return false; })) {
+            throw new NoSuchElementException("sequence is empty");
+        }
+        return box.value!;
+    }
+
+    public T first(Predicate<T> predicate) => where(predicate).first();
+
+    public T? firstOrNull() {
+        val box = new Box<T>();
+        forEachWhile(x => { box.value = x; return false; });
+        return box.value;
+    }
+
+    public T? firstOrNull(Predicate<T> predicate) => where(predicate).firstOrNull();
+
+    public T last() {
+        val box = new Box<T>();
+        if (forEachWhile(x => { box.value = x; box.found = true; return true; }) && !box.found) {
+            throw new NoSuchElementException("sequence is empty");
+        }
+        return box.value!;
+    }
+
+    public T? lastOrNull() {
+        val box = new Box<T>();
+        forEachWhile(x => { box.value = x; return true; });
+        return box.value;
+    }
+
+    /** The only element; an error if there are none or more than one. */
+    public T single() {
+        val box = new Box<T>();
+        forEachWhile(x => {
+            if (box.found) {
+                throw new IllegalStateException("sequence has more than one element");
+            }
+            box.value = x;
+            box.found = true;
+            return true;
+        });
+        if (!box.found) {
+            throw new NoSuchElementException("sequence is empty");
+        }
+        return box.value!;
+    }
+
+    public A aggregate<A>(A seed, BiFunction<A, T, A> combine) {
+        val box = new Box<A>();
+        box.value = seed;
+        forEachWhile(x => { box.value = combine.apply(box.value!, x); return true; });
+        return box.value!;
+    }
+
+    public T reduce(BinaryOperator<T> combine) {
+        val box = new Box<T>();
+        forEachWhile(x => {
+            box.value = box.found ? combine.apply(box.value!, x) : x;
+            box.found = true;
+            return true;
+        });
+        if (!box.found) {
+            throw new NoSuchElementException("sequence is empty");
+        }
+        return box.value!;
+    }
+
+    public int sum(ToIntFunction<T> selector) => selectInt(selector).sum();
+
+    public long sumLong(ToLongFunction<T> selector) => selectLong(selector).sum();
+
+    public double sumDouble(ToDoubleFunction<T> selector) => selectDouble(selector).sum();
+
+    public double average(ToDoubleFunction<T> selector) => selectDouble(selector).average();
+
+    /** The element with the smallest key (the first one on ties). */
+    public T minBy<K : Comparable<K>>(Function<T, K> key) {
+        val best = new Box<T>();
+        val bestKey = new Box<K>();
+        forEachWhile(x => {
+            val k = key.apply(x);
+            if (!best.found || k.compareTo(bestKey.value!) < 0) {
+                best.value = x;
+                bestKey.value = k;
+                best.found = true;
+            }
+            return true;
+        });
+        if (!best.found) {
+            throw new NoSuchElementException("sequence is empty");
+        }
+        return best.value!;
+    }
+
+    /** The element with the largest key (the first one on ties). */
+    public T maxBy<K : Comparable<K>>(Function<T, K> key) {
+        val best = new Box<T>();
+        val bestKey = new Box<K>();
+        forEachWhile(x => {
+            val k = key.apply(x);
+            if (!best.found || k.compareTo(bestKey.value!) > 0) {
+                best.value = x;
+                bestKey.value = k;
+                best.found = true;
+            }
+            return true;
+        });
+        if (!best.found) {
+            throw new NoSuchElementException("sequence is empty");
+        }
+        return best.value!;
+    }
+
+    public String joinToString(String separator = ", ", String prefix = "", String suffix = "") {
+        val sb = new StringBuilder(prefix);
+        val c = new Counter();
+        forEachWhile(x => {
+            if (c.n++ > 0) sb.append(separator);
+            sb.append(x);
+            return true;
+        });
+        return sb.append(suffix).toString();
+    }
+
+    public override String toString() => joinToString(", ", "[", "]");
+}
+
+/** A mutable cell for lambdas that need to write a result (lambdas capture only finals). */
+final class Box<T> {
+    T? value;
+    boolean found;
+}
+
+/** A mutable counter/flag for lambdas. */
+final class Counter {
+    int n;
+    boolean flag;
+}
+
+/** A sequence sorted by a comparator; thenBy adds tie-breakers. Sorting happens on traversal. */
+public final class OrderedSequence<T> : Sequence<T> {
+    private final Sequence<T> source;
+    private final Comparator<T> comparator;
+
+    OrderedSequence(Sequence<T> source, Comparator<T> comparator) {
+        this.source = source;
+        this.comparator = comparator;
+    }
+
+    public OrderedSequence<T> thenBy<K : Comparable<K>>(Function<T, K> key) =>
+        new OrderedSequence<T>(source, comparator.thenComparing(Comparator.comparing(key)));
+
+    public OrderedSequence<T> thenByDescending<K : Comparable<K>>(Function<T, K> key) =>
+        new OrderedSequence<T>(source, comparator.thenComparing(Comparator.comparing(key).reversed()));
+
+    private ArrayList<T> sortedList() {
+        var list = source.toList();
+        list.sort(comparator);
+        return list;
+    }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        foreach (var x in sortedList()) {
+            if (!sink.test(x)) return false;
+        }
+        return true;
+    }
+
+    public override Iterator<T> iterator() => sortedList().iterator();
+}
+
+// -------------------------------------------------------------------- sources
+
+final class IterableSource<T> : Sequence<T> {
+    private final Iterable<T> source;
+
+    IterableSource(Iterable<T> source) { this.source = source; }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        if (source is ArrayList<T> list) {
+            // Indexed traversal avoids the iterator allocation and its checks.
+            val n = list.size();
+            for (int i = 0; i < n; i++) {
+                if (!sink.test(list.get(i))) return false;
+            }
+            return true;
+        }
+        foreach (var x in source) {
+            if (!sink.test(x)) return false;
+        }
+        return true;
+    }
+
+    public override Iterator<T> iterator() => source.iterator();
+}
+
+final class ArraySource<T> : Sequence<T> {
+    private final T[] array;
+
+    ArraySource(T[] array) { this.array = array; }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        foreach (var x in array) {
+            if (!sink.test(x)) return false;
+        }
+        return true;
+    }
+
+    public override Iterator<T> iterator() => Arrays.asList(array).iterator();
+}
+
+final class DeferredSource<T> : Sequence<T> {
+    private final Supplier<Iterable<T>> factory;
+
+    DeferredSource(Supplier<Iterable<T>> factory) { this.factory = factory; }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        foreach (var x in factory.get()) {
+            if (!sink.test(x)) return false;
+        }
+        return true;
+    }
+
+    public override Iterator<T> iterator() => factory.get().iterator();
+}
+
+final class GenerateSource<T> : Sequence<T> {
+    private final T seed;
+    private final UnaryOperator<T> next;
+
+    GenerateSource(T seed, UnaryOperator<T> next) {
+        this.seed = seed;
+        this.next = next;
+    }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        var x = seed;
+        while (true) {
+            if (!sink.test(x)) return false;
+            x = next.apply(x);
+        }
+    }
+
+    public override Iterator<T> iterator() => new GenerateIterator<T>(seed, next);
+}
+
+final class GenerateIterator<T> : Iterator<T> {
+    private T current;
+    private final UnaryOperator<T> next;
+    private boolean started;
+
+    GenerateIterator(T seed, UnaryOperator<T> next) {
+        this.current = seed;
+        this.next = next;
+    }
+
+    public override boolean hasNext() => true;
+
+    public override T next() {
+        if (started) current = next.apply(current);
+        started = true;
+        return current;
+    }
+}
+
+// -------------------------------------------------------------------- stages
+
+final class WhereStage<T> : Sequence<T> {
+    private final Sequence<T> source;
+    private final Predicate<T> predicate;
+
+    WhereStage(Sequence<T> source, Predicate<T> predicate) {
+        this.source = source;
+        this.predicate = predicate;
+    }
+
+    public override boolean forEachWhile(Predicate<T> sink) =>
+        source.forEachWhile(x => !predicate.test(x) || sink.test(x));
+
+    public override Iterator<T> iterator() => new WhereIterator<T>(source.iterator(), predicate);
+}
+
+final class WhereIterator<T> : Iterator<T> {
+    private final Iterator<T> source;
+    private final Predicate<T> predicate;
+    private T? pending;
+    private boolean ready;
+
+    WhereIterator(Iterator<T> source, Predicate<T> predicate) {
+        this.source = source;
+        this.predicate = predicate;
+    }
+
+    public override boolean hasNext() {
+        while (!ready && source.hasNext()) {
+            val x = source.next();
+            if (predicate.test(x)) {
+                pending = x;
+                ready = true;
+            }
+        }
+        return ready;
+    }
+
+    public override T next() {
+        if (!hasNext()) throw new NoSuchElementException();
+        ready = false;
+        val x = pending;
+        pending = null;
+        return x!;
+    }
+}
+
+final class SelectStage<T, R> : Sequence<R> {
+    private final Sequence<T> source;
+    private final Function<T, R> selector;
+
+    SelectStage(Sequence<T> source, Function<T, R> selector) {
+        this.source = source;
+        this.selector = selector;
+    }
+
+    public override boolean forEachWhile(Predicate<R> sink) =>
+        source.forEachWhile(x => sink.test(selector.apply(x)));
+
+    public override Iterator<R> iterator() => new SelectIterator<T, R>(source.iterator(), selector);
+}
+
+final class SelectIterator<T, R> : Iterator<R> {
+    private final Iterator<T> source;
+    private final Function<T, R> selector;
+
+    SelectIterator(Iterator<T> source, Function<T, R> selector) {
+        this.source = source;
+        this.selector = selector;
+    }
+
+    public override boolean hasNext() => source.hasNext();
+
+    public override R next() => selector.apply(source.next());
+}
+
+final class SelectManyStage<T, R> : Sequence<R> {
+    private final Sequence<T> source;
+    private final Function<T, Iterable<R>> selector;
+
+    SelectManyStage(Sequence<T> source, Function<T, Iterable<R>> selector) {
+        this.source = source;
+        this.selector = selector;
+    }
+
+    public override boolean forEachWhile(Predicate<R> sink) =>
+        source.forEachWhile(x => {
+            foreach (var y in selector.apply(x)) {
+                if (!sink.test(y)) return false;
+            }
+            return true;
+        });
+
+    public override Iterator<R> iterator() {
+        // Flattening iterators are rarely hot; materialize lazily per traversal.
+        val out = new ArrayList<R>();
+        forEachWhile(x => out.add(x));
+        return out.iterator();
+    }
+}
+
+final class TakeStage<T> : Sequence<T> {
+    private final Sequence<T> source;
+    private final int count;
+
+    TakeStage(Sequence<T> source, int count) {
+        this.source = source;
+        this.count = count;
+    }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        if (count <= 0) return true;
+        val c = new Counter();
+        source.forEachWhile(x => {
+            c.n++;
+            if (!sink.test(x)) {
+                c.flag = true;
+                return false;
+            }
+            return c.n < count;
+        });
+        return !c.flag;
+    }
+
+    public override Iterator<T> iterator() => new TakeIterator<T>(source.iterator(), count);
+}
+
+final class TakeIterator<T> : Iterator<T> {
+    private final Iterator<T> source;
+    private int remaining;
+
+    TakeIterator(Iterator<T> source, int count) {
+        this.source = source;
+        this.remaining = count;
+    }
+
+    public override boolean hasNext() => remaining > 0 && source.hasNext();
+
+    public override T next() {
+        if (remaining <= 0) throw new NoSuchElementException();
+        remaining--;
+        return source.next();
+    }
+}
+
+final class SkipStage<T> : Sequence<T> {
+    private final Sequence<T> source;
+    private final int count;
+
+    SkipStage(Sequence<T> source, int count) {
+        this.source = source;
+        this.count = count;
+    }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        val c = new Counter();
+        return source.forEachWhile(x => c.n++ < count || sink.test(x));
+    }
+
+    public override Iterator<T> iterator() {
+        val it = source.iterator();
+        for (int i = 0; i < count && it.hasNext(); i++) it.next();
+        return it;
+    }
+}
+
+final class TakeWhileStage<T> : Sequence<T> {
+    private final Sequence<T> source;
+    private final Predicate<T> predicate;
+
+    TakeWhileStage(Sequence<T> source, Predicate<T> predicate) {
+        this.source = source;
+        this.predicate = predicate;
+    }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        val c = new Counter();
+        source.forEachWhile(x => {
+            if (!predicate.test(x)) return false;
+            if (!sink.test(x)) {
+                c.flag = true;
+                return false;
+            }
+            return true;
+        });
+        return !c.flag;
+    }
+
+    public override Iterator<T> iterator() {
+        val out = new ArrayList<T>();
+        forEachWhile(x => out.add(x));
+        return out.iterator();
+    }
+}
+
+final class SkipWhileStage<T> : Sequence<T> {
+    private final Sequence<T> source;
+    private final Predicate<T> predicate;
+
+    SkipWhileStage(Sequence<T> source, Predicate<T> predicate) {
+        this.source = source;
+        this.predicate = predicate;
+    }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        val c = new Counter();
+        return source.forEachWhile(x => {
+            if (!c.flag && predicate.test(x)) return true;
+            c.flag = true;
+            return sink.test(x);
+        });
+    }
+
+    public override Iterator<T> iterator() {
+        val out = new ArrayList<T>();
+        forEachWhile(x => out.add(x));
+        return out.iterator();
+    }
+}
+
+final class DistinctStage<T> : Sequence<T> {
+    private final Sequence<T> source;
+
+    DistinctStage(Sequence<T> source) { this.source = source; }
+
+    public override boolean forEachWhile(Predicate<T> sink) {
+        val seen = new HashSet<T>();
+        return source.forEachWhile(x => !seen.add(x) || sink.test(x));
+    }
+
+    public override Iterator<T> iterator() {
+        val seen = new HashSet<T>();
+        return new WhereIterator<T>(source.iterator(), x => seen.add(x));
+    }
+}
+
+final class ConcatStage<T> : Sequence<T> {
+    private final Sequence<T> first;
+    private final Sequence<T> second;
+
+    ConcatStage(Sequence<T> first, Sequence<T> second) {
+        this.first = first;
+        this.second = second;
+    }
+
+    public override boolean forEachWhile(Predicate<T> sink) =>
+        first.forEachWhile(sink) && second.forEachWhile(sink);
+
+    public override Iterator<T> iterator() {
+        val out = new ArrayList<T>();
+        forEachWhile(x => out.add(x));
+        return out.iterator();
+    }
+}
+
+final class ZipStage<T, U> : Sequence<(T, U)> {
+    private final Sequence<T> first;
+    private final Iterable<U> second;
+
+    ZipStage(Sequence<T> first, Iterable<U> second) {
+        this.first = first;
+        this.second = second;
+    }
+
+    public override boolean forEachWhile(Predicate<(T, U)> sink) {
+        val other = second.iterator();
+        val c = new Counter();
+        first.forEachWhile(x => {
+            if (!other.hasNext()) return false;
+            if (!sink.test((x, other.next()))) {
+                c.flag = true;
+                return false;
+            }
+            return true;
+        });
+        return !c.flag;
+    }
+
+    public override Iterator<(T, U)> iterator() {
+        val a = first.iterator();
+        val b = second.iterator();
+        val out = new ArrayList<(T, U)>();
+        while (a.hasNext() && b.hasNext()) out.add((a.next(), b.next()));
+        return out.iterator();
+    }
+}
+
+final class SelectIntStage<T> : IntSequence {
+    private final Sequence<T> source;
+    private final ToIntFunction<T> selector;
+
+    SelectIntStage(Sequence<T> source, ToIntFunction<T> selector) {
+        this.source = source;
+        this.selector = selector;
+    }
+
+    public override boolean forEachWhileInt(IntPredicate sink) =>
+        source.forEachWhile(x => sink.test(selector.applyAsInt(x)));
+}
+
+final class SelectLongStage<T> : LongSequence {
+    private final Sequence<T> source;
+    private final ToLongFunction<T> selector;
+
+    SelectLongStage(Sequence<T> source, ToLongFunction<T> selector) {
+        this.source = source;
+        this.selector = selector;
+    }
+
+    public override boolean forEachWhileLong(LongPredicate sink) =>
+        source.forEachWhile(x => sink.test(selector.applyAsLong(x)));
+}
+
+final class SelectDoubleStage<T> : DoubleSequence {
+    private final Sequence<T> source;
+    private final ToDoubleFunction<T> selector;
+
+    SelectDoubleStage(Sequence<T> source, ToDoubleFunction<T> selector) {
+        this.source = source;
+        this.selector = selector;
+    }
+
+    public override boolean forEachWhileDouble(DoublePredicate sink) =>
+        source.forEachWhile(x => sink.test(selector.applyAsDouble(x)));
+}

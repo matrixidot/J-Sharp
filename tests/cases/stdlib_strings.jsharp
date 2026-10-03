@@ -1,0 +1,13 @@
+String? nothing = null;
+println(nothing.isNullOrEmpty() + " " + "".isNullOrEmpty() + " " + "x".isNullOrEmpty());
+println("  ".isNullOrWhiteSpace() + " " + "a".isNullOrWhiteSpace());
+println("[" + "7".padLeft(3, '0') + "|" + "ab".padRight(4) + "|" + "long".padLeft(2) + "]");
+println("hello".reversed() + " " + "word".capitalize());
+println("file.txt".removeSuffix(".txt") + " " + "v1.2".removePrefix("v"));
+println("key=value=x".substringBefore("=") + " " + "key=value=x".substringAfter("="));
+println("banana".count('a'));
+println("a,,b".splitOn(","));
+println("  the quick  brown ".words());
+println("42".toIntOrNull() + " " + "4x".toIntOrNull() + " " + "2.5".toDoubleOrNull());
+println("ab".repeatJoined(3, "-"));
+println("  trim  ".trim().length());

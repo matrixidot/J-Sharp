@@ -1,0 +1,53 @@
+import java.util.*;
+
+record Person(String name, int age, String city);
+
+var people = List.of(
+    new Person("Ann", 31, "Oslo"),
+    new Person("Bob", 25, "Rome"),
+    new Person("Cid", 42, "Oslo"),
+    new Person("Dee", 25, "Lima"));
+
+println(people.where(p => p.age > 30).select(p => p.name).toList());
+println(people.orderBy(p => p.age).thenBy(p => p.name).select(p => p.name).joinToString());
+println(people.orderByDescending(p => p.age).first().name);
+println(people.groupBy(p => p.city).keySet());
+println(people.count(p => p.city == "Oslo"));
+println(people.any(p => p.age < 18) + " " + people.all(p => p.age >= 25));
+println(people.sum(p => p.age));
+println(people.average(p => p.age));
+println(people.minBy(p => p.age).name + " " + people.maxBy(p => p.age).name);
+println(people.firstOrNull(p => p.city == "Paris")?.name ?? "nobody");
+println(people.select(p => p.city).distinct().toList());
+println(people.toMap(p => p.name, p => p.age));
+println(people.skip(1).take(2).select(p => p.name).toList());
+println(people.select(p => p.age).aggregate(0, (acc, a) => acc + a));
+println(people.selectMany(p => List.of(p.name, p.city)).take(4).toList());
+println(people.zip(List.of(1, 2, 3)).select(t => t.item1.name + t.item2).toList());
+
+// Laziness: nothing runs until a terminal operation, and take stops early.
+var seen = new ArrayList<Integer>();
+var lazy = List.of(1, 2, 3, 4, 5).where(x => { seen.add(x); return x % 2 == 1; });
+println(seen.size());
+println(lazy.take(2).toList());
+println(seen);
+
+// Primitive sequences: no boxing per element.
+println(range(0, 10).where(i => i % 3 == 0).select(i => i * i).sum());
+println(range(10, 0, -3).toList());
+println(range(1, 6).aggregate(1, (a, b) => a * b));
+println(range(0, 5).average());
+int[] arr = { 5, 3, 9, 1 };
+println(arr.sum() + " " + arr.min() + " " + arr.max() + " " + arr.contains(9));
+println(arr.where(x => x > 2).select(x => x * 10).toList());
+println(generate(1, x => x * 2).takeWhile(x => x < 100).toList());
+println(sequenceOf("b", "a", "c").sorted(Comparator.naturalOrder()).toList());
+println(people.selectInt(p => p.age).max());
+foreach (var i in range(0, 3)) print(i);
+println();
+println(emptySequence<String>().firstOrNull() ?? "empty");
+try {
+    emptySequence<String>().first();
+} catch (NoSuchElementException e) {
+    println("error: " + e.getMessage());
+}

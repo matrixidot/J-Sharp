@@ -590,6 +590,17 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
                 }
               });
         }
+        // jsharp.core.TupleN<A, B, ...> is how a J# tuple type (A, B, ...) is erased; read it back
+        // as a tuple so `t.item1` and deconstruction work across compilations.
+        if (bn.matches("jsharp/core/Tuple[2-8]")
+            && args.size() == bn.charAt(bn.length() - 1) - '0'
+            && args.stream().noneMatch(x -> x instanceof Type.WildcardType)) {
+          List<String> names = new ArrayList<>();
+          for (int i = 0; i < args.size(); i++) {
+            names.add(null);
+          }
+          yield new Type.TupleType(args, names, s, top);
+        }
         yield new ClassType(s, args, top);
       }
       default -> Type.ErrorType.INSTANCE;
