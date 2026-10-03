@@ -1,0 +1,28 @@
+// The pattern-matching examples of spec section 6.
+public sealed interface Shape permits Circle, Rect;
+public record Circle(double r) : Shape;
+public record Rect(double w, double h) : Shape;
+
+double area(Shape? shape) => shape switch {
+    Circle c        => Math.PI * c.r * c.r,
+    Rect { w: var w, h: var h } when w == h => w * w,   // property pattern + guard
+    Rect(var w, var h)                         => w * h, // positional (record) pattern
+    null                                       => 0.0,
+};
+
+println($"{area(new Circle(1)):F4}");
+println(area(new Rect(3, 3)));
+println(area(new Rect(2, 5)));
+println(area(null));
+foreach (var x in new int[] { -1, 0, 5, 10, 42 }) {
+    if (x is > 0 and < 10) println(x + " in (0, 10)");
+    else println(x + " outside");
+}
+String size(int n) => n switch {
+    < 0 => "negative",
+    0 => "zero",
+    > 0 and <= 9 => "digit",
+    not (100 or 1000) => "big",
+    _ => "round",
+};
+println(size(-5) + " " + size(0) + " " + size(7) + " " + size(55) + " " + size(100));

@@ -34,3 +34,9 @@
 - Benchmarks: 7 J#-vs-Java JMH kernels, all within noise (ratios 0.97–1.02; `docs/BENCHMARKS.md`, raw data in `bench/results/m4.json`).
 - Deferred: J#-written stdlib (`jsharp.collections`, `jsharp.text`) and `where/select` (M5/M6), `tableswitch` for dense int switches (M7).
 - Known issues: inference still a subset of JLS 18; `typeSwitch` not yet benchmarked against `instanceof` chains.
+
+## M5 — Patterns, async, extensions, defaults (done)
+- Works: every spec section 6/11 program compiles and runs (`spec_section6`, `spec_section11`, `spec_expr_eval` e2e cases): switch expressions with exhaustiveness and `MatchException`, type/positional/property/relational/logical/null patterns with guards and generic-record inference, async/await on virtual threads (`Task<T>`), extension methods (imported with `import p.*` or implicitly from the stdlib), default/named args (source-order evaluation; real overloads for Java callers), tuples, `with`, null-safe operators, ranges/indices, `I.super.m()`.
+- Tests: 127 e2e programs, 121 checker files incl. sealed-exhaustiveness negatives (JS0650), 3 interop cases.
+- Deferred: list patterns (v0.2, parsed only), `SwitchBootstraps.typeSwitch` evaluation (M7).
+- Known issues: exception filters run after inner `finally` blocks (JVM has no filter pass; D050).
