@@ -38,6 +38,7 @@ public final class Main {
     final List<Path> classPath = new ArrayList<>();
     Path outDir;
     Path jar;
+    boolean includeRuntime;
     boolean json;
     boolean strictNullness;
     boolean warningsAsErrors;
@@ -101,6 +102,7 @@ public final class Main {
         case "-d" -> o.outDir = Path.of(need(args, ++i, a));
         case "-cp", "--class-path" -> o.classPath.addAll(ClassPath.split(need(args, ++i, a)));
         case "--jar" -> o.jar = Path.of(need(args, ++i, a));
+        case "--include-runtime" -> o.includeRuntime = true;
         case "--diagnostics=json" -> o.json = true;
         case "--strict-platform-nullness" -> o.strictNullness = true;
         case "-Werror" -> o.warningsAsErrors = true;
@@ -184,7 +186,13 @@ public final class Main {
     }
     if (o.jar != null) {
       try {
-        Jars.write(o.jar, comp.classFiles(), comp.mainClass());
+        Jars.write(
+            o.jar,
+            comp.classFiles(),
+            comp.mainClass(),
+            o.includeRuntime
+                ? io.github.matrixidot.jsharp.compiler.driver.RuntimeLocator.findAll()
+                : List.of());
       } catch (IOException e) {
         err.println(LanguageInfo.ID + ": cannot write " + o.jar + ": " + e.getMessage());
         return 2;
@@ -328,6 +336,8 @@ public final class Main {
     out.println("  run <file|dir...> [args...]          compile in memory and run the entry point");
     out.println(
         "  build <src...> [-d dir] [--jar f]    compile to class files (default ./out) or a jar");
+    out.println(
+        "        [--include-runtime]            put the J# runtime in the jar (java -jar f)");
     out.println("  check <src...>                       report diagnostics only");
     out.println("  parse <file>                         print the syntax tree (debug)");
     out.println("  --version                            print version");

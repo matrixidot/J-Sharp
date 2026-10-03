@@ -13,8 +13,9 @@ bin/jsharp run examples/ledger/src export   examples/ledger/data/sample.ledger
 bin/jsharp run examples/ledger/src check    examples/ledger/data/broken.ledger
 ```
 
-Or build a runnable jar: `bin/jsharp build examples/ledger/src --jar ledger.jar`, then
-`java -cp ledger.jar:<path to the J# runtime jar> ledger.AppModule report data/sample.ledger`.
+Or build a self-contained jar and run it with plain Java:
+`bin/jsharp build examples/ledger/src --jar ledger.jar --include-runtime`, then
+`java -jar ledger.jar report examples/ledger/data/sample.ledger`.
 
 ## What it shows
 
