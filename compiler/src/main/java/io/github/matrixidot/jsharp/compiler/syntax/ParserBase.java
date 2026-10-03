@@ -721,7 +721,7 @@ abstract class ParserBase {
           argName = advance().text();
           advance();
         }
-        Expr value = at(LBRACE) ? parseArrayInit() : parseExpr();
+        Expr value = at(LBRACE) ? parseBraceLiteral() : parseExpr();
         args.add(new Arg(argName, value, spanFrom(as)));
         if (!accept(COMMA) || pos == before) {
           break;
@@ -733,6 +733,9 @@ abstract class ParserBase {
   }
 
   abstract Expr.ArrayInit parseArrayInit();
+
+  /** An array initializer or a map literal ({@code {"a": 1}}). */
+  abstract Expr parseBraceLiteral();
 
   private static final Set<String> CONTEXTUAL_MODIFIERS =
       Set.of("base", "open", "sealed", "override", "async", "required");

@@ -338,6 +338,12 @@ public final class SourceIndex {
         pattern(a.left());
         pattern(a.right());
       }
+      case BPattern.ListPat lp -> {
+        lp.prefix().forEach(this::pattern);
+        pattern(lp.slice());
+        lp.suffix().forEach(this::pattern);
+        declareVar(lp.binding());
+      }
       case BPattern.Or o -> {
         pattern(o.left());
         pattern(o.right());

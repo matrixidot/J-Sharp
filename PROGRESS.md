@@ -106,3 +106,7 @@
 - `base` replaces `open` (D075), `init { }` replaces the compact record constructor and adds instance initializers (D076), and more than one entry point is an error (D074).
 - Operator overloading (D077) with readable JVM names for Java callers. Tested by an e2e program, checker files (declaration rules, syntax, use), and interop in both directions (Java calls `Item.plus`; a J# library's operators are used from another J# compilation).
 - Fixed along the way: object initializers on `init` properties of compiled J# classes (D078).
+
+## Post-v0.1: v0.2 language features
+- Collection literals with spreads and map literals, target-typed (D080), and list patterns with slice bindings and exhaustiveness by length (D081). With operator overloading (D077), this completes the v0.2 language items of the spec. Structured concurrency (`Task.scope`) waits for `StructuredTaskScope` to leave preview in the JDK.
+- Tests: e2e `collection_literals` and `list_patterns`, checker files for literal errors and list-pattern rules, and tour examples.

@@ -328,3 +328,31 @@ Format: **decision** — reason. *Rejected:* alternatives.
   to these alternatives; both words remain ordinary identifiers. Likewise `int x, float y = f();`
   (a declarator with its own type) reports "all variables of a declaration share its type" and
   suggests `(int x, float y) = f();`.
+- **D080: Collection literals are target-typed** (like C# collection expressions).
+  - `[a, b, ..xs]` is an array for an array target; a `Set` for `Set`/`SequencedSet`; a filled
+    instance for a concrete collection class with a public no-argument constructor
+    (`ArrayList<T> xs = [...]` is mutable); otherwise an immutable `List` of the target's
+    element type or of the elements' common type (numbers promote first:
+    `[1, 2.5]` is `List<Double>`).
+  - `{k: v}` is likewise an immutable map, or a filled `TreeMap`/`HashMap`/… for a concrete
+    target; `{}` with a map target is an empty map.
+  - **Deviation from the spec** (`List.of`/`Map.of`): literal sets and maps keep their written
+    order (`LinkedHashSet`/`LinkedHashMap`, wrapped unmodifiable), because `Set.of`/`Map.of`
+    iterate in an order that changes between runs. Lists use `List.of` unless they contain
+    `null` or spreads.
+  - Duplicate set elements collapse. A duplicate map key is a runtime
+    `IllegalArgumentException`, and a compile error when both keys are constants (JS0659).
+  - `..` spreads take an `Iterable` or an array (primitive arrays box) and are not allowed in
+    array targets.
+  - An empty literal needs a typed target. The `{` of a block or lambda body is never a literal.
+  - Runtime helpers live in `jsharp.core.Literals`.
+- **D081: List patterns** `[p0, p1, .. slice, q0]` match a `java.util.List` (by static type) or an
+  array:
+  - Without `..` the length must be exact; with one `..` it is a minimum, and the `..` may bind
+    the middle (`.. var rest`: a `subList` view or an array copy).
+  - Elements are read once by index; `_` positions are not read. Null never matches.
+  - A list pattern on a static type that is not a List or array (e.g. `Object`) is an error
+    (JS0651); test the type first.
+  - Exhaustiveness counts lengths for patterns whose element patterns match anything, so
+    `[]`, `[_]`, `[_, .., _]` is exhaustive and missing cases are reported as `[_]`,
+    `[_, _, ..]`, ….

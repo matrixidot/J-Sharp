@@ -535,7 +535,7 @@ public final class Parser extends StmtParser {
     List<VarDeclarator> vars = new ArrayList<>();
     Expr init = null;
     if (accept(EQ)) {
-      init = at(LBRACE) ? parseArrayInit() : parseExpr();
+      init = at(LBRACE) ? parseBraceLiteral() : parseExpr();
     }
     vars.add(new VarDeclarator(name, nameSpan, init, spanFrom(nameSpan.start())));
     if (accept(COMMA)) {
@@ -554,7 +554,7 @@ public final class Parser extends StmtParser {
       String name = expectIdent("variable name");
       Expr init = null;
       if (accept(EQ)) {
-        init = at(LBRACE) ? parseArrayInit() : parseExpr();
+        init = at(LBRACE) ? parseBraceLiteral() : parseExpr();
       }
       vars.add(new VarDeclarator(name, nameSpan, init, spanFrom(ds)));
     } while (accept(COMMA));

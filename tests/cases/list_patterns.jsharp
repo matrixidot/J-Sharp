@@ -1,0 +1,22 @@
+import java.util.*;
+String describe(List<int> xs) => xs switch {
+    [] => "empty",
+    [var only] => $"one: {only}",
+    [var a, var b] => $"two: {a}+{b}",
+    [var first, .., var last] => $"many: {first}..{last}",
+};
+println(describe([]));
+println(describe([7]));
+println(describe([1, 2]));
+println(describe([1, 2, 3, 4]));
+List<String> words = ["a", "b", "c", "d"];
+if (words is [_, .. var middle, _]) println(middle);
+if (words is ["a", ..]) println("starts with a");
+if (words is [.., "z"]) println("ends with z"); else println("does not end with z");
+int[] arr = [5, 6, 7];
+if (arr is [var h, .. var t]) println(h + " " + Arrays.toString(t));
+println(arr is [> 4, < 7, 7]);
+String[] names = ["x", "y"];
+if (names is [var x, var y] pair) println(x + y + pair.length);
+List<String>? nothing = null;
+println(nothing is [..]);

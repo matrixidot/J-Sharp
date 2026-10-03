@@ -599,7 +599,10 @@ abstract class ExprParser extends ParserBase {
         return parseIfExpr();
       }
       case LBRACE -> {
-        return parseArrayInit();
+        return parseBraceLiteral();
+      }
+      case LBRACKET -> {
+        return parseCollectionLiteral();
       }
       default -> {
         if (isPrimitiveKind(t.kind())) {
@@ -640,6 +643,75 @@ abstract class ExprParser extends ParserBase {
     advance();
     Expr otherwise = parseExpr();
     return new Expr.Conditional(cond, then, otherwise, true, spanFrom(start));
+  }
+
+  /** {@code [a, ..xs, b]} (trailing comma allowed). */
+  final Expr parseCollectionLiteral() {
+    int start = startOffset();
+    expect(LBRACKET);
+    List<Expr> elems = new ArrayList<>();
+    while (!at(RBRACKET) && !atEof()) {
+      int before = pos;
+      int es = startOffset();
+      if (at(DOTDOT)) {
+        advance();
+        elems.add(new Expr.Spread(parseExpr(), spanFrom(es)));
+      } else {
+        elems.add(parseExpr());
+      }
+      if (!accept(COMMA) || pos == before) {
+        break;
+      }
+    }
+    expect(RBRACKET);
+    return new Expr.CollectionLiteral(elems, spanFrom(start));
+  }
+
+  /**
+   * {@code { ... }} in expression position: a map literal if the first element is followed by
+   * {@code :} ({@code {"a": 1}}), else an array initializer ({@code {1, 2}}).
+   */
+  @Override
+  final Expr parseBraceLiteral() {
+    if (!(at(LBRACE) && !peek(1).is(RBRACE) && !peek(1).is(LBRACE))) {
+      return parseArrayInit();
+    }
+    int start = startOffset();
+    advance();
+    int es = startOffset();
+    Expr first = parseExpr();
+    if (!at(COLON)) {
+      // An array initializer whose first element is already parsed.
+      List<Expr> elems = new ArrayList<>();
+      elems.add(first);
+      while (accept(COMMA) && !at(RBRACE) && !atEof()) {
+        int before = pos;
+        elems.add(at(LBRACE) ? parseArrayInit() : parseExpr());
+        if (pos == before) {
+          break;
+        }
+      }
+      expect(RBRACE);
+      return new Expr.ArrayInit(elems, spanFrom(start));
+    }
+    List<Expr.MapEntry> entries = new ArrayList<>();
+    Expr key = first;
+    while (true) {
+      expect(COLON);
+      Expr value = parseExpr();
+      entries.add(new Expr.MapEntry(key, value, spanFrom(es)));
+      if (!accept(COMMA) || at(RBRACE)) {
+        break;
+      }
+      es = startOffset();
+      int before = pos;
+      key = parseExpr();
+      if (pos == before) {
+        break;
+      }
+    }
+    expect(RBRACE);
+    return new Expr.MapLiteral(entries, spanFrom(start));
   }
 
   @Override

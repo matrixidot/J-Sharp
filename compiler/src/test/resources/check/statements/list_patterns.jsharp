@@ -1,0 +1,24 @@
+// List patterns over lists and arrays; exhaustiveness by length.
+import java.util.*;
+String all(List<int> xs) => xs switch {
+    [] => "empty",
+    [_] => "one",
+    [_, .., _] => "more",
+};
+String missingOne(List<int> xs) => xs switch {            //~ JS0650
+    [] => "empty",
+    [_, _, ..] => "two or more",
+};
+int[] arr = [1, 2, 3];
+if (arr is [var first, .. var rest]) {
+    int f = first;
+    int[] r = rest;
+}
+List<String> words = ["a"];
+if (words is [var w, ..]) {
+    String s = w;
+}
+Object o = words;
+if (o is [..]) { }                                         //~ JS0651
+if (words is [.., ..]) { }                                 //~ JS0651
+if (words is [1]) { }                                      //~ JS0651

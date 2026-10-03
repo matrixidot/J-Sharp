@@ -424,6 +424,13 @@ public final class AstPrinter {
         yield r.add(opt(na.init()));
       }
       case Expr.ArrayInit ai -> list("array-init", ai.elements());
+      case Expr.CollectionLiteral cl -> list("collection", cl.elements());
+      case Expr.Spread sp -> s("..", toS(sp.expr()));
+      case Expr.MapLiteral ml -> {
+        S r = s("map");
+        ml.entries().forEach(en -> r.add(s(":", toS(en.key()), toS(en.value()))));
+        yield r;
+      }
       case Expr.Unary u ->
           s(
               u.op() == Expr.UnaryOp.NON_NULL

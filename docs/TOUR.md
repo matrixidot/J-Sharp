@@ -18,6 +18,7 @@ show its output.
 - [Pattern matching](#pattern-matching)
 - [Operators](#operators)
 - [Generics](#generics)
+- [Collection literals](#collection-literals)
 - [Lambdas and sequences](#lambdas-and-sequences)
 - [Async and await](#async-and-await)
 - [Errors and resources](#errors-and-resources)
@@ -379,6 +380,51 @@ Source<Number> numbers = new Counter();      // Source<Integer> is a Source<Numb
 println(numbers.next());                     // prints: 1
 println(maxOf(List.of(3, 9, 4)));            // prints: 9
 println(maxOf(List.of("pear", "apple")));    // prints: pear
+```
+
+## Collection literals
+
+`[...]` builds lists, sets and arrays, and `{key: value}` builds maps. The type comes from the
+target, as in C#. Without a target you get an immutable list or map of the elements' common
+type. `..xs` spreads another collection or array into a list. Literal sets and maps keep the
+order you wrote.
+
+```jsharp
+import java.util.*;
+
+var primes = [2, 3, 5, 7];                    // List<Integer>, immutable
+Set<String> tags = ["new", "sale", "new"];    // duplicates collapse
+int[] counts = [1, 2, 3];                     // an array
+ArrayList<String> todo = ["write", "test"];   // a mutable list, filled
+todo.add("ship");
+var ages = {"ann": 31, "bob": 25};            // Map<String, Integer>, in this order
+var all = [1, ..primes, ..counts];            // spreads
+
+println(primes);        // prints: [2, 3, 5, 7]
+println(tags);          // prints: [new, sale]
+println(counts.length); // prints: 3
+println(todo);          // prints: [write, test, ship]
+println(ages);          // prints: {ann=31, bob=25}
+println(all);           // prints: [1, 2, 3, 5, 7, 1, 2, 3]
+```
+
+List patterns match lists and arrays by shape: `[]`, `[var x]`, `[first, .., last]`,
+`[_, .. var middle, _]`. Without `..` the length must match exactly; with it, it is a minimum.
+Switches over lists are checked for exhaustiveness by length.
+
+```jsharp
+import java.util.*;
+
+String describe(List<int> xs) => xs switch {
+    [] => "empty",
+    [var only] => $"just {only}",
+    [var first, .., var last] => $"{first} to {last}",
+};
+
+println(describe([]));            // prints: empty
+println(describe([4]));           // prints: just 4
+println(describe([1, 2, 3, 9]));  // prints: 1 to 9
+if ([1, 2, 3, 4] is [_, .. var middle, _]) println(middle);   // prints: [2, 3]
 ```
 
 ## Lambdas and sequences

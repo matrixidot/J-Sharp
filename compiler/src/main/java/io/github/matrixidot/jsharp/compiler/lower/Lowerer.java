@@ -1487,12 +1487,146 @@ public final class Lowerer {
         BExpr cast = castTo(subject, type, t, span);
         yield and(test, new BExpr.Let(tmp, cast, body, span));
       }
+      case BPattern.ListPat lp -> listMatch(lp, subject, span);
       case BPattern.And a -> and(match(a.left(), subject, type), match(a.right(), subject, type));
       case BPattern.Or o -> or(match(o.left(), subject, type), match(o.right(), subject, type));
       case BPattern.Not n ->
           new BExpr.Unary(
               BExpr.UnOp.NOT, match(n.pattern(), subject, type), PrimType.BOOLEAN, span);
     };
+  }
+
+  /**
+   * {@code subject is [p0, .., q0]}: non-null, length check (exact, or a minimum with {@code ..}),
+   * then each element read once by index (discards are not read) and the slice as {@code
+   * subList}/{@code Arrays.copyOfRange}.
+   */
+  private BExpr listMatch(BPattern.ListPat lp, BExpr subject, Span span) {
+    int k = lp.prefix().size();
+    int m = lp.suffix().size();
+    VarSymbol size = temp("size", PrimType.INT, span);
+    ClassSymbol list = syms.lookup("java/util/List");
+    BExpr body = trueConst(span);
+    if (lp.slice() != null && !(lp.slice() instanceof BPattern.Any any && any.binding() == null)) {
+      BExpr from = new BExpr.Const(k, PrimType.INT, span);
+      BExpr to = minus(new BExpr.Local(size, span), m, span);
+      BExpr sliceExpr;
+      if (lp.array()) {
+        sliceExpr = copyOfRange(subject, (Type.ArrayType) lp.sliceType(), from, to, span);
+      } else {
+        MethodSymbol subList = listMethod(list, "subList", 2);
+        sliceExpr =
+            new BExpr.Call(
+                subject, subList, List.of(from, to), CallKind.INTERFACE, lp.sliceType(), span);
+      }
+      VarSymbol sv = temp("slice", lp.sliceType(), span);
+      body =
+          new BExpr.Let(
+              sv,
+              sliceExpr,
+              and(match(lp.slice(), new BExpr.Local(sv, span), lp.sliceType()), body),
+              span);
+    }
+    for (int j = m - 1; j >= 0; j--) {
+      body =
+          elementMatch(
+              lp,
+              list,
+              subject,
+              lp.suffix().get(j),
+              minus(new BExpr.Local(size, span), m - j, span),
+              body,
+              span);
+    }
+    for (int i = k - 1; i >= 0; i--) {
+      body =
+          elementMatch(
+              lp,
+              list,
+              subject,
+              lp.prefix().get(i),
+              new BExpr.Const(i, PrimType.INT, span),
+              body,
+              span);
+    }
+    if (lp.binding() != null) {
+      body = and(bind(lp.binding(), subject, span), body);
+    }
+    BExpr sizeExpr =
+        lp.array()
+            ? new BExpr.ArrayLength(subject, PrimType.INT, span)
+            : new BExpr.Call(
+                subject,
+                listMethod(list, "size", 0),
+                List.of(),
+                CallKind.INTERFACE,
+                PrimType.INT,
+                span);
+    BExpr lenTest =
+        new BExpr.Binary(
+            lp.hasSlice() ? BinOp.GE : BinOp.EQ,
+            new BExpr.Local(size, span),
+            new BExpr.Const(k + m, PrimType.INT, span),
+            PrimType.BOOLEAN,
+            false,
+            span);
+    BExpr nonNull =
+        new BExpr.Binary(BinOp.REF_NE, subject, nullConst(span), PrimType.BOOLEAN, false, span);
+    return and(nonNull, new BExpr.Let(size, sizeExpr, and(lenTest, body), span));
+  }
+
+  private BExpr elementMatch(
+      BPattern.ListPat lp,
+      ClassSymbol list,
+      BExpr subject,
+      BPattern sub,
+      BExpr index,
+      BExpr body,
+      Span span) {
+    if (sub instanceof BPattern.Any any && any.binding() == null) {
+      return body; // `_`: the element is not read
+    }
+    Type et = lp.elementType();
+    BExpr access =
+        lp.array()
+            ? new BExpr.ArrayElem(subject, index, et, span)
+            : new BExpr.Call(
+                subject, listMethod(list, "get", 1), List.of(index), CallKind.INTERFACE, et, span);
+    VarSymbol v = temp("e", et, span);
+    return new BExpr.Let(v, access, and(match(sub, new BExpr.Local(v, span), et), body), span);
+  }
+
+  private static BExpr minus(BExpr a, int n, Span span) {
+    if (n == 0) {
+      return a;
+    }
+    return new BExpr.Binary(
+        BinOp.SUB, a, new BExpr.Const(n, PrimType.INT, span), PrimType.INT, false, span);
+  }
+
+  private static MethodSymbol listMethod(ClassSymbol list, String name, int arity) {
+    for (MethodSymbol m : list.methods(name)) {
+      if (m.params().size() == arity && !m.isStatic()) {
+        return m;
+      }
+    }
+    throw new IllegalStateException("java.util.List." + name);
+  }
+
+  /** {@code Arrays.copyOfRange(array, from, to)} for primitive or reference arrays. */
+  private BExpr copyOfRange(BExpr array, Type.ArrayType at, BExpr from, BExpr to, Span span) {
+    ClassSymbol arrays = syms.lookup("java/util/Arrays");
+    for (MethodSymbol m : arrays.methods("copyOfRange")) {
+      if (m.params().size() != 3 || !(m.params().getFirst().type() instanceof Type.ArrayType pa)) {
+        continue;
+      }
+      boolean fits =
+          at.elem() instanceof PrimType p ? pa.elem() == p : !(pa.elem() instanceof PrimType);
+      if (fits) {
+        return new BExpr.Call(null, m, List.of(array, from, to), CallKind.STATIC, at, span);
+      }
+    }
+    throw new IllegalStateException("Arrays.copyOfRange for " + at.display());
   }
 
   /** {@code subject instanceof target}, simplified when statically known. */

@@ -132,16 +132,82 @@ final class Patterns {
         return new BPattern.Not(x, span);
       }
       case Pattern.ListPattern l -> {
-        a.report(
-            a.err(Code.UNSUPPORTED_FEATURE, span, "list patterns are planned for J# v0.2")
-                .help("use xs.size() and indexing for now"));
-        return new BPattern.Constant(new BExpr.Error(Type.ErrorType.INSTANCE, span), span);
+        return listPattern(l, input, bindings);
       }
       case Pattern.Slice s -> {
         a.error(Code.INVALID_PATTERN, span, "'..' is only valid inside a list pattern");
         return new BPattern.Any(null, span);
       }
     }
+  }
+
+  /**
+   * {@code [p0, .., pn]} on a List or an array: exact length without {@code ..}, a minimum with it;
+   * at most one {@code ..}, optionally with a pattern for the middle part ({@code .. var rest}).
+   */
+  private BPattern listPattern(Pattern.ListPattern l, Type input, List<VarSymbol> bindings) {
+    Span span = l.span();
+    if (input.isError()) {
+      return new BPattern.Any(null, span);
+    }
+    Type in = input.withNullness(Nullness.NON_NULL);
+    Type elem;
+    Type sliceType;
+    boolean array;
+    if (in instanceof Type.ArrayType at) {
+      array = true;
+      elem = at.elem();
+      sliceType = at;
+    } else {
+      ClassSymbol listSym = a.syms.lookup("java/util/List");
+      ClassType asList =
+          types().boxIfPrimitive(in) instanceof ClassType ct && listSym != null
+              ? types().asSuper(ct, listSym)
+              : null;
+      if (asList == null) {
+        a.report(
+            a.err(
+                    Code.INVALID_PATTERN,
+                    span,
+                    "list patterns need a List or an array, found " + input.display())
+                .help("test the type first, e.g. 'x is List<T> xs and [..]'"));
+        for (Pattern p : l.elements()) {
+          if (!(p instanceof Pattern.Slice)) {
+            pattern(p, Type.ErrorType.INSTANCE, bindings);
+          }
+        }
+        // An error pattern (not a match-anything one, which would warn "always matches").
+        return new BPattern.Constant(new BExpr.Error(Type.ErrorType.INSTANCE, span), span);
+      }
+      array = false;
+      Type arg = asList.args().isEmpty() ? a.syms.objectType() : asList.args().getFirst();
+      elem =
+          arg instanceof Type.WildcardType w
+              ? (w.kind() == Type.WildcardType.Kind.EXTENDS ? w.bound() : a.syms.objectType())
+              : arg;
+      sliceType = new ClassType(listSym, List.of(elem), Nullness.NON_NULL);
+    }
+    List<BPattern> prefix = new ArrayList<>();
+    List<BPattern> suffix = new ArrayList<>();
+    BPattern slice = null;
+    boolean hasSlice = false;
+    for (Pattern p : l.elements()) {
+      if (p instanceof Pattern.Slice s) {
+        if (hasSlice) {
+          a.error(Code.INVALID_PATTERN, s.span(), "a list pattern can contain only one '..'");
+          continue;
+        }
+        hasSlice = true;
+        if (s.pattern() != null) {
+          slice = pattern(s.pattern(), sliceType, bindings);
+        }
+        continue;
+      }
+      BPattern sub = pattern(p, elem, bindings);
+      (hasSlice ? suffix : prefix).add(sub);
+    }
+    VarSymbol b = binding(l.binding(), in, span, bindings);
+    return new BPattern.ListPat(prefix, slice, hasSlice, suffix, elem, sliceType, array, b, span);
   }
 
   /** The type a value is known to have after matching {@code p} (for {@code and} chains). */
@@ -823,6 +889,11 @@ final class Patterns {
         }
         yield true;
       }
+      case BPattern.ListPat lp ->
+          lp.prefix().isEmpty()
+              && lp.suffix().isEmpty()
+              && lp.hasSlice()
+              && (lp.slice() == null || isTotal(lp.slice(), lp.sliceType())); // [..] matches all
       case BPattern.And and -> isTotal(and.left(), t) && isTotal(and.right(), t);
       case BPattern.Or or ->
           isTotal(or.left(), t)
@@ -846,6 +917,64 @@ final class Patterns {
     return missing(flat, t).isEmpty();
   }
 
+  /**
+   * Coverage by length for list patterns whose element (and slice) patterns all match anything:
+   * {@code []}, {@code [_]}, {@code [_, .., _]} cover every list. Returns the uncovered lengths
+   * (described as patterns), or null if no such list patterns are present.
+   */
+  private List<String> missingLengths(List<BPattern> pats) {
+    java.util.Set<Integer> exact = new java.util.HashSet<>();
+    int minimum = Integer.MAX_VALUE;
+    boolean any = false;
+    for (BPattern p : pats) {
+      if (!(p instanceof BPattern.ListPat lp)) {
+        continue;
+      }
+      boolean total =
+          java.util.stream.Stream.concat(lp.prefix().stream(), lp.suffix().stream())
+                  .allMatch(x -> isTotal(x, lp.elementType()))
+              && (lp.slice() == null || isTotal(lp.slice(), lp.sliceType()));
+      if (!total) {
+        continue;
+      }
+      any = true;
+      int n = lp.prefix().size() + lp.suffix().size();
+      if (lp.hasSlice()) {
+        minimum = Math.min(minimum, n);
+      } else {
+        exact.add(n);
+      }
+    }
+    if (!any) {
+      return null;
+    }
+    List<String> out = new ArrayList<>();
+    int limit =
+        minimum == Integer.MAX_VALUE
+            ? exact.stream().max(Integer::compare).orElse(-1) + 1
+            : minimum;
+    for (int len = 0; len < limit; len++) {
+      if (!exact.contains(len)) {
+        out.add(describeLength(len, false));
+      }
+    }
+    if (minimum == Integer.MAX_VALUE) {
+      out.add(describeLength(limit, true));
+    }
+    return out;
+  }
+
+  private static String describeLength(int n, boolean orMore) {
+    StringBuilder sb = new StringBuilder("[");
+    for (int i = 0; i < n; i++) {
+      sb.append(i > 0 ? ", _" : "_");
+    }
+    if (orMore) {
+      sb.append(n > 0 ? ", .." : "..");
+    }
+    return sb.append(']').toString();
+  }
+
   private static void flatten(BPattern p, List<BPattern> out) {
     if (p instanceof BPattern.Or or) {
       flatten(or.left(), out);
@@ -861,6 +990,10 @@ final class Patterns {
       if (isTotal(p, t)) {
         return List.of();
       }
+    }
+    List<String> lengths = missingLengths(pats);
+    if (lengths != null) {
+      return lengths;
     }
     PrimType prim = types().primitiveView(t);
     if (prim == PrimType.BOOLEAN) {

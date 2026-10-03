@@ -190,6 +190,14 @@ public final class AstWalk {
         walk(n.init(), v);
       }
       case Expr.ArrayInit a -> all(a.elements(), v);
+      case Expr.CollectionLiteral c -> all(c.elements(), v);
+      case Expr.Spread sp -> expr(sp.expr(), v);
+      case Expr.MapLiteral m -> {
+        for (Expr.MapEntry en : m.entries()) {
+          expr(en.key(), v);
+          expr(en.value(), v);
+        }
+      }
       case Expr.Unary u -> walk(u.operand(), v);
       case Expr.Binary b -> {
         walk(b.left(), v);

@@ -41,6 +41,27 @@ public sealed interface BPattern {
 
   record And(BPattern left, BPattern right, Span span) implements BPattern {}
 
+  /**
+   * A list pattern {@code [p0, p1, .. slice, q0]} over a {@code java.util.List} or an array.
+   *
+   * @param slice the pattern for the {@code ..} part (null if none or bare {@code ..})
+   * @param hasSlice whether the pattern contains {@code ..} (then the length is a minimum)
+   * @param elementType element type of the input
+   * @param sliceType type of the slice ({@code List<E>} or {@code E[]})
+   * @param binding variable for the whole value ({@code [..] xs}), or null
+   */
+  record ListPat(
+      java.util.List<BPattern> prefix,
+      BPattern slice,
+      boolean hasSlice,
+      java.util.List<BPattern> suffix,
+      io.github.matrixidot.jsharp.compiler.types.Type elementType,
+      io.github.matrixidot.jsharp.compiler.types.Type sliceType,
+      boolean array,
+      VarSymbol binding,
+      Span span)
+      implements BPattern {}
+
   record Or(BPattern left, BPattern right, Span span) implements BPattern {}
 
   record Not(BPattern pattern, Span span) implements BPattern {}

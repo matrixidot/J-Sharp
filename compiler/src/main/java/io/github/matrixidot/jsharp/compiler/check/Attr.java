@@ -67,6 +67,7 @@ public final class Attr {
   final Calls calls;
   final Stmts stmts;
   final Patterns patterns;
+  final CollectionLiterals literals;
 
   private DiagnosticSink sink;
   Env env;
@@ -117,6 +118,7 @@ public final class Attr {
     this.calls = new Calls(this);
     this.stmts = new Stmts(this);
     this.patterns = new Patterns(this);
+    this.literals = new CollectionLiterals(this);
   }
 
   public Types types() {
@@ -463,6 +465,13 @@ public final class Attr {
       case Expr.New n -> newExpr(n, pt);
       case Expr.NewArray n -> newArray(n);
       case Expr.ArrayInit a -> arrayInit(a, pt);
+      case Expr.CollectionLiteral c -> literals.collection(c, pt);
+      case Expr.MapLiteral m -> literals.map(m, pt);
+      case Expr.Spread s -> {
+        error(Code.INVALID_LITERAL, s.span(), "'..' spreads are only allowed inside [...]");
+        value(s.expr(), null);
+        yield new BExpr.Error(Type.ErrorType.INSTANCE, s.span());
+      }
       case Expr.Unary u -> ops.unary(u, pt);
       case Expr.Binary b -> ops.binary(b, pt);
       case Expr.Range r -> patterns.range(r);
@@ -2137,10 +2146,20 @@ public final class Attr {
   }
 
   private BExpr arrayInit(Expr.ArrayInit a, Type pt) {
+    if (a.elements().isEmpty() && pt instanceof ClassType ct && !(pt instanceof Type.ArrayType)) {
+      // `{}` for a Map target is an empty map literal.
+      ClassSymbol mapSym = syms.lookup("java/util/Map");
+      if (mapSym != null && types.isSubtype(ct.erasure(), mapSym.thisType().erasure())) {
+        return literals.map(new Expr.MapLiteral(List.of(), a.span()), pt);
+      }
+    }
     if (!(pt instanceof Type.ArrayType at)) {
       report(
           err(Code.CANNOT_INFER, a.span(), "an array initializer '{...}' needs an array type here")
-              .help("write new T[] { ... }"));
+              .help(
+                  a.elements().isEmpty()
+                      ? "write new T[] {} for an array, or give a map type: Map<K, V> m = {};"
+                      : "write new T[] { ... }, or use a list: [a, b]"));
       for (Expr e : a.elements()) {
         value(e, null);
       }

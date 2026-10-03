@@ -370,7 +370,7 @@ abstract class StmtParser extends ExprParser {
       String name = expectIdent("variable name");
       Expr init = null;
       if (accept(EQ)) {
-        init = at(LBRACE) ? parseArrayInit() : parseExpr();
+        init = at(LBRACE) ? parseBraceLiteral() : parseExpr();
       }
       vars.add(new VarDeclarator(name, nameSpan, init, spanFrom(ds)));
     } while (allowMultiple && accept(COMMA));

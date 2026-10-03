@@ -105,6 +105,8 @@ final class Calls {
       case Expr.MethodRef m -> true;
       case Expr.New n -> n.type() == null;
       case Expr.ArrayInit ai -> true;
+      case Expr.CollectionLiteral cl -> true;
+      case Expr.MapLiteral ml -> true;
       case Expr.Paren p -> isDeferred(p.expr());
       case Expr.Conditional c -> isDeferred(c.then()) || isDeferred(c.otherwise());
       case Expr.Switch s -> s.arms().stream().anyMatch(arm -> isDeferred(arm.body()));
@@ -1285,6 +1287,12 @@ final class Calls {
       }
       case Expr.New nw -> pt instanceof ClassType;
       case Expr.ArrayInit ai -> pt instanceof Type.ArrayType;
+      case Expr.CollectionLiteral cl ->
+          pt instanceof Type.ArrayType
+              || inf != null && inf.isVar(pt)
+              || pt instanceof ClassType ct && literalTarget(ct, false);
+      case Expr.MapLiteral ml ->
+          inf != null && inf.isVar(pt) || pt instanceof ClassType ct && literalTarget(ct, true);
       default -> true;
     };
   }
@@ -1475,6 +1483,19 @@ final class Calls {
   }
 
   /**
+   * Can a collection literal (or, with {@code map}, a map literal) be typed as {@code ct}: Object,
+   * Iterable/Collection/List/Set (or Map), or a concrete class implementing them.
+   */
+  private boolean literalTarget(ClassType ct, boolean map) {
+    String n = ct.sym().binaryName();
+    if (n.equals("java/lang/Object")) {
+      return true;
+    }
+    var base = a.syms.lookup(map ? "java/util/Map" : "java/lang/Iterable");
+    return base != null && types().isSubtype(ct.erasure(), base.thisType().erasure());
+  }
+
+  /**
    * For a deferred lambda/method-ref argument whose parameter types are known, attributes it
    * speculatively and constrains the function type's return type. Returns true if new bounds were
    * added.
@@ -1482,6 +1503,19 @@ final class Calls {
   private boolean constrainDeferred(
       Expr e, Type pt, Infer inf, Map<TypeVarSymbol, Type> partial, Done polyDone, boolean eager) {
     Expr u = unwrap(e);
+    if ((u instanceof Expr.CollectionLiteral || u instanceof Expr.MapLiteral)
+        && inf.mentionsVars(pt)
+        && polyDone.result.add(u)) {
+      // A literal's own type (List<E> / Map<K, V>) constrains the parameter: f<T>(List<T>) with
+      // [1].
+      Attr.Speculation<BExpr> s = a.speculate(() -> a.value(u, null));
+      if (!s.hasErrors() && s.result() != null && !s.result().type().isError()) {
+        int before = boundsCount(inf);
+        inf.subtype(s.result().type(), pt);
+        return boundsCount(inf) > before;
+      }
+      return false;
+    }
     if (isPolyCandidate(u) && !isDeferred(u)) {
       if (!eager && inf.mentionsVars(Types.subst(pt, partial)) && !inf.isVar(pt)) {
         return false; // wait for the other arguments to resolve the target

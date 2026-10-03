@@ -1,0 +1,45 @@
+import java.util.*;
+var xs = [1, 2, 3];
+println(xs);
+List<String> names = ["ann", "bob"];
+println(names);
+Set<int> s = [3, 1, 3, 2];
+println(s);
+int[] arr = [4, 5];
+println(arr.length + arr[1]);
+var more = [0, ..xs, ..arr, 9];
+println(more);
+ArrayList<String> mutable = ["x"];
+mutable.add("y");
+println(mutable);
+var ages = {"ann": 31, "bob": 25};
+println(ages);
+println(ages.get("bob"));
+Map<String, List<int>> groups = {"odd": [1, 3], "even": [2]};
+println(groups);
+TreeMap<String, int> sorted = {"b": 2, "a": 1};
+println(sorted);
+int sum(List<int> nums) {
+    var t = 0;
+    foreach (var n in nums) t += n;
+    return t;
+}
+println(sum([1, 2, 3]));
+println([1.5, 2]);
+List<String> empty = [];
+println(empty.size());
+String? maybe = null;
+println([maybe, "z"]);
+println(List.copyOf(["k"]));
+// Literals are immutable unless the target is a mutable class.
+try {
+    xs.add(4);
+} catch (UnsupportedOperationException e) {
+    println("immutable");
+}
+var k = "a";
+try {
+    var dup = {k: 1, "a": 2};
+} catch (IllegalArgumentException e) {
+    println(e.getMessage());
+}

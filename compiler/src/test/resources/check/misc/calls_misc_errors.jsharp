@@ -19,4 +19,4 @@ int k = 5;
 k(1);                                                //~ JS0606
 var year = new java.util.Date().getYear();           //~ JS0639
 Object o = "x";
-if (o is [1, 2]) { }                                 //~ JS0658
+if (o is [1, 2]) { }                                 //~ JS0651

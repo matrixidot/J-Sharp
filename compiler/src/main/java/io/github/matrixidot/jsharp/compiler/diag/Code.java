@@ -116,6 +116,7 @@ public enum Code {
   INVALID_TUPLE_USE(656, "invalid tuple operation"),
   INVALID_ASYNC(657, "invalid async declaration"),
   UNSUPPORTED_FEATURE(658, "feature not supported"),
+  INVALID_LITERAL(659, "invalid collection literal"),
 
   // ---- flow ----
   UNINITIALIZED_VARIABLE(900, "variable might not be initialized"),

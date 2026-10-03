@@ -93,6 +93,29 @@ public sealed interface Expr extends Node {
     }
   }
 
+  /**
+   * {@code [a, b, ..xs]}: a target-typed collection literal (list, set, array or a concrete
+   * collection class); elements may be {@link Spread}s.
+   */
+  record CollectionLiteral(List<Expr> elements, Span span) implements Expr {
+    public CollectionLiteral {
+      elements = List.copyOf(elements);
+    }
+  }
+
+  /** {@code ..xs} inside a collection literal: all elements of an iterable or array. */
+  record Spread(Expr expr, Span span) implements Expr {}
+
+  /** {@code {k1: v1, k2: v2}}: a map literal (insertion-ordered, immutable unless target-typed). */
+  record MapLiteral(List<MapEntry> entries, Span span) implements Expr {
+    public MapLiteral {
+      entries = List.copyOf(entries);
+    }
+  }
+
+  /** One {@code key: value} entry of a map literal. */
+  record MapEntry(Expr key, Expr value, Span span) {}
+
   /** {@code {a, b, c}} in an array-initializer position. */
   record ArrayInit(List<Expr> elements, Span span) implements Expr {
     public ArrayInit {

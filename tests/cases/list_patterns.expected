@@ -1,0 +1,11 @@
+empty
+one: 7
+two: 1+2
+many: 1..4
+[b, c]
+starts with a
+does not end with z
+5 [6, 7]
+true
+xy2
+false
