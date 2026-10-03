@@ -1,0 +1,87 @@
+// Switches with >= 20 constant labels compile to tableswitch/lookupswitch (D065).
+String roman(int n) {
+    switch (n) {
+        case 1: return "I";
+        case 2: return "II";
+        case 3: return "III";
+        case 4: return "IV";
+        case 5: return "V";
+        case 6: return "VI";
+        case 7: return "VII";
+        case 8: return "VIII";
+        case 9: return "IX";
+        case 10: return "X";
+        case 11: return "XI";
+        case 12: return "XII";
+        case 13: return "XIII";
+        case 14: return "XIV";
+        case 15: return "XV";
+        case 16: return "XVI";
+        case 17: return "XVII";
+        case 18: return "XVIII";
+        case 19: return "XIX";
+        case 20: return "XX";
+        case 21: return "XXI";
+        default: return "?";
+    }
+}
+// Sparse keys: lookupswitch.
+int sparse(int k) => k switch {
+    7 => 0,
+    1007 => 1,
+    2007 => 2,
+    3007 => 3,
+    4007 => 4,
+    5007 => 5,
+    6007 => 6,
+    7007 => 7,
+    8007 => 8,
+    9007 => 9,
+    10007 => 10,
+    11007 => 11,
+    12007 => 12,
+    13007 => 13,
+    14007 => 14,
+    15007 => 15,
+    16007 => 16,
+    17007 => 17,
+    18007 => 18,
+    19007 => 19,
+    20007 => 20,
+    21007 => 21,
+    _ => -1,
+};
+char shift(char c) => c switch {
+    'a' => 'b',
+    'b' => 'c',
+    'c' => 'd',
+    'd' => 'e',
+    'e' => 'f',
+    'f' => 'g',
+    'g' => 'h',
+    'h' => 'i',
+    'i' => 'j',
+    'j' => 'k',
+    'k' => 'l',
+    'l' => 'm',
+    'm' => 'n',
+    'n' => 'o',
+    'o' => 'p',
+    'p' => 'q',
+    'q' => 'r',
+    'r' => 's',
+    's' => 't',
+    't' => 'u',
+    'u' => 'v',
+    'v' => 'w',
+    'w' => 'x',
+    'x' => 'y',
+    'y' => 'z',
+    _ => '*',
+};
+foreach (var n in new int[] { 1, 4, 9, 20, 21, 22, 0 }) print(roman(n) + " ");
+println();
+println(sparse(7) + " " + sparse(5007) + " " + sparse(21007) + " " + sparse(8));
+var sb = new StringBuilder();
+foreach (var c in "hal z".toCharArray()) sb.append(shift(c));
+println(sb);

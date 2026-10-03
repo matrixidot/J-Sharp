@@ -36,6 +36,11 @@ public class KernelBench {
   private String[] words;
   private Particle[] jsParticles;
   private JavaKernels.Particle[] javaParticles;
+  private int[] ops;
+  private String[] days;
+  private int[] wideOps;
+  private List<bench.Op> jsOps;
+  private List<JavaKernels.Op> javaOps;
 
   @Setup
   public void setup() {
@@ -51,6 +56,19 @@ public class KernelBench {
     words = new String[10_000];
     for (int i = 0; i < words.length; i++) {
       words[i] = "w" + r.nextInt(500);
+    }
+    ops = new int[10_000];
+    days = new String[10_000];
+    String[] names = {"mon", "tue", "wed", "thu", "fri", "sat", "sun", "xyz"};
+    for (int i = 0; i < ops.length; i++) {
+      ops[i] = r.nextInt(9);
+      days[i] = names[r.nextInt(names.length)];
+    }
+    jsOps = KernelsModule.makeOps(10_000);
+    javaOps = JavaKernels.makeOps(10_000);
+    wideOps = new int[10_000];
+    for (int i = 0; i < wideOps.length; i++) {
+      wideOps[i] = r.nextInt(33);
     }
     jsParticles = new Particle[1000];
     javaParticles = new JavaKernels.Particle[1000];
@@ -132,5 +150,65 @@ public class KernelBench {
   @Benchmark
   public double java_properties() {
     return JavaKernels.simulate(javaParticles, 10);
+  }
+
+  @Benchmark
+  public int jsharp_intSwitch() {
+    return KernelsModule.interpret(ops);
+  }
+
+  @Benchmark
+  public int java_intSwitch() {
+    return JavaKernels.interpret(ops);
+  }
+
+  @Benchmark
+  public int jsharp_stringSwitch() {
+    return KernelsModule.sumDays(days);
+  }
+
+  @Benchmark
+  public int java_stringSwitch() {
+    return JavaKernels.sumDays(days);
+  }
+
+  @Benchmark
+  public int jsharp_wideSwitch() {
+    return KernelsModule.wide(wideOps);
+  }
+
+  @Benchmark
+  public int java_wideSwitch() {
+    return JavaKernels.wide(wideOps);
+  }
+
+  @Benchmark
+  public int jsharp_widePatternSwitch() {
+    return KernelsModule.weighAll(jsOps);
+  }
+
+  @Benchmark
+  public int java_widePatternSwitch() {
+    return JavaKernels.weighAll(javaOps);
+  }
+
+  @Benchmark
+  public int jsharp_records() {
+    return KernelsModule.distinctPoints(10_000);
+  }
+
+  @Benchmark
+  public int java_records() {
+    return JavaKernels.distinctPoints(10_000);
+  }
+
+  @Benchmark
+  public long jsharp_asyncFanOut() {
+    return KernelsModule.fanOut(100).join();
+  }
+
+  @Benchmark
+  public long java_asyncFanOut() {
+    return JavaKernels.fanOut(100);
   }
 }

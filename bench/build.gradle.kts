@@ -15,6 +15,12 @@ val compileJSharp by tasks.registering(JavaExec::class) {
     inputs.dir("src/jsharp")
     outputs.dir(jsharpOut)
     args("build", "src/jsharp", "-d", jsharpOut.get().asFile.absolutePath)
+    // Compiler experiments: -Pjsharpc.jvmArgs="-Djsharp.switch.threshold=1"
+    val extra = providers.gradleProperty("jsharpc.jvmArgs").orNull
+    if (extra != null) {
+        jvmArgs(extra.split(" ").filter { it.isNotBlank() })
+        inputs.property("jsharpc.jvmArgs", extra)
+    }
     doFirst { delete(jsharpOut) }
 }
 

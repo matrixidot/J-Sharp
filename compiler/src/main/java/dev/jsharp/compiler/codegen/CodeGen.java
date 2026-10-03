@@ -316,10 +316,72 @@ final class CodeGen {
       case BStmt.Try t -> tryStmt(t);
       case BStmt.Sync sy -> sync(sy);
       case BStmt.Empty e -> {}
+      case BStmt.IntSwitch is -> {
+        line(is.span());
+        intSwitch(
+            is.selector(),
+            is.keys(),
+            is.bodies().size(),
+            i -> stmt(is.bodies().get(i)),
+            () -> {
+              if (is.defaultBody() != null) {
+                stmt(is.defaultBody());
+              }
+            });
+      }
       case BStmt.Foreach f -> throw new IllegalStateException("foreach not lowered");
       case BStmt.Using u -> throw new IllegalStateException("using not lowered");
       case BStmt.Switch sw -> throw new IllegalStateException("switch not lowered");
     }
+  }
+
+  /**
+   * {@code tableswitch} or {@code lookupswitch} over constant keys (javac's cost heuristic picks
+   * the instruction). Each case and the default run {@code body}; none fall through.
+   */
+  private void intSwitch(
+      BExpr selector,
+      List<List<Integer>> keys,
+      int n,
+      java.util.function.IntConsumer body,
+      Runnable defaultBody) {
+    expr(selector);
+    Label dflt = cb.newLabel();
+    Label end = cb.newLabel();
+    List<Label> labels = new ArrayList<>();
+    List<java.lang.classfile.instruction.SwitchCase> cases = new ArrayList<>();
+    long lo = Long.MAX_VALUE;
+    long hi = Long.MIN_VALUE;
+    for (int i = 0; i < n; i++) {
+      Label l = cb.newLabel();
+      labels.add(l);
+      targeted.add(l);
+      for (int k : keys.get(i)) {
+        cases.add(java.lang.classfile.instruction.SwitchCase.of(k, l));
+        lo = Math.min(lo, k);
+        hi = Math.max(hi, k);
+      }
+    }
+    targeted.add(dflt);
+    cases.sort(
+        java.util.Comparator.comparingInt(java.lang.classfile.instruction.SwitchCase::caseValue));
+    long count = cases.size();
+    long tableCost = 4 + (hi - lo + 1) + 3 * 3;
+    long lookupCost = 3 + 2 * count + 3 * count;
+    if (count > 0 && tableCost <= lookupCost) {
+      cb.tableswitch((int) lo, (int) hi, dflt, cases);
+    } else {
+      cb.lookupswitch(dflt, cases);
+    }
+    reachable = false;
+    for (int i = 0; i < n; i++) {
+      bind(labels.get(i));
+      body.accept(i);
+      jump(end);
+    }
+    bind(dflt);
+    defaultBody.run();
+    bind(end);
   }
 
   /** Emits cleanups (innermost first) down to {@code depth}, without removing them. */
@@ -547,6 +609,13 @@ final class CodeGen {
       }
       case BExpr.Concat c -> concat(c.parts());
       case BExpr.Indy i -> indy(i);
+      case BExpr.IntSwitch is ->
+          intSwitch(
+              is.selector(),
+              is.keys(),
+              is.values().size(),
+              i -> expr(is.values().get(i)),
+              () -> expr(is.defaultValue()));
       case BExpr.ClassLit cl -> classLit(cl.target());
       case BExpr.Let l -> {
         expr(l.init());

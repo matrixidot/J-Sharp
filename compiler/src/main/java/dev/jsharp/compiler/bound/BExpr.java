@@ -277,6 +277,16 @@ public sealed interface BExpr {
     NEW
   }
 
+  /** Expression form of {@link BStmt.IntSwitch} (produced by lowering). */
+  record IntSwitch(
+      BExpr selector,
+      List<List<Integer>> keys,
+      List<BExpr> values,
+      BExpr defaultValue,
+      Type type,
+      Span span)
+      implements BExpr {}
+
   /**
    * A lowered lambda or method reference: {@code invokedynamic} through {@code LambdaMetafactory}.
    *

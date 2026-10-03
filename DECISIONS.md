@@ -226,3 +226,17 @@ Format: **decision** — reason. *Rejected:* alternatives.
   J# code can run: `jsharp.core` (Prelude, Task, tuples, Result) and the `jsharp.lang` metadata
   annotations. The runtime build compiles the J# half with the compiler's batch entry point, so
   the compiler never depends on the CLI or on itself.
+- **D065: Constant switches.** A switch on `int`/`char`/`short`/`byte` whose labels are all
+  constants (no guards) compiles to `tableswitch`/`lookupswitch` (javac's cost heuristic) only when
+  it has at least 20 labels; smaller ones compile to compare chains, which C2 handles better:
+  with uniformly random selectors, a 9-label switch ran in 80 µs as a chain vs 144 µs as a
+  `tableswitch` (javac's choice), and a 32-label switch in 236 vs 184 µs (KernelBench
+  `intSwitch`/`wideSwitch`; threshold overridable with `-Djsharp.switch.threshold=N` for
+  experiments). String switches stay `equals` chains (211 vs javac's hashCode switch 251 µs for 8
+  short labels); enum switches compare constants by identity, so separately compiled enums that
+  reorder constants never break callers (javac needs a `$SwitchMap` class for that).
+- **D066: Type-pattern switches compile to `instanceof` chains, never `SwitchBootstraps.typeSwitch`.**
+  Spec 6 asked for a benchmark-based threshold; none was found. Chains beat javac's `typeSwitch`
+  at 3 cases (19.3 vs 20.3 µs) and at 10 cases (169 vs 184 µs; KernelBench
+  `patternSwitch`/`widePatternSwitch`, uniformly random subtypes). Chains also need no
+  bootstrap or linkage at first use.

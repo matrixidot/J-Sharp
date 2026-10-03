@@ -80,3 +80,151 @@ public static double simulate(Particle[] ps, int steps) {
     foreach (var p in ps) sum += p.x + p.y;
     return sum;
 }
+
+/** A dense int switch (opcode-interpreter style), summed over a program. */
+public static int interpret(int[] ops) {
+    var acc = 0;
+    foreach (var op in ops) {
+        switch (op) {
+            case 0: acc += 1; break;
+            case 1: acc -= 1; break;
+            case 2: acc *= 2; break;
+            case 3: acc /= 2; break;
+            case 4: acc ^= 0x5f; break;
+            case 5: acc = acc << 1; break;
+            case 6: acc = acc >> 1; break;
+            case 7: acc += 7; break;
+            default: acc = 0; break;
+        }
+    }
+    return acc;
+}
+
+public static int dayNumber(String day) => day switch {
+    "mon" => 1, "tue" => 2, "wed" => 3, "thu" => 4, "fri" => 5, "sat" => 6, "sun" => 7, _ => 0,
+};
+
+public static int sumDays(String[] days) {
+    var total = 0;
+    foreach (var d in days) total += dayNumber(d);
+    return total;
+}
+
+/** A 32-case int switch (for the tableswitch threshold). */
+public static int wide(int[] ops) {
+    var acc = 0;
+    foreach (var op in ops) {
+        switch (op) {
+            case 0: acc += 3; break;
+            case 1: acc += 10; break;
+            case 2: acc += 17; break;
+            case 3: acc += 24; break;
+            case 4: acc += 31; break;
+            case 5: acc += 38; break;
+            case 6: acc += 45; break;
+            case 7: acc += 52; break;
+            case 8: acc += 59; break;
+            case 9: acc += 66; break;
+            case 10: acc += 73; break;
+            case 11: acc += 80; break;
+            case 12: acc += 87; break;
+            case 13: acc += 94; break;
+            case 14: acc += 101; break;
+            case 15: acc += 108; break;
+            case 16: acc += 115; break;
+            case 17: acc += 122; break;
+            case 18: acc += 129; break;
+            case 19: acc += 136; break;
+            case 20: acc += 143; break;
+            case 21: acc += 150; break;
+            case 22: acc += 157; break;
+            case 23: acc += 164; break;
+            case 24: acc += 171; break;
+            case 25: acc += 178; break;
+            case 26: acc += 185; break;
+            case 27: acc += 192; break;
+            case 28: acc += 199; break;
+            case 29: acc += 206; break;
+            case 30: acc += 213; break;
+            case 31: acc += 220; break;
+            default: acc = 0; break;
+        }
+    }
+    return acc;
+}
+
+// A 10-type sealed hierarchy for the instanceof-chain vs typeSwitch decision (D066).
+public sealed interface Op permits Op0, Op1, Op2, Op3, Op4, Op5, Op6, Op7, Op8, Op9;
+public record Op0(int v) : Op;
+public record Op1(int v) : Op;
+public record Op2(int v) : Op;
+public record Op3(int v) : Op;
+public record Op4(int v) : Op;
+public record Op5(int v) : Op;
+public record Op6(int v) : Op;
+public record Op7(int v) : Op;
+public record Op8(int v) : Op;
+public record Op9(int v) : Op;
+public static int weigh(Op op) => op switch {
+    Op0 o => o.v * 1,
+    Op1 o => o.v * 2,
+    Op2 o => o.v * 3,
+    Op3 o => o.v * 4,
+    Op4 o => o.v * 5,
+    Op5 o => o.v * 6,
+    Op6 o => o.v * 7,
+    Op7 o => o.v * 8,
+    Op8 o => o.v * 9,
+    Op9 o => o.v * 10,
+};
+public static int weighAll(List<Op> ops) {
+    var t = 0;
+    foreach (var o in ops) t += weigh(o);
+    return t;
+}
+public static List<Op> makeOps(int count) {
+    var out = new ArrayList<Op>();
+    var rnd = new Random(3);
+    for (int i = 0; i < count; i++) {
+        val k = rnd.nextInt(10);
+        out.add(switch (k) {
+            0 => new Op0(i % 13),
+            1 => new Op1(i % 13),
+            2 => new Op2(i % 13),
+            3 => new Op3(i % 13),
+            4 => new Op4(i % 13),
+            5 => new Op5(i % 13),
+            6 => new Op6(i % 13),
+            7 => new Op7(i % 13),
+            8 => new Op8(i % 13),
+            9 => new Op9(i % 13),
+            _ => new Op0(0),
+        });
+    }
+    return out;
+}
+
+public record Point3(int x, int y, int z);
+
+/** Record equals/hashCode through a HashSet (ObjectMethods-generated methods). */
+public static int distinctPoints(int n) {
+    var set = new HashSet<Point3>();
+    for (int i = 0; i < n; i++) set.add(new Point3(i % 50, i % 30, i % 7));
+    return set.size();
+}
+
+/** Async fan-out: start n tasks on virtual threads and await them all. */
+public static async Task<long> fanOut(int n) {
+    var tasks = new ArrayList<Task<long>>();
+    for (int i = 0; i < n; i++) {
+        val k = i;
+        tasks.add(Task.run(() => {
+            long s = 0;
+            for (int j = 0; j < 1000; j++) s += j ^ k;
+            return s;
+        }));
+    }
+    long total = 0;
+    foreach (var t in tasks) total += await t;
+    return total;
+}

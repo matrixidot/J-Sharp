@@ -87,6 +87,19 @@ public sealed interface BStmt {
   /** {@code lock (monitor) body}. */
   record Sync(BExpr monitor, BStmt body, Span span) implements BStmt {}
 
+  /**
+   * A switch on an int-like value with constant labels only (produced by lowering; compiled to
+   * {@code tableswitch}/{@code lookupswitch}). {@code keys.get(i)} are the labels of {@code
+   * bodies.get(i)}; {@code defaultBody} may be null. Bodies never fall through.
+   */
+  record IntSwitch(
+      BExpr selector,
+      java.util.List<java.util.List<Integer>> keys,
+      java.util.List<BStmt> bodies,
+      BStmt defaultBody,
+      Span span)
+      implements BStmt {}
+
   /** A switch statement over a decision structure. */
   record Switch(BSwitch sw, Label label, Span span) implements BStmt {}
 

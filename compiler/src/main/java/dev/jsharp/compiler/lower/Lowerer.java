@@ -935,6 +935,7 @@ public final class Lowerer {
       case BStmt.Sync sy -> new BStmt.Sync(lx(sy.monitor()), ls(sy.body()), sy.span());
       case BStmt.Switch sw -> switchStmt(sw);
       case BStmt.Empty e -> e;
+      case BStmt.IntSwitch is -> is;
     };
   }
 
@@ -1245,9 +1246,79 @@ public final class Lowerer {
 
   // ------------------------------------------------------------------ switch & patterns
 
+  /**
+   * Minimum number of constant labels for which an int switch compiles to {@code
+   * tableswitch}/{@code lookupswitch}; below it, a compare chain is faster (D065).
+   */
+  static final int SWITCH_INSTRUCTION_THRESHOLD = Integer.getInteger("jsharp.switch.threshold", 20);
+
+  /** Labels per case if {@code s} can be an int switch instruction, else null. */
+  private static List<List<Integer>> intSwitchKeys(BSwitch s) {
+    if (!(s.selectorType() instanceof PrimType p)
+        || !(p == PrimType.INT
+            || p == PrimType.CHAR
+            || p == PrimType.SHORT
+            || p == PrimType.BYTE)) {
+      return null;
+    }
+    List<List<Integer>> keys = new ArrayList<>();
+    java.util.Set<Integer> seen = new java.util.HashSet<>();
+    int total = 0;
+    for (BSwitch.Case c : s.cases()) {
+      if (c.pattern() == null) {
+        continue;
+      }
+      List<Integer> ks = new ArrayList<>();
+      if (c.guard() != null || !constantKeys(c.pattern(), ks)) {
+        return null;
+      }
+      for (int k : ks) {
+        if (!seen.add(k)) {
+          return null;
+        }
+      }
+      keys.add(ks);
+      total += ks.size();
+    }
+    return total >= SWITCH_INSTRUCTION_THRESHOLD ? keys : null;
+  }
+
+  private static boolean constantKeys(BPattern p, List<Integer> out) {
+    return switch (p) {
+      case BPattern.Constant c when c.value() instanceof BExpr.Const k -> {
+        Object v = k.value();
+        if (v instanceof Character ch) {
+          out.add((int) ch);
+          yield true;
+        }
+        if (v instanceof Integer || v instanceof Short || v instanceof Byte) {
+          out.add(((Number) v).intValue());
+          yield true;
+        }
+        yield false;
+      }
+      case BPattern.Or or -> constantKeys(or.left(), out) && constantKeys(or.right(), out);
+      default -> false;
+    };
+  }
+
   private BStmt switchStmt(BStmt.Switch sw) {
     BSwitch s = sw.sw();
     Span span = sw.span();
+    List<List<Integer>> intKeys = intSwitchKeys(s);
+    if (intKeys != null) {
+      List<BStmt> bodies = new ArrayList<>();
+      BStmt dflt = null;
+      for (BSwitch.Case c : s.cases()) {
+        if (c.pattern() == null) {
+          dflt = new BStmt.Block(lsAll(c.body()), span);
+        } else {
+          bodies.add(new BStmt.Block(lsAll(c.body()), span));
+        }
+      }
+      return new BStmt.Labeled(
+          sw.label(), new BStmt.IntSwitch(lx(s.selector()), intKeys, bodies, dflt, span), span);
+    }
     VarSymbol sel = s.selectorVar();
     List<BStmt> out = new ArrayList<>();
     out.add(new BStmt.LocalDecl(sel, lx(s.selector()), span));
@@ -1283,6 +1354,22 @@ public final class Lowerer {
   private BExpr switchExpr(BExpr.Switch sx) {
     BSwitch s = sx.sw();
     Span span = sx.span();
+    List<List<Integer>> intKeys = intSwitchKeys(s);
+    if (intKeys != null) {
+      List<BExpr> values = new ArrayList<>();
+      BExpr dflt = null;
+      for (BSwitch.Case c : s.cases()) {
+        if (c.pattern() == null) {
+          dflt = adapt(lx(c.value()), sx.type());
+        } else {
+          values.add(adapt(lx(c.value()), sx.type()));
+        }
+      }
+      if (dflt == null) {
+        dflt = new BExpr.Throw(matchException(span), sx.type(), span);
+      }
+      return new BExpr.IntSwitch(lx(s.selector()), intKeys, values, dflt, sx.type(), span);
+    }
     VarSymbol sel = s.selectorVar();
     BExpr chain = null;
     for (BSwitch.Case c : s.cases()) {
@@ -1526,6 +1613,7 @@ public final class Lowerer {
       case BExpr.Switch sx -> switchExpr(sx);
       case BExpr.IsPattern ip -> isPattern(ip);
       case BExpr.Nop n -> n;
+      case BExpr.IntSwitch is -> is;
       case BExpr.Indy i -> i;
       case BExpr.Error err ->
           throw new IllegalStateException(
