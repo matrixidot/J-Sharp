@@ -240,3 +240,11 @@ Format: **decision** — reason. *Rejected:* alternatives.
   at 3 cases (19.3 vs 20.3 µs) and at 10 cases (169 vs 184 µs; KernelBench
   `patternSwitch`/`widePatternSwitch`, uniformly random subtypes). Chains also need no
   bootstrap or linkage at first use.
+- **D067: Startup and compiler speed.** The Unix launcher uses a class-data-sharing archive that
+  the JVM creates on first run in `${XDG_CACHE_HOME:-~/.cache}/jsharp` (only when writable: the
+  JVM aborts if it cannot write the archive; `JSHARP_NO_CDS=1` disables it). Cold `jsharp check`
+  of a small file takes ~0.26 s instead of ~0.37 s. C1-only compilation (`TieredStopAtLevel=1`)
+  would shave a little more but would slow user programs started by `jsharp run`, so it is not
+  used. A warm in-process compile of the generated 10k-line project (`scripts/gen_project.py`)
+  takes ~0.4 s through codegen; `CompilerSpeedTest` fails above 2 s. `-Djsharp.timings=true`
+  prints per-phase times.

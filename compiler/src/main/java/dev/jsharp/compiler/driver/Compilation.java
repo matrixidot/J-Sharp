@@ -94,11 +94,13 @@ public final class Compilation {
   public boolean analyze() {
     return guarded(
         () -> {
+          long t = System.nanoTime();
           for (SourceFile f : sources) {
             currentFile = f;
             units.add(Parser.parse(f, diags));
           }
           currentFile = null;
+          t = phase("parse", t);
           if (diags.hasErrors()) {
             return;
           }
@@ -106,11 +108,13 @@ public final class Compilation {
           memberEnter = new MemberEnter(ctx);
           enter = new Enter(ctx, memberEnter);
           enter.enterAll(units);
+          t = phase("enter", t);
           if (diags.hasErrors()) {
             return;
           }
           attr = new Attr(ctx, memberEnter);
           checked = ClassChecker.checkAll(attr, enter.enteredClasses());
+          phase("check", t);
         });
   }
 
@@ -127,10 +131,12 @@ public final class Compilation {
     }
     return guarded(
         () -> {
+          long t = System.nanoTime();
           var types = attr.types();
           var lowerer =
               new dev.jsharp.compiler.lower.Lowerer(ctx, types, attr.anonymousSuperConstructors());
           List<BClass> lowered = lowerer.lowerAll(checked);
+          t = phase("lower", t);
           java.util.Map<
                   dev.jsharp.compiler.symbols.ClassSymbol,
                   List<dev.jsharp.compiler.symbols.ClassSymbol>>
@@ -153,8 +159,10 @@ public final class Compilation {
             }
           }
           currentFile = null;
+          t = phase("codegen", t);
           if (options.outputDir() != null) {
             writeClassFiles(options.outputDir());
+            phase("write", t);
           }
         });
   }
@@ -201,6 +209,17 @@ public final class Compilation {
    * Runs {@code body}, converting unexpected compiler exceptions into an internal-error diagnostic
    * (never a stack trace for the user).
    */
+  private static final boolean TIMINGS = Boolean.getBoolean("jsharp.timings");
+
+  /** With {@code -Djsharp.timings=true}, prints the duration of a phase to stderr. */
+  private static long phase(String name, long start) {
+    long now = System.nanoTime();
+    if (TIMINGS) {
+      System.err.printf("[jsharp] %-8s %6.1f ms%n", name, (now - start) / 1e6);
+    }
+    return now;
+  }
+
   private boolean guarded(Runnable body) {
     try {
       body.run();

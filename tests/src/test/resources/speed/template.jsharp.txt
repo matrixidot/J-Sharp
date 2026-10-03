@@ -1,0 +1,114 @@
+package gen.p@I@;
+
+import java.util.*;
+import java.util.function.*;
+@IMP@
+
+public sealed interface Shape@I@ permits Circle@I@, Rect@I@, Tri@I@;
+public record Circle@I@(double r) : Shape@I@;
+public record Rect@I@(double w, double h) : Shape@I@;
+public record Tri@I@(double b, double h) : Shape@I@;
+
+public enum Level@I@ { Low, Mid, High }
+
+public class Store@I@<T : Comparable<T>> {
+    private final ArrayList<T> items = new ArrayList<>();
+    public String name { get; set; } = "store@I@";
+    public int size => items.size();
+    public Level@I@ level { get; set; } = Level@I@.Low;
+
+    public void add(T item) {
+        items.add(item);
+        level = items.size() > 10 ? Level@I@.High : items.size() > 3 ? Level@I@.Mid : Level@I@.Low;
+    }
+
+    public T? best() => items.isEmpty() ? null : items.orderByDescending(x => x).first();
+
+    public List<R> mapAll<R>(Function<T, R> f) => items.select(f).toList();
+
+    public int countWhere(Predicate<T> p) => items.count(p);
+}
+
+public static double area@I@(Shape@I@ s) => s switch {
+    Circle@I@ c => Math.PI * c.r * c.r,
+    Rect@I@(var w, var h) => w * h,
+    Tri@I@ t when t.b > 0 => 0.5 * t.b * t.h,
+    Tri@I@ t => 0,
+};
+
+public static String describe@I@(Level@I@ l) {
+    switch (l) {
+        case Low: return "low";
+        case Mid: return "mid";
+        case High: return "high";
+    }
+    return "?";
+}
+
+public static int score@I@(int n) {
+    var total = 0;
+    for (int k = 0; k < n; k++) {
+        total += switch (k % 5) {
+            0 => k,
+            1 => k * 2,
+            2 => -k,
+            3 => k / 2,
+            _ => 1,
+        };
+        if (total > 1000) total -= 1000;
+    }
+    return total;
+}
+
+public static String report@I@(List<Shape@I@> shapes) {
+    var sb = new StringBuilder();
+    var total = shapes.sumDouble(s => area@I@(s));
+    var big = shapes.where(s => area@I@(s) > 10).count();
+    sb.append($"total={total:F2} big={big}");
+    foreach (var g in shapes.groupBy(s => s.getClass().getSimpleName()).entrySet()) {
+        sb.append($" {g.getKey()}:{g.getValue().size()}");
+    }
+    return sb.toString();
+}
+
+public static Map<String, Integer> wordFreq@I@(String text) {
+    var counts = new TreeMap<String, Integer>();
+    foreach (var w in text.toLowerCase().split("\\s+")) {
+        if (w.isEmpty()) continue;
+        counts.merge(w, 1, Integer::sum);
+    }
+    return counts;
+}
+
+public static (int, String) pair@I@(int x) => (x * 2, $"v{x}");
+
+public static Optional<String> find@I@(List<String> xs, String prefix) =>
+    xs.stream().filter(s => s.startsWith(prefix)).findFirst();
+
+public static int chain@I@(int x) {
+    @CHAIN@
+}
+
+public class Node@I@ {
+    public int value { get; init; }
+    public Node@I@? next { get; set; }
+    public int length() {
+        var n = 1;
+        var cur = next;
+        while (cur != null) {
+            n++;
+            cur = cur.next;
+        }
+        return n;
+    }
+}
+
+public static int useStore@I@() {
+    var s = new Store@I@<String>();
+    s.add("b");
+    s.add("a");
+    s.name = "named";
+    var lens = s.mapAll(x => x.length());
+    var (twice, label) = pair@I@(lens.size());
+    return twice + label.length() + s.countWhere(x => x.compareTo("a") > 0) + (s.best()?.length() ?? 0);
+}
