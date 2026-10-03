@@ -7,7 +7,7 @@ public record Point(int x, int y) {
 }
 
 public record Range(int lo, int hi) {
-    public Range {
+    init {
         if (lo > hi) {
             throw new IllegalArgumentException("lo > hi");
         }
@@ -16,7 +16,7 @@ public record Range(int lo, int hi) {
 }
 
 public record Email(String address) {
-    public Email {
+    init {
         require(address.contains("@"));
     }
     public String address() => address.toLowerCase();

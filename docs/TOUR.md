@@ -249,7 +249,7 @@ work as in Java.
 
 ```jsharp
 public record Point(int x, int y) {
-    public Point {                                 // compact constructor
+    init {                                 // runs before the fields are set: validate or normalize
         require(x >= 0 && y >= 0, "coordinates must be non-negative");
     }
     public double length() => Math.sqrt(x * x + y * y);

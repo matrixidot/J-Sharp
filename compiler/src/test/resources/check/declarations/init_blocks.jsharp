@@ -1,0 +1,28 @@
+// `init { }` validates/normalizes record components and is an instance initializer in classes.
+public record Range(int lo, int hi) {
+    init {
+        require(lo <= hi, "lo must not exceed hi");
+    }
+}
+public record Name(String value) {
+    init {
+        value = value.trim();                 // reassigning a component parameter normalizes it
+    }
+}
+public class Counter {
+    private int n;
+    init {
+        n = 10;
+    }
+    public Counter() { }
+    public int get() => n;
+}
+public record Old(int x) {
+    public Old {                              //~ JS0113
+        require(x > 0, "positive");
+    }
+}
+public record Mods(int x) {
+    public init {                             //~ JS0113
+    }
+}

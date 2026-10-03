@@ -5,7 +5,7 @@ import java.util.*;
 
 /** An amount of money in cents, in a single currency. */
 public record Money(long cents, String currency) : Comparable<Money> {
-    public Money {
+    init {
         require(currency.length() == 3, $"currency code must have 3 letters: '{currency}'");
     }
 

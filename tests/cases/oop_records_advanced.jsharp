@@ -4,7 +4,7 @@ import java.util.function.Function;
 public interface HasArea { double area(); }
 
 public record Rect(double w, double h) : HasArea {
-    public Rect {
+    init {
         if (w < 0 || h < 0) throw new IllegalArgumentException("negative: " + w + "x" + h);
     }
     public Rect(double side) { this(side, side); }
@@ -18,7 +18,7 @@ public record Pair<A, B>(A first, B second) {
 }
 
 public record Name(String first, String last) {
-    public Name {
+    init {
         first = first.trim();
         last = last.trim();
     }

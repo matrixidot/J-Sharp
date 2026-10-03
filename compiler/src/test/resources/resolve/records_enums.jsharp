@@ -1,7 +1,7 @@
 public record Point(int x, int y);
 
 public record Person(String name, int age) {
-    public Person { require(age >= 0); }
+    init { require(age >= 0); }
     public String describe() => $"{name} ({age})";
     public String name() => name.toUpperCase();
 }

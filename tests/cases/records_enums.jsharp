@@ -1,5 +1,5 @@
 public record Point(int x, int y) {
-    public Point { require(x >= 0, "x must be >= 0"); }
+    init { require(x >= 0, "x must be >= 0"); }
     public double distance() => Math.sqrt(x * x + y * y);
     public static Point origin() => new Point(0, 0);
 }

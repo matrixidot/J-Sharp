@@ -5,7 +5,7 @@ public record Point(int x, int y) {
 }
 
 public record User(String name, int age) {
-    public User {
+    init {
         if (age < 0) {
             age = 0;
         }

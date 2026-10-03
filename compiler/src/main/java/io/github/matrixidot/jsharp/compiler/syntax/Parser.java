@@ -420,6 +420,25 @@ public final class Parser extends StmtParser {
         || (t.isContextual("record") && peek(1).is(IDENTIFIER))) {
       return parseTypeDecl(mods);
     }
+    if (className != null && t.isContextual("init") && peek(1).is(LBRACE)) {
+      // `init { ... }`: a record's compact constructor (validate or normalize the components),
+      // or an instance initializer of a class (runs in every constructor). D076.
+      advance();
+      for (Modifiers.Item item : mods.list()) {
+        errorAlways(Code.UNEXPECTED_TOKEN, item.span(), "'init' blocks take no modifiers");
+      }
+      Stmt.Block body = parseBlock();
+      if (ownerKind == Decl.TypeKind.RECORD) {
+        Modifiers pub =
+            new Modifiers(
+                List.of(new Modifiers.Item(Modifier.PUBLIC, t.span())),
+                mods.annotations(),
+                t.span());
+        return new Decl.Constructor(
+            pub, className, t.span(), null, new Body.Block(body), spanFrom(declStart));
+      }
+      return new Decl.Initializer(false, body, spanFrom(declStart));
+    }
     if (t.is(LBRACE) && className != null) {
       Stmt.Block body = parseBlock();
       for (Modifiers.Item item : mods.list()) {
@@ -439,6 +458,11 @@ public final class Parser extends StmtParser {
       }
       if (peek(1).is(LBRACE) && ownerKind == Decl.TypeKind.RECORD) {
         advance();
+        errorAlways(
+            Code.UNEXPECTED_TOKEN,
+            t.span(),
+            "record validation is written 'init { ... }'",
+            "replace '" + className + " {' with 'init {'");
         Stmt.Block body = parseBlock();
         return new Decl.Constructor(
             mods, className, t.span(), null, new Body.Block(body), spanFrom(declStart));

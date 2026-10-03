@@ -296,3 +296,9 @@ Format: **decision** — reason. *Rejected:* alternatives.
   error, JS0410 "J# uses 'base' instead of 'open'", parsed as `base` so nothing else cascades.
   `base` is contextual, so it stays usable as an identifier. J# keeps Java's `super` for calls to
   the superclass, so `base` has no second meaning (unlike C#'s `base.Method()`).
+- **D076: `init { ... }` blocks** (owner's choice, replacing Java's compact constructor syntax
+  `public Point { ... }`, which now reports JS0113 with a fix). In a record, `init` is the compact
+  canonical constructor (public): it runs before the fields are assigned and may validate or
+  reassign the component parameters. In a class, it is an instance initializer that runs in
+  every constructor, like Kotlin's `init`. `init` blocks take no modifiers; `init` stays
+  contextual (it is also the init-only property accessor).
