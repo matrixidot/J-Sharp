@@ -1070,19 +1070,69 @@ public final class Lowerer {
 
   private BStmt tryStmt(BStmt.Try t) {
     List<BStmt.Catch> catches = new ArrayList<>();
-    for (BStmt.Catch c : t.catches()) {
-      BStmt body = ls(c.body());
-      if (c.filter() != null) {
-        // `catch (E e) when (cond)`: rethrow when the filter does not match.
-        BStmt rethrow = new BStmt.Throw(new BExpr.Local(c.var(), c.span()), c.span());
-        BExpr notCond = new BExpr.Unary(BExpr.UnOp.NOT, lx(c.filter()), PrimType.BOOLEAN, c.span());
-        body =
-            new BStmt.Block(
-                List.of(new BStmt.If(notCond, rethrow, null, c.span()), body), c.span());
+    if (t.catches().stream().anyMatch(c -> c.filter() != null)) {
+      catches.add(filteredCatches(t.catches(), t.span()));
+    } else {
+      for (BStmt.Catch c : t.catches()) {
+        catches.add(new BStmt.Catch(c.types(), c.var(), null, ls(c.body()), c.span()));
       }
-      catches.add(new BStmt.Catch(c.types(), c.var(), null, body, c.span()));
     }
     return new BStmt.Try(ls(t.body()), catches, ls(t.finallyBody()), t.span());
+  }
+
+  /**
+   * Catch clauses with exception filters become one handler for all their types that tests the
+   * clauses in order (type, then filter) and rethrows when none matches:
+   *
+   * <pre>
+   * catch (A | B $ex) {
+   *   matched: {
+   *     if ($ex is A) { A e = (A) $ex; if (filter) { body; break matched; } }
+   *     if ($ex is B) { B e = (B) $ex; body2; break matched; }
+   *     throw $ex;
+   *   }
+   * }
+   * </pre>
+   *
+   * A false filter therefore falls through to the later clauses (D050).
+   */
+  private BStmt.Catch filteredCatches(List<BStmt.Catch> clauses, Span span) {
+    List<ClassType> all = new ArrayList<>();
+    for (BStmt.Catch c : clauses) {
+      for (ClassType ct : c.types()) {
+        if (all.stream().noneMatch(x -> x.sym() == ct.sym())) {
+          all.add(ct);
+        }
+      }
+    }
+    VarSymbol ex = temp("ex", syms.throwableType(), span);
+    BStmt.Label matched = new BStmt.Label(null);
+    List<BStmt> tests = new ArrayList<>();
+    for (BStmt.Catch c : clauses) {
+      BExpr isType = null;
+      for (ClassType ct : c.types()) {
+        BExpr test =
+            new BExpr.InstanceOf(new BExpr.Local(ex, span), ct.erasure(), PrimType.BOOLEAN, span);
+        isType =
+            isType == null
+                ? test
+                : new BExpr.Binary(BinOp.COND_OR, isType, test, PrimType.BOOLEAN, false, span);
+      }
+      Type varType = c.var().type();
+      BStmt bind =
+          new BStmt.LocalDecl(
+              c.var(),
+              new BExpr.Conv(new BExpr.Local(ex, span), ConvKind.CHECKCAST, varType, span),
+              span);
+      BStmt run = new BStmt.Block(List.of(ls(c.body()), new BStmt.Break(matched, span)), span);
+      if (c.filter() != null) {
+        run = new BStmt.If(lx(c.filter()), run, null, c.span());
+      }
+      tests.add(new BStmt.If(isType, new BStmt.Block(List.of(bind, run), span), null, c.span()));
+    }
+    tests.add(new BStmt.Throw(new BExpr.Local(ex, span), span));
+    BStmt body = new BStmt.Labeled(matched, new BStmt.Block(tests, span), span);
+    return new BStmt.Catch(all, ex, null, body, span);
   }
 
   /**
@@ -1695,7 +1745,8 @@ public final class Lowerer {
   private BExpr mathExact(String name, List<BExpr> args, PrimType t, Span span) {
     ClassSymbol math = syms.lookup("java/lang/Math");
     for (MethodSymbol m : math.methods(name)) {
-      if (m.params().size() == args.size() && m.params().getFirst().type() == t) {
+      // All parameters must match: Math.multiplyExact(long, int) exists beside (long, long).
+      if (m.params().size() == args.size() && m.params().stream().allMatch(p -> p.type() == t)) {
         return new BExpr.Call(null, m, args, CallKind.STATIC, t, span);
       }
     }
@@ -1833,7 +1884,9 @@ public final class Lowerer {
             p.extraArgs(),
             p.getter().isStatic()
                 ? CallKind.STATIC
-                : p.getter().owner().isInterface() ? CallKind.INTERFACE : CallKind.VIRTUAL,
+                : p.kind() == CallKind.SPECIAL
+                    ? CallKind.SPECIAL
+                    : p.getter().owner().isInterface() ? CallKind.INTERFACE : CallKind.VIRTUAL,
             p.type(),
             span);
       }
@@ -1862,7 +1915,9 @@ public final class Lowerer {
     CallKind kind =
         p.setter().isStatic()
             ? CallKind.STATIC
-            : p.setter().owner().isInterface() ? CallKind.INTERFACE : CallKind.VIRTUAL;
+            : p.kind() == CallKind.SPECIAL
+                ? CallKind.SPECIAL // super.p = v
+                : p.setter().owner().isInterface() ? CallKind.INTERFACE : CallKind.VIRTUAL;
     Type ret = p.setter().returnType() == null ? PrimType.VOID : p.setter().returnType();
     return new BExpr.Call(p.setter().isStatic() ? null : recv, p.setter(), args, kind, ret, span);
   }

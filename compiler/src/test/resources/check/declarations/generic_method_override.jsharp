@@ -1,0 +1,9 @@
+// Overriding a generic method: the overrider's type parameters replace the overridden ones.
+interface Visitor<R> { R num(int n); }
+interface Node { R accept<R>(Visitor<R> v); }
+class Leaf : Node {
+    public override R accept<R>(Visitor<R> v) => v.num(1);
+}
+interface Id { R f<R>(R x); }
+class IdImpl : Id { public override R f<R>(R x) => x; }
+class Bad : Id { public override String f<R>(R x) => "s"; }   //~ JS0600

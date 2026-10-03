@@ -1,0 +1,69 @@
+import java.util.*;
+
+public interface Visitor<R> {
+    R visitLeaf(Leaf l);
+    R visitNode(Node n);
+}
+
+public interface Tree {
+    R accept<R>(Visitor<R> v);
+    default int size() => accept(new SizeVisitor());
+}
+
+public abstract class AbstractTree : Tree {
+    public override String toString() => accept(new ShowVisitor());
+}
+
+public class Leaf : AbstractTree {
+    public final int value;
+    public Leaf(int value) { this.value = value; }
+    public override R accept<R>(Visitor<R> v) => v.visitLeaf(this);
+}
+
+public class Node : AbstractTree {
+    public final Tree left;
+    public final Tree right;
+    public Node(Tree left, Tree right) { this.left = left; this.right = right; }
+    public override R accept<R>(Visitor<R> v) => v.visitNode(this);
+}
+
+public class SizeVisitor : Visitor<Integer> {
+    public override Integer visitLeaf(Leaf l) => 1;
+    public override Integer visitNode(Node n) => n.left.accept(this) + n.right.accept(this);
+}
+
+public class ShowVisitor : Visitor<String> {
+    public override String visitLeaf(Leaf l) => "" + l.value;
+    public override String visitNode(Node n) => "(" + n.left.accept(this) + " " + n.right.accept(this) + ")";
+}
+
+public class SumVisitor : Visitor<Long> {
+    public override Long visitLeaf(Leaf l) => (long) l.value;
+    public override Long visitNode(Node n) => n.left.accept(this) + n.right.accept(this);
+}
+
+public static List<T> repeat<T>(T x, int n) {
+    var out = new ArrayList<T>();
+    for (int i = 0; i < n; i++) out.add(x);
+    return out;
+}
+
+public static Map<K, List<V>> groupBy<K, V>(List<V> xs, java.util.function.Function<V, K> key) {
+    var m = new TreeMap<K, List<V>>();
+    foreach (var x in xs) m.computeIfAbsent(key.apply(x), k => new ArrayList<V>()).add(x);
+    return m;
+}
+
+Tree t = new Node(new Leaf(1), new Node(new Leaf(2), new Leaf(3)));
+println(t);
+println(t.size());
+println(t.accept(new SumVisitor()) * 10);
+String depth = t.accept(new Visitor<String>() {
+    public override String visitLeaf(Leaf l) => "L";
+    public override String visitNode(Node n) => "N[" + n.left.accept(this) + n.right.accept(this) + "]";
+});
+println(depth);
+println(repeat("ab", 3));
+println(repeat<Object>(1, 2));
+println(groupBy(List.of("apple", "avocado", "banana", "cherry", "blueberry"), s => s.charAt(0)));
+println(groupBy(List.of(1, 2, 3, 4, 5, 6), x => x % 3));

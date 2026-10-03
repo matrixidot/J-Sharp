@@ -1,0 +1,82 @@
+import java.util.*;
+
+public class LinkedStack<T> : Iterable<T> {
+    private static int totalNodes = 0;
+    private Node<T>? head = null;
+    private int size = 0;
+
+    private class Node<E> {
+        private final E value;
+        private final Node<E>? next;
+        private Node(E value, Node<E>? next) {
+            this.value = value;
+            this.next = next;
+            totalNodes++;
+        }
+    }
+
+    public class Stats {
+        public static String report() => "nodes ever created: " + totalNodes;
+    }
+
+    public void push(T v) {
+        head = new Node<T>(v, head);
+        size++;
+    }
+
+    public T pop() {
+        val h = head ?? throw new IllegalStateException("empty");
+        head = h.next;
+        size--;
+        return h.value;
+    }
+
+    public int count => size;
+
+    public override Iterator<T> iterator() {
+        val start = head;
+        return new Iterator<T>() {
+            private Node<T>? cur = start;
+            public override boolean hasNext() => cur != null;
+            public override T next() {
+                val c = cur!;
+                cur = c.next;
+                return c.value;
+            }
+        };
+    }
+}
+
+public class Outer {
+    private static String secret = "s3cr3t";
+    private int id = 7;
+    public class Peeker {
+        public String peek(Outer o) => secret + "/" + o.id;
+    }
+    public static class Builder {
+        private String label = "none";
+        public Builder label(String l) { label = l; return this; }
+        public String build() => "Outer.Builder(" + label + ")";
+    }
+}
+
+var s = new LinkedStack<String>();
+s.push("a");
+s.push("b");
+s.push("c");
+foreach (var x in s) print(x + " ");
+println();
+println(s.pop() + " " + s.count);
+var s2 = new LinkedStack<Integer>();
+s2.push(1);
+println(LinkedStack.Stats.report());
+try {
+    new LinkedStack<Integer>().pop();
+} catch (IllegalStateException e) {
+    println("caught " + e.getMessage());
+}
+println(new Outer.Peeker().peek(new Outer()));
+println(new Outer.Builder().label("x").build());
+int sum = 0;
+foreach (var x in s) sum += x.length();
+println(sum);

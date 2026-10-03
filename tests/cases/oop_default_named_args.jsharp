@@ -1,0 +1,46 @@
+import java.util.*;
+
+public class Client {
+    public static final int DEFAULT_PORT = 80;
+    public static String connect(String host, int port = DEFAULT_PORT, boolean tls = false) =>
+        host + ":" + port + (tls ? " (tls)" : "");
+
+    private final String prefix;
+    public Client(String prefix = ">", int repeat = 1) { this.prefix = prefix.repeat(repeat); }
+    public String send(String msg, String to = "all", char sep = ':') => prefix + to + sep + msg;
+}
+
+public open class Shape {
+    public open String draw(String color = "black", int width = 1) => "shape " + color + " " + width;
+}
+
+public class Circle : Shape {
+    public override String draw(String color = "black", int width = 1) => "circle " + color + " " + width;
+}
+
+String trace(String s) { println("eval " + s); return s; }
+String pair(String a, String b) => a + b;
+
+String label(int n) => "label(int)";
+String label(int n, String suffix = "!") => "label(int,String) " + suffix;
+
+println(Client.connect("a"));
+println(Client.connect("a", 443));
+println(Client.connect("a", tls: true));
+println(Client.connect(port: 22, host: "b"));
+println(Client.connect("c", 8080, true));
+var c = new Client();
+println(c.send("hi"));
+println(c.send("hi", sep: '|'));
+println(new Client("#", 3).send("yo", to: "bob"));
+println(new Client(repeat: 2).send(to: "x", msg: "m"));
+Shape s = new Circle();
+println(s.draw());
+println(s.draw(width: 5));
+println(new Shape().draw("red"));
+println(pair(b: trace("B"), a: trace("A")));
+println(label(1));
+println(label(1, "?"));
+int count = 0;
+foreach (var m in typeof(Client).getDeclaredMethods()) if (m.getName() == "connect") count++;
+println(count);

@@ -1,0 +1,61 @@
+import java.util.*;
+
+public class Point {
+    public final int x;
+    public final int y;
+    public Point(int x, int y) { this.x = x; this.y = y; }
+    public override boolean equals(Object? o) {
+        if (this === o) return true;
+        return o is Point p && p.x == x && p.y == y;
+    }
+    public override int hashCode() => 31 * x + y;
+    public override String toString() => "P(" + x + "," + y + ")";
+}
+
+public open class Animal {
+    protected final String name;
+    public Animal(String name) { this.name = name; }
+    public override String toString() => getClass().getSimpleName() + ":" + name;
+}
+public class Cat : Animal { public Cat(String n) { super(n); } }
+
+public class CaseInsensitive {
+    private final String s;
+    public CaseInsensitive(String s) { this.s = s; }
+    public override boolean equals(Object? o) => o is CaseInsensitive c && c.s.equalsIgnoreCase(s);
+    public override int hashCode() => s.toLowerCase().hashCode();
+}
+
+var a = new Point(1, 2);
+var b = new Point(1, 2);
+var c = new Point(2, 1);
+println(a == b);
+println(a === b);
+println(a != c);
+println(a !== b);
+println(a.equals(b) + " " + (a.hashCode() == b.hashCode()));
+var set = new HashSet<Point>();
+set.add(a);
+set.add(b);
+set.add(c);
+println(set.size() + " " + set.contains(new Point(2, 1)));
+var map = new HashMap<Point, String>();
+map.put(a, "first");
+map.put(b, "second");
+println(map.size() + " " + map.get(new Point(1, 2)));
+println(List.of(a, c));
+println("str: " + a);
+println($"interp: {c}");
+Point? n = null;
+println(n == a);
+println(a == n);
+println(n == null);
+Object o = a;
+println(o == b);
+println(new Cat("Tom"));
+Animal an = new Cat("Kit");
+println(an.toString());
+println(new CaseInsensitive("Hello") == new CaseInsensitive("HELLO"));
+var ci = new HashSet<CaseInsensitive>(List.of(new CaseInsensitive("a"), new CaseInsensitive("A"), new CaseInsensitive("b")));
+println(ci.size());
+println(List.of(a, b, c).indexOf(new Point(2, 1)));

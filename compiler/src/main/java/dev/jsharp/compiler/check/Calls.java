@@ -127,6 +127,9 @@ final class Calls {
     };
   }
 
+  /** When set, the class from which accessibility is judged instead of the current class. */
+  ClassSymbol accessFrom;
+
   List<ArgInfo> prepare(List<Arg> args) {
     List<ArgInfo> out = new ArrayList<>();
     for (Arg arg : args) {
@@ -598,8 +601,9 @@ final class Calls {
       Type pt,
       Span span) {
     List<MethodSymbol> cands = new ArrayList<>(a.lookup.findMethods(s.superType(), name));
+    boolean qualified = s.superType().sym().isInterface();
     // Default methods of directly implemented interfaces are callable through super as well.
-    for (ClassType it : a.env.cls.interfaces()) {
+    for (ClassType it : qualified ? List.<ClassType>of() : a.env.cls.interfaces()) {
       for (MethodSymbol m : a.lookup.findMethods(it, name)) {
         if (m.has(Flags.DEFAULT) && !cands.contains(m)) {
           cands.add(m);
@@ -617,7 +621,18 @@ final class Calls {
     if (sel == null) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
-    BExpr recv = new BExpr.This(a.env.cls.thisType(), s.span());
+    // The receiver is typed as the class or interface the call goes to: codegen names it as the
+    // invokespecial owner (the direct superclass, or the interface of I.super / a default).
+    ClassType via = s.superType();
+    if (sel.method.owner().isInterface() && !via.sym().isInterface()) {
+      for (ClassType it : a.env.cls.interfaces()) {
+        if (a.lookup.isSubclass(it.sym(), sel.method.owner())) {
+          via = it;
+          break;
+        }
+      }
+    }
+    BExpr recv = new BExpr.This(via, s.span());
     return finish(sel, recv, s.superType(), infos, span, true);
   }
 
@@ -831,8 +846,9 @@ final class Calls {
       boolean report) {
     List<MethodSymbol> accessible = new ArrayList<>();
     MethodSymbol inaccessible = null;
+    ClassSymbol from = accessFrom != null ? accessFrom : a.env.cls;
     for (MethodSymbol m : candidates) {
-      if (a.lookup.isAccessible(m, m.owner(), m.isStatic() ? null : site, a.env.cls)) {
+      if (a.lookup.isAccessible(m, m.owner(), m.isStatic() ? null : site, from)) {
         accessible.add(m);
       } else {
         inaccessible = m;
@@ -1064,8 +1080,12 @@ final class Calls {
         inf.subtype(ret, exp.withNullness(Nullness.NON_NULL));
       }
       // Lambdas: infer from their bodies once their parameter types are known.
-      Set<Expr> polyDone = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-      for (int round = 0; round < 3; round++) {
+      Done polyDone = new Done();
+      // Poly call arguments wait until their target type is resolved by other arguments
+      // (comparing(String::length, reverseOrder())); only when no round makes progress are they
+      // typed against a target with wildcards for the unresolved variables.
+      boolean eager = false;
+      for (int round = 0; round < 5; round++) {
         Map<TypeVarSymbol, Type> partial = inf.solve(false);
         boolean added = false;
         for (int p = 0; p < n; p++) {
@@ -1078,11 +1098,14 @@ final class Calls {
             if (varargs && p == n - 1 && pt instanceof Type.ArrayType at) {
               pt = at.elem();
             }
-            added |= constrainDeferred(arg.expr, pt, inf, partial, polyDone);
+            added |= constrainDeferred(arg.expr, pt, inf, partial, polyDone, eager);
           }
         }
         if (!added) {
-          break;
+          if (eager) {
+            break;
+          }
+          eager = true;
         }
       }
       Map<TypeVarSymbol, Type> solvedOnly = inf.solve(false);
@@ -1241,7 +1264,7 @@ final class Calls {
     return switch (u) {
       case Expr.Lambda l -> {
         if (inf != null && inf.isVar(pt)) {
-          yield false;
+          yield true; // JLS 15.12.2.1: a type parameter of the candidate accepts any lambda
         }
         if (!(pt instanceof ClassType ct) || types().findSam(ct.sym()) == null) {
           yield false;
@@ -1249,14 +1272,205 @@ final class Calls {
         Types.MethodType ft = types().functionType(types().nonWildcard(ct));
         yield ft != null && ft.params().size() == l.params().size();
       }
-      case Expr.MethodRef mr ->
-          !(inf != null && inf.isVar(pt))
-              && pt instanceof ClassType ct
-              && types().findSam(ct.sym()) != null;
+      case Expr.MethodRef mr -> {
+        if (inf != null && inf.isVar(pt)) {
+          yield true;
+        }
+        if (!(pt instanceof ClassType ct) || types().findSam(ct.sym()) == null) {
+          yield false;
+        }
+        Types.MethodType ft = types().functionType(types().nonWildcard(ct));
+        yield ft == null || methodRefArityFits(mr, ft.params().size());
+      }
       case Expr.New nw -> pt instanceof ClassType;
       case Expr.ArrayInit ai -> pt instanceof Type.ArrayType;
       default -> true;
     };
+  }
+
+  /**
+   * JLS 15.12.2.1: some method the reference may denote takes {@code n} arguments ({@code n - 1}
+   * plus the receiver for {@code Type::instanceMethod}). True when the qualifier cannot be resolved
+   * (errors are reported later).
+   */
+  private boolean methodRefArityFits(Expr.MethodRef mr, int n) {
+    if (mr.name().equals("new")) {
+      if (mr.typeTarget() != null && mr.target() == null) {
+        return true; // array constructor (int[]::new) or a parameterized type
+      }
+      Attr.Speculation<Boolean> s =
+          a.speculate(
+              () -> {
+                Attr.Target t = a.target(mr.target(), true);
+                if (!(t instanceof Attr.TypeTarget tt) || !(tt.type() instanceof ClassType c)) {
+                  return true;
+                }
+                return c.sym().methods(MethodSymbol.CONSTRUCTOR).stream()
+                    .anyMatch(m -> arityAccepts(m, n));
+              });
+      return s.result() == null || s.result();
+    }
+    if (mr.target() == null) {
+      return true;
+    }
+    Attr.Speculation<Boolean> s =
+        a.speculate(
+            () -> {
+              Attr.Target t = a.target(mr.target(), true);
+              if (t instanceof Attr.TypeTarget tt) {
+                return a.lookup.findMethods(tt.type(), mr.name()).stream()
+                    .anyMatch(
+                        m -> m.isStatic() ? arityAccepts(m, n) : n > 0 && arityAccepts(m, n - 1));
+              }
+              if (t instanceof Attr.ValueTarget vt && !vt.expr().type().isError()) {
+                return a.lookup.findMethods(vt.expr().type(), mr.name()).stream()
+                    .anyMatch(m -> arityAccepts(m, n));
+              }
+              return true;
+            });
+    return s.result() == null || s.result();
+  }
+
+  private static boolean arityAccepts(MethodSymbol m, int n) {
+    int size = m.params().size();
+    int required = (int) m.params().stream().filter(p -> !p.hasDefault()).count();
+    if (m.isVarargs()) {
+      return n >= size - 1;
+    }
+    return n >= required && n <= size;
+  }
+
+  /**
+   * {@code TreeSet::new} for a function type returning an inference variable {@code C extends
+   * Collection<T>}: the class's type arguments follow from the bound ({@code C = TreeSet<T>}), the
+   * way javac infers a diamond constructor reference.
+   */
+  private boolean constrainGenericCtorRef(Expr.MethodRef mr, Types.MethodType ft, Infer inf) {
+    if (!mr.name().equals("new") || mr.target() == null || !inf.isVar(ft.ret())) {
+      return false;
+    }
+    Attr.Speculation<Type> s =
+        a.speculate(
+            () -> a.target(mr.target(), true) instanceof Attr.TypeTarget tt ? tt.type() : null);
+    if (s.hasErrors()
+        || !(s.result() instanceof ClassType ct)
+        || ct.sym().typeParams().isEmpty()
+        || !ct.args().isEmpty()) {
+      return false;
+    }
+    TypeVarSymbol rv = ((Type.TypeVar) ft.ret()).sym();
+    for (Type bound : rv.bounds()) {
+      if (!(bound instanceof ClassType bc) || bc.sym() == a.syms.objectSym()) {
+        continue;
+      }
+      ClassType generic = ct.sym().thisType();
+      ClassType sup = types().asSuper(generic, bc.sym());
+      if (sup == null) {
+        continue;
+      }
+      Infer local = new Infer(types(), ct.sym().typeParams());
+      local.eq(sup, bc);
+      Map<TypeVarSymbol, Type> sol = local.solve(false);
+      if (sol.size() == ct.sym().typeParams().size()) {
+        inf.eq(Types.subst(generic, sol).withNullness(Nullness.NON_NULL), ft.ret());
+        return true;
+      }
+    }
+    return false;
+  }
+
+  /** {@code TreeSet::new}: a constructor reference of a generic class without type arguments. */
+  private boolean isDiamondCtorRef(Expr.MethodRef mr) {
+    if (!mr.name().equals("new") || mr.target() == null) {
+      return false;
+    }
+    Attr.Speculation<Type> s =
+        a.speculate(
+            () -> a.target(mr.target(), true) instanceof Attr.TypeTarget tt ? tt.type() : null);
+    return !s.hasErrors()
+        && s.result() instanceof ClassType ct
+        && !ct.sym().typeParams().isEmpty()
+        && ct.args().isEmpty();
+  }
+
+  /** A method reference that denotes exactly one method (JLS 15.13.1 "exact"). */
+  private record ExactRef(MethodSymbol method, Type qualifier, boolean unbound) {}
+
+  private ExactRef exactMethodRef(Expr.MethodRef mr) {
+    if (mr.name().equals("new") || mr.target() == null) {
+      return null;
+    }
+    Attr.Speculation<ExactRef> s =
+        a.speculate(
+            () -> {
+              Attr.Target t = a.target(mr.target(), true);
+              Type q;
+              boolean isType;
+              if (t instanceof Attr.TypeTarget tt) {
+                q = tt.type();
+                isType = true;
+              } else if (t instanceof Attr.ValueTarget vt) {
+                q = vt.expr().type();
+                isType = false;
+              } else {
+                return null;
+              }
+              if (q == null || q.isError()) {
+                return null;
+              }
+              List<MethodSymbol> ms = a.lookup.findMethods(q, mr.name());
+              if (ms.size() != 1) {
+                return null;
+              }
+              MethodSymbol m = ms.getFirst();
+              if (m.isVarargs() || !m.typeParams().isEmpty() || m.returnType() == null) {
+                return null;
+              }
+              return new ExactRef(m, q, isType && !m.isStatic());
+            });
+    return s.hasErrors() ? null : s.result();
+  }
+
+  /**
+   * Constraints from an exact method reference (JLS 18.2.1): the function type's parameters must be
+   * accepted by the method (the first one is the receiver for {@code Type::instanceMethod}) and the
+   * method's result must be compatible with the function type's return.
+   */
+  private boolean constrainExactRef(
+      Expr.MethodRef mr, Types.MethodType ft, Infer inf, Map<TypeVarSymbol, Type> partial) {
+    ExactRef ex = exactMethodRef(mr);
+    if (ex == null) {
+      return false;
+    }
+    MethodSymbol m = ex.method();
+    int off = ex.unbound() ? 1 : 0;
+    if (ft.params().size() != m.params().size() + off) {
+      return false;
+    }
+    Map<TypeVarSymbol, Type> ownerArgs = Map.of();
+    if (!m.owner().typeParams().isEmpty()) {
+      ClassType sup =
+          ex.qualifier() instanceof ClassType qc ? types().asSuper(qc, m.owner()) : null;
+      if (sup == null
+          || sup.args().size() != m.owner().typeParams().size()
+          || sup.args().stream().anyMatch(x -> x instanceof Type.WildcardType)) {
+        return false; // raw or wildcard qualifier: no reliable member types
+      }
+      ownerArgs = types().typeArgMap(sup);
+    }
+    int before = boundsCount(inf);
+    if (ex.unbound()) {
+      inf.subtype(Types.subst(ft.params().getFirst(), partial), ex.qualifier());
+    }
+    for (int i = 0; i < m.params().size(); i++) {
+      Type pm = Types.subst(m.params().get(i).type(), ownerArgs);
+      inf.subtype(Types.subst(ft.params().get(i + off), partial), pm);
+    }
+    if (ft.ret() != PrimType.VOID && m.returnType() != PrimType.VOID) {
+      Type r = Types.subst(m.returnType(), ownerArgs);
+      inf.subtype(types().boxIfPrimitive(r), Types.subst(ft.ret(), partial));
+    }
+    return boundsCount(inf) > before;
   }
 
   /**
@@ -1265,24 +1479,52 @@ final class Calls {
    * added.
    */
   private boolean constrainDeferred(
-      Expr e, Type pt, Infer inf, Map<TypeVarSymbol, Type> partial, Set<Expr> polyDone) {
+      Expr e, Type pt, Infer inf, Map<TypeVarSymbol, Type> partial, Done polyDone, boolean eager) {
     Expr u = unwrap(e);
     if (isPolyCandidate(u) && !isDeferred(u)) {
-      return polyDone.add(u) && constrainPolyCall(u, pt, inf, partial);
+      if (!eager && inf.mentionsVars(Types.subst(pt, partial)) && !inf.isVar(pt)) {
+        return false; // wait for the other arguments to resolve the target
+      }
+      return polyDone.poly.add(u) && constrainPolyCall(u, pt, inf, partial);
     }
     if (!(pt instanceof ClassType ct) || types().findSam(ct.sym()) == null) {
       return false;
     }
     ClassType fi = types().nonWildcard(ct);
     Types.MethodType ft = types().functionType(fi);
+    boolean explicitAdded = false;
+    if (ft != null
+        && u instanceof Expr.Lambda lam
+        && lam.params().size() == ft.params().size()
+        && !lam.params().isEmpty()
+        && lam.params().stream().allMatch(p -> p.type() != null)
+        && polyDone.explicit.add(u)) {
+      // Explicitly typed lambda parameters fix the function type's parameters (as in Java).
+      for (int i = 0; i < ft.params().size(); i++) {
+        Type fp = Types.subst(ft.params().get(i), partial);
+        if (!inf.mentionsVars(fp)) {
+          continue;
+        }
+        var typeNode = lam.params().get(i).type();
+        Attr.Speculation<Type> d = a.speculate(() -> a.resolveType(typeNode));
+        if (!d.hasErrors() && d.result() != null && !d.result().isError()) {
+          inf.eq(d.result(), fp);
+          explicitAdded = true;
+        }
+      }
+    }
+    if (ft != null && u instanceof Expr.MethodRef emr && polyDone.exactRef.add(u)) {
+      explicitAdded |= constrainExactRef(emr, ft, inf, partial);
+      explicitAdded |= constrainGenericCtorRef(emr, ft, inf);
+    }
     if (ft == null || !inf.mentionsVars(ft.ret())) {
-      return false;
+      return explicitAdded;
     }
     List<Type> ps = new ArrayList<>();
     for (Type p : ft.params()) {
       Type s = Types.subst(p, partial);
       if (inf.mentionsVars(s)) {
-        return false;
+        return explicitAdded;
       }
       ps.add(s);
     }
@@ -1293,17 +1535,31 @@ final class Calls {
         result = a.patterns.asyncResultForInference(result);
       }
     } else if (u instanceof Expr.MethodRef mr) {
+      if (isDiamondCtorRef(mr)) {
+        // Its standalone type has defaulted arguments (TreeSet<Object>); the bound-based
+        // constraint from constrainGenericCtorRef or the final target typing decides instead.
+        return explicitAdded;
+      }
       result = methodRefResultType(mr, ps);
     }
-    if (result == null || result.isError()) {
-      return false;
+    if (result == null || result.isError() || result == PrimType.VOID) {
+      return explicitAdded;
     }
-    if (result == PrimType.VOID) {
-      return false;
+    // Once per argument: re-adding the same bound every round would look like progress forever.
+    if (!polyDone.result.add(u)) {
+      return explicitAdded;
     }
     int before = boundsCount(inf);
     inf.subtype(types().boxIfPrimitive(result), ft.ret());
-    return boundsCount(inf) > before;
+    return explicitAdded || boundsCount(inf) > before;
+  }
+
+  /** Which deferred-argument constraints were already added during one inference. */
+  private static final class Done {
+    final Set<Expr> poly = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+    final Set<Expr> explicit = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+    final Set<Expr> exactRef = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+    final Set<Expr> result = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
   }
 
   /** Types a poly call argument against the (partially inferred) parameter type. */
@@ -1490,6 +1746,21 @@ final class Calls {
       if (!types().isSubtype(t1, t2)) {
         return false;
       }
+    }
+    // Variable arity (JLS 15.12.2.5): the variable-arity element types are compared too, which
+    // decides calls with no variable arguments (count() with String... vs Object...).
+    if (s1.phase == Phase.VARARGS
+        && s2.phase == Phase.VARARGS
+        && !s1.paramTypes.isEmpty()
+        && !s2.paramTypes.isEmpty()
+        && s1.paramTypes.getLast() instanceof Type.ArrayType a1
+        && s2.paramTypes.getLast() instanceof Type.ArrayType a2) {
+      Type e1 = a1.elem();
+      Type e2 = a2.elem();
+      if (e1 instanceof PrimType p1 && e2 instanceof PrimType p2) {
+        return p1 == p2 || Types.isWidening(p1, p2);
+      }
+      return !(e1 instanceof PrimType) && !(e2 instanceof PrimType) && types().isSubtype(e1, e2);
     }
     return true;
   }
@@ -1801,6 +2072,12 @@ final class Calls {
           a.syms.classType(
               new Type.WildcardType(Type.WildcardType.Kind.EXTENDS, recv.type().erasure()));
     }
+    if (m.name().equals("clone")
+        && m.params().isEmpty()
+        && recv != null
+        && recv.type() instanceof Type.ArrayType at) {
+      t = at.withNullness(Nullness.NON_NULL); // T[].clone() returns T[] (JLS 10.7)
+    }
     if (m.isAbstract() && isSpecial && !m.isConstructor()) {
       a.error(
           Code.INVALID_THIS, span, "cannot call abstract method " + m.signature() + " directly");
@@ -1837,9 +2114,11 @@ final class Calls {
     MethodSymbol m = sel.method;
     List<MethodSymbol.Param> params = m.params();
     List<BExpr> out = new ArrayList<>();
+    List<Integer> sourceIndex = new ArrayList<>();
     for (int p = 0; p < params.size(); p++) {
       Type pt = sel.paramTypes.get(p);
       List<Integer> mapped = sel.mapping.get(p);
+      sourceIndex.add(mapped.size() == 1 ? mapped.getFirst() : -1);
       boolean varargsSlot = sel.phase == Phase.VARARGS && p == params.size() - 1;
       if (varargsSlot) {
         Type.ArrayType at =
@@ -1863,7 +2142,55 @@ final class Calls {
       }
       out.add(finalArg(args.get(mapped.getFirst()), pt));
     }
-    return out;
+    return inSourceOrder(out, sourceIndex, span);
+  }
+
+  /**
+   * Named arguments may list arguments in a different order than the parameters. Arguments are
+   * still evaluated in source order (as in C# and Kotlin): impure ones are spilled into temps, in
+   * source order, inside the first argument, so they run after the receiver and before the call.
+   */
+  private List<BExpr> inSourceOrder(List<BExpr> out, List<Integer> sourceIndex, Span span) {
+    int last = -1;
+    boolean reordered = false;
+    for (int src : sourceIndex) {
+      if (src >= 0) {
+        reordered |= src < last;
+        last = Math.max(last, src);
+      }
+    }
+    if (!reordered || out.isEmpty()) {
+      return out;
+    }
+    List<Integer> positions = new ArrayList<>();
+    for (int i = 0; i < out.size(); i++) {
+      if (sourceIndex.get(i) >= 0 && !isPure(out.get(i))) {
+        positions.add(i);
+      }
+    }
+    positions.sort(java.util.Comparator.comparingInt(sourceIndex::get));
+    List<BExpr> result = new ArrayList<>(out);
+    List<VarSymbol> temps = new ArrayList<>();
+    for (int pos : positions) {
+      BExpr e = out.get(pos);
+      VarSymbol tmp =
+          a.env.newVar("$arg", e.type(), Flags.FINAL | Flags.SYNTHETIC, VarSymbol.Kind.LOCAL, span);
+      temps.add(tmp);
+      result.set(pos, new BExpr.Local(tmp, e.span()));
+    }
+    BExpr first = result.getFirst();
+    for (int i = positions.size() - 1; i >= 0; i--) {
+      first = new BExpr.Let(temps.get(i), out.get(positions.get(i)), first, span);
+    }
+    result.set(0, first);
+    return result;
+  }
+
+  private static boolean isPure(BExpr e) {
+    return e instanceof BExpr.Const
+        || e instanceof BExpr.Local
+        || e instanceof BExpr.This
+        || e instanceof BExpr.Lambda;
   }
 
   private BExpr finalArg(ArgInfo arg, Type pt) {

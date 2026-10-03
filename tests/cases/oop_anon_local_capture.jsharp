@@ -1,0 +1,74 @@
+import java.util.*;
+import java.util.function.*;
+
+public interface Greeter { String greet(String who); }
+
+public class Shop {
+    private final String name;
+    private int sales = 0;
+    public Shop(String name) { this.name = name; }
+
+    public Runnable seller(int price) {
+        val tag = "[" + name + "]";
+        return new Runnable() {
+            private int calls = 0;
+            public override void run() {
+                calls++;
+                sales += price;
+                println(tag + " sale #" + calls + " total=" + sales);
+            }
+        };
+    }
+
+    public List<String> receipt(List<String> items) {
+        val currency = "$";
+        class Line {
+            private final String item;
+            private final int idx;
+            public Line(String item, int idx) { this.item = item; this.idx = idx; }
+            public String render() => idx + ". " + item + " " + currency + (item.length() * 2) + " @" + name;
+        }
+        var out = new ArrayList<String>();
+        int i = 1;
+        foreach (var it in items) {
+            out.add(new Line(it, i).render());
+            i++;
+        }
+        return out;
+    }
+
+    public int getSales() => sales;
+}
+
+Greeter politeGreeter(String salutation) {
+    return new Greeter() {
+        public override String greet(String who) => salutation + ", " + who + "!";
+        public override String toString() => "Greeter(" + salutation + ")";
+    };
+}
+
+var shop = new Shop("Acme");
+var r = shop.seller(10);
+r.run();
+r.run();
+shop.seller(5).run();
+println(shop.getSales());
+foreach (var line in shop.receipt(List.of("pen", "book"))) println(line);
+var g = politeGreeter("Hello");
+println(g.greet("Ann"));
+println(g);
+int base = 100;
+Function<Integer, Integer> adder = new Function<Integer, Integer>() {
+    public override Integer apply(Integer x) => x + base;
+};
+println(adder.apply(5));
+println(adder.andThen(x => x * 2).apply(1));
+var counter = new int[] { 0 };
+Supplier<Integer> next = () => ++counter[0];
+next.get();
+next.get();
+println(counter[0] + " " + next.get());
+record Point(int x, int y) {
+    public Point shift(int d) => new Point(x + d, y + d);
+}
+println(new Point(1, 2).shift(base));

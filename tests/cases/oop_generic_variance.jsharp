@@ -1,0 +1,65 @@
+import java.util.*;
+
+public interface Source<out T> { T next(); }
+public interface Sink<in T> { void accept(T value); }
+
+public class Counter : Source<Integer> {
+    private int n = 0;
+    public override Integer next() => ++n;
+}
+
+public class Printer : Sink<Object> {
+    private final String tag;
+    public Printer(String tag) { this.tag = tag; }
+    public override void accept(Object v) => println(tag + " got " + v);
+}
+
+public static void pump<T>(Source<T> src, Sink<T> dst, int n) {
+    for (int i = 0; i < n; i++) dst.accept(src.next());
+}
+
+public static double total(List<out Number> xs) {
+    double t = 0;
+    foreach (var x in xs) t += x.doubleValue();
+    return t;
+}
+
+public static void fill(List<in Integer> xs, int n) {
+    for (int i = 1; i <= n; i++) xs.add(i);
+}
+
+public class Box<T : Comparable<T>> {
+    private T value;
+    public Box(T v) { value = v; }
+    public T get() => value;
+    public void offer(T v) { if (v.compareTo(value) > 0) value = v; }
+}
+
+public static T clamp<T>(T v, T lo, T hi) where T : Comparable<T> =>
+    v.compareTo(lo) < 0 ? lo : v.compareTo(hi) > 0 ? hi : v;
+
+public static String both<T : CharSequence & Comparable<T>>(T x, T y) => x.length() + ":" + Integer.signum(x.compareTo(y));
+
+Source<Number> numbers = new Counter();
+Sink<String> strings = new Printer("s");
+println(numbers.next().intValue() + 10);
+strings.accept("hello");
+pump<Number>(new Counter(), new Printer("p"), 2);
+List<Number> nums = new ArrayList<>();
+fill(nums, 3);
+nums.add(2.5);
+println(total(nums));
+println(total(List.of(1, 2, 3)));
+List<?> any = nums;
+println(any.size() + " " + any.get(3));
+var b = new Box<Integer>(5);
+b.offer(3);
+b.offer(9);
+println(b.get());
+var bs = new Box<String>("m");
+bs.offer("z");
+bs.offer("a");
+println(bs.get());
+println(clamp(15, 0, 10) + " " + clamp(-3, 0, 10) + " " + clamp(4, 0, 10));
+println(clamp("m", "a", "k"));
+println(both("abc", "abd"));

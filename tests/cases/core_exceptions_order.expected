@@ -1,0 +1,21 @@
+f1 try
+f1 finally
+1
+f2 finally x=20
+10
+inner try
+inner finally
+outer catch inner
+outer finally
+after
+TCFO:b<a
+finally before replacing
+from finally
+level2 cleanup
+caught deep
+NFE
+11
+caught i=0
+no throw at 1
+caught i=2
+2

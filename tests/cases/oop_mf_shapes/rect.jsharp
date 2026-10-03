@@ -1,0 +1,11 @@
+package geo;
+
+public record Rect(double w, double h) : Shape {
+    public override double area() => w * h;
+    public Square? asSquare() => w == h ? new Square(w) : null;
+}
+
+public record Square(double side) : Shape {
+    public override double area() => side * side;
+    public override String describe() => "Square of side " + Fmt.two(side);
+}

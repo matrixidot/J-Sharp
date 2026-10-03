@@ -1,0 +1,83 @@
+// Compound assignment on fields, statics, array elements, properties; single evaluation.
+import java.util.Arrays;
+
+class Acc {
+    public int total;
+    public static int shared;
+    public int[] slots = new int[3];
+    public String text { get; set; } = "";
+    public long big { get; set; }
+}
+
+class Factory {
+    public static int calls;
+    public static Acc inst = new Acc();
+    public static Acc get() {
+        calls++;
+        return inst;
+    }
+}
+
+var acc = new Acc();
+acc.total += 5;
+acc.total *= 3;
+acc.total -= 1;
+acc.total <<= 2;
+acc.total %= 50;
+println(acc.total);
+Acc.shared += 10;
+Acc.shared /= 3;
+println(Acc.shared);
+acc.slots[1] += 7;
+acc.slots[1] *= acc.slots[1];
+println(acc.slots[1]);
+int[] arr = new int[] { 10, 20, 30 };
+int i = 0;
+arr[i++] += 5;
+println(arr[0] + " " + i);
+arr[i++] *= 2;
+println(Arrays.toString(arr));
+acc.text += "ab";
+acc.text += 'c';
+acc.text += 1;
+println(acc.text);
+acc.big += Integer.MAX_VALUE;
+acc.big += Integer.MAX_VALUE;
+println(acc.big);
+byte by = 10;
+by += 120;
+println(by);
+short sh = 1;
+sh <<= 15;
+println(sh);
+char ch = 'A';
+ch += 2;
+println(ch);
+double dv = 1;
+dv /= 4;
+println(dv);
+int iv = 7;
+iv ^= 3;
+iv |= 8;
+iv &= ~4;
+iv >>>= 1;
+println(iv);
+long lv = -1;
+lv >>>= 60;
+println(lv);
+String? maybe = null;
+maybe ??= "init";
+maybe += "!";
+println(maybe);
+var holders = new Acc[] { new Acc(), new Acc() };
+int k = 0;
+holders[k++].total += 100;
+println(holders[0].total + " " + holders[1].total + " " + k);
+Factory.get().text += "x";
+Factory.get().big += 5;
+Factory.get().slots[2] -= 4;
+println(Factory.calls + " " + Factory.inst.text + " " + Factory.inst.big + " " + Factory.inst.slots[2]);
+int[][] grid = new int[2][2];
+int r = 0;
+grid[r++][r++] += 9;
+println(grid[0][1] + " " + r);

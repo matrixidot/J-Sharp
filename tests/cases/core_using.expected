@@ -1,0 +1,33 @@
+open a
+use a
+close a
+--
+open x
+open y
+use x
+use y
+close y
+close x
+--
+open first
+open second
+body
+close second
+close first
+--
+open e
+close e
+caught fail
+body failed suppressed=1 close failed
+ok body
+from close: close failed
+open ret
+close ret
+returned
+line1
+null resource ok
+open loop0
+close loop0
+open loop1
+end of iteration 1
+close loop1

@@ -1,0 +1,58 @@
+import java.util.*;
+import java.util.function.*;
+
+public class Account {
+    private String owner;
+    private int balance;
+    private final List<String> history = new ArrayList<>();
+
+    public Account(String owner, int balance) {
+        this.owner = owner;
+        this.balance = balance;
+    }
+
+    public Consumer<int> depositor() => amount => {
+        balance += amount;
+        history.add("+" + amount);
+    };
+
+    public Supplier<String> reporter() => () => owner + ": " + this.balance;
+
+    public Function<int, boolean> canAfford() => price => price <= balance;
+
+    public Runnable renamer(String newName) => () => { this.owner = newName; };
+
+    public Supplier<Account> self() => () => this;
+
+    public List<String> getHistory() => history;
+}
+
+public class Ticker {
+    private int ticks;
+    public void tick() { ticks++; }
+    public int count => ticks;
+    public Runnable bound() => this::tick;
+}
+
+var acct = new Account("ann", 50);
+var dep = acct.depositor();
+dep.accept(25);
+dep.accept(5);
+var rep = acct.reporter();
+println(rep.get());
+var afford = acct.canAfford();
+println(afford.apply(80));
+println(afford.apply(81));
+acct.renamer("bea").run();
+println(rep.get());
+println(acct.self().get() === acct);
+println(acct.getHistory());
+
+var t = new Ticker();
+Runnable r = t.bound();
+r.run();
+r.run();
+r.run();
+Runnable r2 = t::tick;
+r2.run();
+println(t.count);

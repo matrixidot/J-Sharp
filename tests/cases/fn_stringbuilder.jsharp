@@ -1,0 +1,54 @@
+import java.util.*;
+
+public static String padRight(String s, int w) {
+    var sb = new StringBuilder(s);
+    while (sb.length() < w) sb.append(' ');
+    return sb.toString();
+}
+
+public static String renderTable(List<List<String>> rows) {
+    var widths = new int[rows.get(0).size()];
+    foreach (var row in rows) {
+        for (var i = 0; i < row.size(); i++) widths[i] = Math.max(widths[i], row.get(i).length());
+    }
+    var sb = new StringBuilder();
+    foreach (var row in rows) {
+        sb.append('|');
+        for (var i = 0; i < row.size(); i++) sb.append(' ').append(padRight(row.get(i), widths[i])).append(" |");
+        sb.append('\n');
+    }
+    return sb.toString();
+}
+
+print(renderTable(List.of(List.of("name", "qty"), List.of("apple", "3"), List.of("kiwi", "12"))));
+var sb = new StringBuilder("hello world");
+sb.insert(0, ">> ");
+println(sb);
+sb.reverse();
+println(sb);
+sb.reverse();
+sb.setCharAt(3, 'H');
+sb.deleteCharAt(sb.length() - 1);
+println(sb);
+sb.replace(3, 8, "Howdy");
+println(sb);
+println(sb.indexOf("worl"));
+sb.setLength(5);
+println(sb + "|");
+var out = new StringBuilder();
+List.of("x", "y", "z").forEach(s => out.append(s).append(s.toUpperCase()));
+println(out);
+println(out.chars().filter(Character::isUpperCase).count());
+var fb = new StringJoiner(", ", "{", "}");
+for (var i = 1; i <= 15; i++) {
+    fb.add(i % 15 == 0 ? "FizzBuzz" : i % 3 == 0 ? "Fizz" : i % 5 == 0 ? "Buzz" : String.valueOf(i));
+}
+println(fb);
+var nums = new StringBuilder();
+for (var i = 0; i < 5; i++) nums.append(i).append(i < 4 ? "-" : "");
+println(nums);
+String? nothing = null;
+var cs = new StringBuilder();
+cs.append(1).append('a').append(2.5).append(true).append(3L).append(nothing);
+println(cs);
+println($"len={cs.length()} first={cs.charAt(0)}");

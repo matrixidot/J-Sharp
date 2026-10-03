@@ -1,0 +1,72 @@
+// using statements and using declarations: close order, exceptions, suppressed, early return.
+class Res : AutoCloseable {
+    private final String name;
+    public Res(String name) {
+        this.name = name;
+        println("open " + name);
+    }
+    public void use() { println("use " + name); }
+    public override void close() { println("close " + name); }
+}
+
+class Bad : AutoCloseable {
+    public override void close() { throw new IllegalStateException("close failed"); }
+}
+
+void scoped() {
+    using var first = new Res("first");
+    using var second = new Res("second");
+    println("body");
+}
+
+String early() {
+    using (var r = new Res("ret")) {
+        return "returned";
+    }
+}
+
+using (var a = new Res("a")) {
+    a.use();
+}
+println("--");
+using (var x = new Res("x")) using (var y = new Res("y")) {
+    x.use();
+    y.use();
+}
+println("--");
+scoped();
+println("--");
+try {
+    using (var r = new Res("e")) {
+        throw new IllegalStateException("fail");
+    }
+} catch (IllegalStateException e) {
+    println("caught " + e.getMessage());
+}
+try {
+    using (var b = new Bad()) {
+        throw new RuntimeException("body failed");
+    }
+} catch (RuntimeException e) {
+    println(e.getMessage() + " suppressed=" + e.getSuppressed().length + " " + e.getSuppressed()[0].getMessage());
+}
+try {
+    using (var b = new Bad()) {
+        println("ok body");
+    }
+} catch (IllegalStateException e) {
+    println("from close: " + e.getMessage());
+}
+println(early());
+using (var br = new java.io.BufferedReader(new java.io.StringReader("line1\nline2"))) {
+    println(br.readLine());
+}
+Res? none = null;
+using (var n = none) {
+    println("null resource ok");
+}
+for (int i = 0; i < 2; i++) {
+    using var loopRes = new Res("loop" + i);
+    if (i == 0) continue;
+    println("end of iteration " + i);
+}

@@ -1,0 +1,48 @@
+public static String attempt(Runnable r) {
+    try {
+        r.run();
+        return "ok";
+    } catch (Exception e) {
+        return e.getClass().getSimpleName() + ": " + e.getMessage();
+    }
+}
+
+public static int safeSqrt(int n) {
+    require(n >= 0, "n must be non-negative, was " + n);
+    return (int) Math.sqrt(n);
+}
+
+public class Door {
+    private boolean open;
+    public void enter() {
+        check(open, "door is closed");
+        println("entered");
+    }
+    public void openIt() { open = true; }
+}
+
+public static String grade(int score) {
+    if (score >= 90) return "A";
+    if (score >= 50) return "P";
+    if (score >= 0) return "F";
+    error("bad score " + score);
+}
+
+public static int notYet() => todo();
+
+println(attempt(() => require(1 + 1 == 2)));
+println(attempt(() => require(false)));
+println(attempt(() => check(false)));
+println(attempt(() => safeSqrt(-4)));
+println(safeSqrt(49));
+var d = new Door();
+println(attempt(() => d.enter()));
+d.openIt();
+println(attempt(() => d.enter()));
+println(grade(95) + grade(60) + grade(10));
+println(attempt(() => grade(-1)));
+println(attempt(() => notYet()));
+println(attempt(() => { throw error("direct"); }));
+var x = 5;
+String label = x > 3 ? "big" : error("never");
+println(label);

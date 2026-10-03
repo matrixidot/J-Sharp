@@ -1,0 +1,65 @@
+// for (multi init/update, empty parts), while, do-while with continue, foreach forms.
+import java.util.*;
+
+public record Pt(int x, int y);
+
+var sb = new StringBuilder();
+for (int i = 0, j = 5; i < j; i++, j--) sb.append(i).append(j).append(' ');
+println(sb.toString().trim());
+int k = 0;
+for (;;) {
+    if (++k >= 3) break;
+}
+println(k);
+var it = List.of("a", "b", "c").iterator();
+var acc = "";
+while (it.hasNext()) acc += it.next();
+println(acc);
+int n = 100;
+do {
+    n++;
+} while (n < 10);
+println(n);
+int m = 0;
+int evens = 0;
+do {
+    m++;
+    if (m % 2 == 1) continue;
+    evens++;
+} while (m < 10);
+println(evens);
+var map = new TreeMap<String, Integer>();
+map.put("b", 2);
+map.put("a", 1);
+foreach (var e in map.entrySet()) print(e.getKey() + "=" + e.getValue() + ";");
+println();
+foreach (val x in new int[] { 3, 1, 2 }) print(x);
+println();
+foreach (var (px, py) in List.of(new Pt(1, 2), new Pt(3, 4))) print(px * py + " ");
+println();
+var runners = new ArrayList<Runnable>();
+foreach (var w in new String[] { "x", "y" }) runners.add(() => print(w));
+foreach (var r in runners) r.run();
+println();
+long total = 0;
+for (long q = 1; q <= 1_000_000; q *= 10) total += q;
+println(total);
+int z = 0;
+while (z < 5) z++;
+println(z);
+var grid = new int[][] { new int[] { 1, 2 }, new int[] { 3, 4, 5 } };
+var sum = 0;
+foreach (var row in grid) foreach (var v in row) sum += v;
+println(sum);
+foreach (char c in "hey".toCharArray()) print((int) c - 'a' + ",");
+println();
+foreach (Integer boxed in List.of(7, 8)) print(boxed + 1);
+println();
+int countdown = 3;
+while (countdown-- > 0) print(countdown);
+println();
+for (var i = 0; i < 3; i++) {
+    var local = i * 10;
+    print(local + " ");
+}
+println();

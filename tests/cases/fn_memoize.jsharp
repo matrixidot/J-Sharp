@@ -1,0 +1,60 @@
+import java.util.*;
+import java.util.function.*;
+
+public class Memo<K, V> {
+    private final Map<K, V> cache = new HashMap<>();
+    private final Function<K, V> fn;
+    public int misses;
+    public Memo(Function<K, V> fn) { this.fn = fn; }
+    public V get(K key) {
+        var hit = cache.get(key);
+        if (hit != null) return hit;
+        misses++;
+        var v = fn.apply(key);
+        cache.put(key, v);
+        return v;
+    }
+}
+
+public class Fib {
+    private final HashMap<int, long> memo = new HashMap<>();
+    public int calls;
+    public long fib(int n) {
+        calls++;
+        if (n < 2) return n;
+        var cached = memo.get(n);
+        if (cached != null) return cached;
+        var r = fib(n - 1) + fib(n - 2);
+        memo.put(n, r);
+        return r;
+    }
+}
+
+public static Function<T, R> memoize<T, R>(Function<T, R> f, List<String> trace) {
+    var cache = new HashMap<T, R>();
+    return x => {
+        if (cache.containsKey(x)) return cache.get(x);
+        trace.add("compute " + x);
+        var r = f.apply(x);
+        cache.put(x, r);
+        return r;
+    };
+}
+
+var trace = new ArrayList<String>();
+Function<int, int> square = n => n * n;
+var fast = memoize(square, trace);
+println(fast.apply(4));
+println(fast.apply(5));
+println(fast.apply(4));
+println(trace);
+
+var lengths = new Memo<String, int>(s => s.length());
+println(lengths.get("hello") + lengths.get("hi") + lengths.get("hello"));
+println(lengths.misses);
+
+var f = new Fib();
+println(f.fib(50));
+println(f.calls);
+println(f.fib(50));
+println(f.calls);

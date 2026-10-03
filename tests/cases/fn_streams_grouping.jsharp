@@ -1,0 +1,30 @@
+import java.util.*;
+import java.util.stream.*;
+
+public record Employee(String name, String dept, int salary, int age);
+
+var staff = List.of(
+    new Employee("Ann", "eng", 120, 34),
+    new Employee("Bob", "ops", 80, 45),
+    new Employee("Cid", "eng", 100, 28),
+    new Employee("Dee", "sales", 90, 39),
+    new Employee("Eve", "ops", 85, 31),
+    new Employee("Fay", "eng", 130, 41));
+
+var byDept = staff.stream().collect(Collectors.groupingBy(Employee::dept, () => new TreeMap<String, List<Employee>>(), Collectors.toList()));
+foreach (var e in byDept.entrySet()) {
+    println(e.getKey() + ": " + e.getValue().stream().map(Employee::name).collect(Collectors.joining(", ")));
+}
+var total = staff.stream().collect(Collectors.groupingBy(Employee::dept, () => new TreeMap<String, Integer>(), Collectors.summingInt(Employee::salary)));
+println(total);
+var avgAge = staff.stream().collect(Collectors.groupingBy(e => e.dept, () => new TreeMap<String, Double>(), Collectors.averagingInt(e => e.age)));
+println(avgAge);
+var names = staff.stream().collect(Collectors.groupingBy(e => e.salary >= 100 ? "high" : "std", () => new TreeMap<String, String>(), Collectors.mapping(Employee::name, Collectors.joining("/"))));
+println(names);
+var parts = staff.stream().collect(Collectors.partitioningBy(e => e.age < 35, Collectors.counting()));
+println(parts);
+var oldest = staff.stream().collect(Collectors.groupingBy(Employee::dept, () => new TreeMap<String, Optional<Employee>>(), Collectors.maxBy(Comparator.comparingInt(Employee::age))));
+oldest.forEach((d, e) => println(d + " -> " + e.map(Employee::name).orElse("?")));
+var stat = staff.stream().collect(Collectors.summarizingInt(Employee::salary));
+println(stat.getMax() - stat.getMin());
+println(staff.stream().map(Employee::name).sorted(Comparator.reverseOrder()).collect(Collectors.joining(", ", "<", ">")));

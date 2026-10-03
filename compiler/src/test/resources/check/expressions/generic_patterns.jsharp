@@ -1,0 +1,21 @@
+// Patterns over generic types: implied type arguments (checked narrowing) and record inference.
+sealed interface Res<T> permits Ok, Err;
+record Ok<T>(T value) : Res<T>;
+record Err<T>(String message) : Res<T>;
+record Box<T>(T item);
+int unwrap(Res<Integer> r) => r switch {
+    Ok<Integer> ok => ok.value + 1,
+    Err<Integer> e => -1,
+};
+int unwrap2(Res<Integer> r) => r switch {
+    Ok(var v) => v + 1,
+    Err(var m) => m.length(),
+};
+Box<String> b = new Box<>("hi");
+if (b is Box(var s)) println(s.length());
+Object o = b;
+if (o is Box<String> bs) println(bs.item);               //~ JS0651
+int wrongArgs(Res<Integer> r) => r switch {
+    Ok<String> s => 1,                                    //~ JS0651
+    _ => 0,
+};

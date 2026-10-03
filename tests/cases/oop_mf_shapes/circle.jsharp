@@ -1,0 +1,5 @@
+package geo;
+
+public record Circle(double r) : Shape {
+    public override double area() => 3 * r * r;
+}

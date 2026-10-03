@@ -1,0 +1,40 @@
+public open class Base {
+    protected int level = 1;
+    public Base() { println("Base ctor sees: " + describe()); }
+    public open String describe() => "base";
+    public open String greet() => "hello from A";
+    public String chain() => greet() + " | level " + level;
+}
+
+public open class Middle : Base {
+    private String name = "middle";
+    private int n = 5;
+    public Middle() {
+        super();
+        level++;
+        println("Middle ctor sees: " + describe());
+    }
+    public override String describe() => "middle name=" + name + " n=" + n;
+    public override String greet() => super.greet() + " via B";
+}
+
+public class Leaf : Middle {
+    public Leaf() { level *= 10; }
+    public final override String greet() => "[" + super.greet() + "]";
+    public override String describe() => "leaf/" + super.describe();
+}
+
+Base b = new Middle();
+println(b.chain());
+println("--");
+Base l = new Leaf();
+println(l.chain());
+println(l.describe());
+Middle m = (Middle) l;
+println(m.greet());
+println(l is Middle && l is Leaf);
+Object o = l;
+var asMiddle = o as Middle;
+println(asMiddle?.greet() ?? "none");
+var asString = o as String;
+println(asString ?? "not a string");

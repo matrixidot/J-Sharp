@@ -1,0 +1,77 @@
+// Multi-dimensional and jagged arrays, default values, clone, covariance, bounds errors.
+import java.util.*;
+
+var grid = new int[3][4];
+println(grid.length + "x" + grid[0].length);
+grid[1][2] = 5;
+var total = 0;
+foreach (var row in grid) foreach (var v in row) total += v;
+println(total);
+var jag = new int[2][];
+println(Arrays.deepToString(jag));
+jag[0] = new int[] { 1 };
+jag[1] = new int[] { 2, 3 };
+println(Arrays.deepToString(jag));
+var ints = new int[2];
+var dbls = new double[2];
+var bools = new boolean[2];
+var chars = new char[2];
+var strs = new String?[2];
+var longs = new long[1];
+println(ints[0] + " " + dbls[1] + " " + bools[0] + " " + (int) chars[0] + " " + strs[1] + " " + longs[0]);
+var orig = new int[] { 1, 2, 3 };
+var cl = orig.clone();
+cl[0] = 100;
+println(orig[0] + " " + cl[0]);
+var deep = new int[][] { new int[] { 1 }, new int[] { 2 } };
+var shallow = deep.clone();
+shallow[0][0] = 9;
+println(deep[0][0]);
+println((shallow === deep) + " " + (shallow[1] === deep[1]));
+var arr = new int[] { 5, 3, 9, 1 };
+Arrays.sort(arr);
+println(Arrays.toString(arr));
+println(Arrays.binarySearch(arr, 5));
+Arrays.fill(arr, 7);
+println(Arrays.stream(arr).sum());
+Object[] objs = new String[] { "a" };
+try {
+    objs[0] = 1;
+} catch (ArrayStoreException e) {
+    println("ArrayStoreException");
+}
+try {
+    println(arr[4]);
+} catch (ArrayIndexOutOfBoundsException e) {
+    println(e.getMessage());
+}
+var neg = -1;
+try {
+    var bad = new int[neg];
+    println(bad.length);
+} catch (NegativeArraySizeException e) {
+    println("negative: " + e.getMessage());
+}
+var cube = new int[2][3][4];
+cube[1][2][3] = 42;
+println(cube[1][2][3] + cube[0].length * 100 + cube[0][0].length * 10);
+var letters = new char[3];
+for (int i = 0; i < letters.length; i++) letters[i] = (char) ('x' + i);
+println(new String(letters));
+var counts = new int[128];
+counts['a'] = 3;
+println(counts[97]);
+var m = new int[][] { new int[] { 1, 2 }, new int[] { 3, 4 } };
+println(m[1][0] * m[0][1]);
+var grown = Arrays.copyOf(new int[] { 1, 2 }, 4);
+println(Arrays.toString(grown));
+var words = new String[] { "pear", "fig", "apple" };
+Arrays.sort(words, Comparator.comparing(String::length));
+println(String.join(",", words));
+var matrix = new double[2][2];
+for (int r = 0; r < 2; r++) for (int c = 0; c < 2; c++) matrix[r][c] = r * 2 + c + 0.5;
+println(Arrays.deepToString(matrix));
+long[][] lm = new long[2][];
+lm[1] = new long[] { 1L << 40 };
+println(lm[1][0]);
+println(new int[0].length);

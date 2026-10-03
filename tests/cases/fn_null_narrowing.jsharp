@@ -1,0 +1,79 @@
+import java.util.*;
+
+public static int lengthOrZero(String? s) {
+    if (s == null) return 0;
+    return s.length();
+}
+
+public static String firstWord(String? text) {
+    if (text == null || text.isBlank()) return "<none>";
+    var parts = text.trim().split(" ");
+    return parts[0];
+}
+
+public static String classify(Object? o) {
+    if (o is String s && s.length() > 3) return "long string " + s;
+    if (o is String s) return "short string " + s;
+    if (o is Integer n) return "int " + (n + 1);
+    if (o == null) return "null";
+    return "other " + o.getClass().getSimpleName();
+}
+
+public static int sumNonNull(List<int?> xs) {
+    var total = 0;
+    foreach (var x in xs) {
+        if (x == null) continue;
+        total += x;
+    }
+    return total;
+}
+
+public static String walk(Map<String, String> links, String start) {
+    String? cur = start;
+    var path = new StringBuilder();
+    while (cur != null) {
+        path.append(cur.toUpperCase()).append(' ');
+        cur = links.get(cur);
+    }
+    return path.toString().trim();
+}
+
+public static String requireName(String? n) {
+    if (n == null) throw new IllegalArgumentException("no name");
+    return n.toUpperCase();
+}
+
+println(lengthOrZero(null));
+println(lengthOrZero("abcd"));
+println(firstWord(null));
+println(firstWord("   "));
+println(firstWord("  hello world"));
+println(classify("hi"));
+println(classify("hello"));
+println(classify(41));
+println(classify(null));
+println(classify(2.5));
+println(sumNonNull(Arrays.asList(1, null, 2, null, 3)));
+var links = new HashMap<String, String>();
+links.put("a", "b");
+links.put("b", "c");
+println(walk(links, "a"));
+println(requireName("x"));
+try {
+    requireName(null);
+} catch (IllegalArgumentException e) {
+    println(e.getMessage());
+}
+String? maybe = links.get("a");
+var msg = if (maybe != null) "found " + maybe.length() else "missing";
+println(msg);
+String? other = links.get("zz");
+println(other != null ? other.length() : -1);
+if (!(other == null)) {
+    println("not null");
+} else {
+    println("negated check ok");
+}
+String? x = null;
+x = "assigned";
+println(x.length());

@@ -70,6 +70,10 @@ public final class Prelude {
     System.out.print(value);
   }
 
+  public static void print(float value) {
+    System.out.print(value);
+  }
+
   public static void print(boolean value) {
     System.out.print(value);
   }

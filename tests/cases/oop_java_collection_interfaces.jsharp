@@ -1,0 +1,62 @@
+import java.util.*;
+import java.util.stream.StreamSupport;
+
+public class Pairs<K, V> : Iterable<Map.Entry<K, V>> {
+    private final List<Map.Entry<K, V>> entries = new ArrayList<>();
+
+    public class Entry<A, B> : Map.Entry<A, B> {
+        private final A key;
+        private B value;
+        public Entry(A key, B value) { this.key = key; this.value = value; }
+        public override A getKey() => key;
+        public override B getValue() => value;
+        public override B setValue(B v) {
+            val old = value;
+            value = v;
+            return old;
+        }
+        public override String toString() => key + "->" + value;
+    }
+
+    public Pairs<K, V> put(K k, V v) {
+        entries.add(new Entry<K, V>(k, v));
+        return this;
+    }
+    public override Iterator<Map.Entry<K, V>> iterator() => entries.iterator();
+}
+
+public class Countdown : Iterable<Integer> {
+    private final int from;
+    public Countdown(int from) { this.from = from; }
+    public override Iterator<Integer> iterator() {
+        val start = from;
+        return new Iterator<Integer>() {
+            private int n = start;
+            public override boolean hasNext() => n > 0;
+            public override Integer next() => n--;
+        };
+    }
+}
+
+var ps = new Pairs<String, Integer>().put("a", 1).put("b", 2).put("c", 3);
+foreach (var e in ps) print(e + " ");
+println();
+foreach (var e in ps) e.setValue(e.getValue() * 10);
+ps.forEach(e => print(e.getKey() + "=" + e.getValue() + ";"));
+println();
+var old = ps.iterator().next().setValue(99);
+println(old + " " + ps.iterator().next());
+var cd = new Countdown(4);
+var list = StreamSupport.stream(cd.spliterator(), false).map(x => x * x).toList();
+println(list);
+int total = 0;
+foreach (var x in cd) total += x;
+println(total);
+cd.forEach(x => print(x));
+println();
+Map.Entry<String, Integer> me = new Pairs.Entry<String, Integer>("k", 7);
+println(me.getKey() + me.getValue());
+var sorted = new ArrayList<Map.Entry<String, Integer>>();
+foreach (var e in ps) sorted.add(e);
+sorted.sort(Map.Entry.comparingByValue(Comparator.reverseOrder()));
+println(sorted);

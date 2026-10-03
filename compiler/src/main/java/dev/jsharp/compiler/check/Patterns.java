@@ -29,6 +29,7 @@ import dev.jsharp.compiler.symbols.FieldSymbol;
 import dev.jsharp.compiler.symbols.Flags;
 import dev.jsharp.compiler.symbols.MethodSymbol;
 import dev.jsharp.compiler.symbols.PropertySymbol;
+import dev.jsharp.compiler.symbols.TypeVarSymbol;
 import dev.jsharp.compiler.symbols.VarSymbol;
 import dev.jsharp.compiler.types.Descriptors;
 import dev.jsharp.compiler.types.Nullness;
@@ -174,7 +175,9 @@ final class Patterns {
         && !ct.args().isEmpty()
         && ct.args().stream().anyMatch(x -> !(x instanceof Type.WildcardType))) {
       ClassType known = types().asSuper(in, ct.sym());
-      if (known == null || !types().isSubtype(known, ct)) {
+      ClassType implied = known == null ? impliedType(in, ct.sym()) : null;
+      boolean checked = implied != null && types().isSubtype(implied, ct);
+      if (!checked && (known == null || !types().isSubtype(known, ct))) {
         a.report(
             a.err(
                     Code.INVALID_PATTERN,
@@ -182,10 +185,65 @@ final class Patterns {
                     "cannot test type arguments of "
                         + ct.display()
                         + " at runtime (generics are erased)")
-                .help("test " + ct.sym().name() + "<?> instead"));
+                .help("test " + ct.sym().name() + wildcards(ct.args().size()) + " instead"));
       }
     }
     return t;
+  }
+
+  private static String wildcards(int n) {
+    return "<" + String.join(", ", java.util.Collections.nCopies(n, "?")) + ">";
+  }
+
+  /**
+   * The parameterization of {@code sub} implied by a value of static type {@code in}: for {@code in
+   * = Result<Integer, String>} and {@code sub = Ok<A, B> : Result<A, B>} it is {@code Ok<Integer,
+   * String>} (JLS 5.1.6.1 checked narrowing, 18.5.5 record pattern inference). Null if some type
+   * argument is not determined.
+   */
+  ClassType impliedType(Type in, ClassSymbol sub) {
+    if (sub.typeParams().isEmpty()) {
+      return null;
+    }
+    if (!(types().boxIfPrimitive(in) instanceof ClassType ic)
+        || ic.args().stream().anyMatch(x -> x instanceof Type.WildcardType)) {
+      return null;
+    }
+    ClassType generic = sub.thisType();
+    ClassType sup = types().asSuper(generic, ic.sym());
+    if (sup == null) {
+      return null;
+    }
+    Infer inf = new Infer(types(), sub.typeParams());
+    inf.eq(sup, ic.withNullness(Nullness.NON_NULL));
+    java.util.Map<TypeVarSymbol, Type> sol = inf.solve(false);
+    if (sol.size() != sub.typeParams().size()) {
+      return null;
+    }
+    return (ClassType) Types.subst(generic, sol).withNullness(Nullness.NON_NULL);
+  }
+
+  /** A raw or all-wildcard generic type in a pattern gets the arguments implied by the input. */
+  private Type inferPatternType(Type input, Type declared) {
+    if (declared instanceof ClassType ct
+        && !ct.args().isEmpty()
+        && ct.args().stream()
+            .allMatch(
+                x ->
+                    x instanceof Type.WildcardType w
+                        && w.kind() == Type.WildcardType.Kind.UNBOUNDED)) {
+      ClassType implied = impliedType(input, ct.sym());
+      if (implied == null) {
+        ClassType same = types().asSuper(types().boxIfPrimitive(input), ct.sym());
+        if (same != null && same.args().stream().noneMatch(x -> x instanceof Type.WildcardType)) {
+          implied = same;
+        }
+      }
+      if (implied != null) {
+        return implied;
+      }
+    }
+    return declared;
   }
 
   private BPattern constantPattern(Pattern.Constant c, Type input, List<VarSymbol> bindings) {
@@ -290,7 +348,7 @@ final class Patterns {
       if (declared.isError()) {
         return new BPattern.Any(null, span);
       }
-      t = checkPatternType(input, declared, r.type().span());
+      t = checkPatternType(input, inferPatternType(input, declared), r.type().span());
     } else if (r.positional() != null && input.isError()) {
       for (Pattern sub : r.positional()) {
         pattern(sub, Type.ErrorType.INSTANCE, bindings);
@@ -1757,17 +1815,25 @@ final class Patterns {
               "Object",
               true);
     } else {
-      sel =
-          a.calls.select(
-              bs.methods(MethodSymbol.CONSTRUCTOR),
-              superType,
-              infos,
-              null,
-              null,
-              null,
-              span,
-              "constructor of " + bs.name(),
-              true);
+      // The implicit super(...) call is made by the anonymous subclass: protected constructors
+      // of a superclass in another package are accessible.
+      ClassSymbol savedFrom = a.calls.accessFrom;
+      a.calls.accessFrom = c;
+      try {
+        sel =
+            a.calls.select(
+                bs.methods(MethodSymbol.CONSTRUCTOR),
+                superType,
+                infos,
+                null,
+                null,
+                null,
+                span,
+                "constructor of " + bs.name(),
+                true);
+      } finally {
+        a.calls.accessFrom = savedFrom;
+      }
     }
     if (sel == null) {
       return new BExpr.Error(base, span);

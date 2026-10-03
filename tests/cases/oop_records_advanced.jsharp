@@ -1,0 +1,64 @@
+import java.util.*;
+import java.util.function.Function;
+
+public interface HasArea { double area(); }
+
+public record Rect(double w, double h) : HasArea {
+    public Rect {
+        if (w < 0 || h < 0) throw new IllegalArgumentException("negative: " + w + "x" + h);
+    }
+    public Rect(double side) { this(side, side); }
+    public override double area() => w * h;
+    public static Rect unit() => new Rect(1);
+}
+
+public record Pair<A, B>(A first, B second) {
+    public Pair<B, A> swap() => new Pair<>(second, first);
+    public Pair<C, B> mapFirst<C>(Function<A, C> f) => new Pair<>(f.apply(first), second);
+}
+
+public record Name(String first, String last) {
+    public Name {
+        first = first.trim();
+        last = last.trim();
+    }
+    public override String toString() => last + ", " + first;
+}
+
+String kind(HasArea a) => a switch {
+    Rect(var w, var h) when w == h => "square " + w,
+    Rect r => "rect " + r.area(),
+    _ => "other",
+};
+
+var r = new Rect(2, 3);
+println(r);
+println(r == new Rect(2, 3));
+println(r === new Rect(2, 3));
+println(r.hashCode() == new Rect(2.0, 3.0).hashCode());
+HasArea ha = r;
+println(ha.area());
+var r2 = r with { h = 2 };
+println(r2 + " " + r);
+println(kind(r2) + " | " + kind(r) + " | " + kind(Rect.unit()));
+var (w, h) = r;
+println(w + h);
+try {
+    var bad = r with { w = -1 };
+    println("not reached " + bad);
+} catch (IllegalArgumentException e) {
+    println(e.getMessage());
+}
+var set = new HashSet<Rect>();
+set.add(new Rect(1, 1));
+set.add(Rect.unit());
+println(set.size());
+var p = new Pair<String, Integer>("abc", 7);
+println(p);
+println(p.swap());
+println(p.mapFirst(s => s.length()).first + 1);
+println(p.swap().first * 2);
+var n = new Name("  Ada ", " Lovelace ");
+println(n);
+println("[" + n.first + "]");
+println(n == new Name("Ada", "Lovelace"));

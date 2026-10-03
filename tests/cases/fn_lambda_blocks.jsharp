@@ -1,0 +1,57 @@
+import java.util.*;
+import java.util.function.*;
+
+Function<int, String> classify = n => {
+    if (n < 0) return "negative";
+    if (n == 0) return "zero";
+    var parity = n % 2 == 0 ? "even" : "odd";
+    return "positive " + parity;
+};
+println(classify.apply(-4));
+println(classify.apply(0));
+println(classify.apply(7));
+println(classify.apply(10));
+
+var base = 100;
+val label = "sum";
+BiFunction<int, int, String> summer = (a, b) => {
+    var total = base + a + b;
+    return label + "=" + total;
+};
+println(summer.apply(1, 2));
+
+Function<int, Function<int, Function<int, int>>> add3 = a => b => c => a * 100 + b * 10 + c;
+println(add3.apply(1).apply(2).apply(3));
+
+Supplier<Supplier<String>> nested = () => {
+    var inner = "deep";
+    return () => inner + "!" + base;
+};
+println(nested.get().get());
+
+var log = new ArrayList<String>();
+Consumer<String> logger = msg => {
+    log.add("[" + log.size() + "] " + msg);
+};
+logger.accept("start");
+logger.accept("middle");
+logger.andThen(m => log.add("after " + m)).accept("end");
+foreach (var line in log) println(line);
+
+Runnable counter = () => {
+    var i = 0;
+    while (i < 3) {
+        print(i);
+        i++;
+    }
+    println();
+};
+counter.run();
+counter.run();
+
+Function<List<int>, int> maxOf = xs => {
+    var best = Integer.MIN_VALUE;
+    foreach (var x in xs) if (x > best) best = x;
+    return best;
+};
+println(maxOf.apply(List.of(3, 17, 5, 9)));

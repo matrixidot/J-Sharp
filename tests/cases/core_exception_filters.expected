@@ -1,0 +1,17 @@
+server 503
+client 404
+other 302
+outer got x
+filter saw r
+fallback 1
+logging orig
+rethrown orig
+true
+wrapped <- NumberFormatException
+missing
+retry after code 1
+attempt 1 finished
+retry after code 2
+attempt 2 finished
+attempt 3 finished
+odd above threshold

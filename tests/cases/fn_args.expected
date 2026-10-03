@@ -1,0 +1,12 @@
+6
+<hello>
+<42>
+<--mode=fast>
+<world with space>
+<-7>
+<--level=3>
+[42, -7]
+35
+--LEVEL=3,--MODE=FAST,HELLO,WORLD WITH SPACE
+hello
+{level=3, mode=fast}

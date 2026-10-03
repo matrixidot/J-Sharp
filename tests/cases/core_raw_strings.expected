@@ -1,0 +1,14 @@
+Hello,
+  "quoted" \n not escaped
+End
+single "line" \t
+Dear World,
+total: 021
+3
+[a
+b]
+  x
+y
+esc: "q" \ AB end
+multi
+line

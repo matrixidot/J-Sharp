@@ -1,0 +1,7 @@
+[ok]x1
+button [ok]x1 [btn1:click1]
+icon-button | *[go]x2*(btn2) | [btn2:click1, btn2:click2]
+2
+4 [x>
+anon <c3> []
+3

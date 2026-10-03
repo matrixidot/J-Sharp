@@ -1,0 +1,48 @@
+import java.util.*;
+
+public interface Transformer {
+    String transform(String s);
+    default Transformer then(Transformer next) => s => next.transform(transform(s));
+    static Transformer identity() => s => s;
+}
+
+public interface IntOp {
+    int apply(int a, int b);
+    default IntOp swapped() => (a, b) => apply(b, a);
+}
+
+public interface Mapper<A, B> {
+    B map(A a);
+    default Mapper<A, B> logged(List<String> log) => a => {
+        var b = map(a);
+        log.add(a + "->" + b);
+        return b;
+    };
+}
+
+public static List<B> mapAll<A, B>(List<A> xs, Mapper<A, B> f) {
+    var out = new ArrayList<B>();
+    foreach (var x in xs) out.add(f.map(x));
+    return out;
+}
+
+Transformer up = s => s.toUpperCase();
+Transformer exclaim = s => s + "!";
+Transformer trim = String::trim;
+println(trim.then(up).then(exclaim).transform("  hello "));
+println(Transformer.identity().then(exclaim).transform("x"));
+
+IntOp minus = (a, b) => a - b;
+println(minus.apply(10, 3));
+println(minus.swapped().apply(10, 3));
+println(minus.swapped().swapped().apply(10, 3));
+
+var log = new ArrayList<String>();
+Mapper<int, String> stars = n => "*".repeat(n);
+println(mapAll(List.of(1, 3, 2), stars.logged(log)));
+println(log);
+
+var anon = new Transformer() {
+    public override String transform(String s) => new StringBuilder(s).reverse().toString();
+};
+println(anon.then(up).transform("abc"));

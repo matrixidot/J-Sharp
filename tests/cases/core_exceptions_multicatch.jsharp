@@ -1,0 +1,89 @@
+// Multi-catch, custom exception hierarchies, unchecked use of Java checked exceptions.
+import java.io.*;
+
+public open class AppException : RuntimeException {
+    public final int code;
+    public AppException(String msg, int code) {
+        super(msg);
+        this.code = code;
+    }
+}
+
+public class NotFound : AppException {
+    public NotFound(String msg) { super(msg, 404); }
+}
+
+void risky(int k) {
+    switch (k) {
+        case 0:
+            throw new IllegalArgumentException("iae");
+        case 1:
+            throw new IllegalStateException("ise");
+        case 2:
+            throw new IOException("io");
+        case 3:
+            throw new NotFound("nf");
+        case 4:
+            throw new ArrayIndexOutOfBoundsException("idx");
+        case 5:
+            throw new UncheckedIOException("uio", new IOException("inner"));
+        default:
+            println("ok " + k);
+    }
+}
+
+String readMissing() {
+    try {
+        return java.nio.file.Files.readString(java.nio.file.Path.of("/nonexistent/dir/file.txt"));
+    } catch (java.nio.file.NoSuchFileException e) {
+        return "no such file";
+    }
+}
+
+void throwsChecked() {
+    throw new Exception("checked but undeclared");
+}
+
+for (int k = 0; k <= 6; k++) {
+    try {
+        risky(k);
+    } catch (IllegalArgumentException | IllegalStateException e) {
+        println("arg/state: " + e.getMessage());
+    } catch (IOException | UncheckedIOException e) {
+        println("io: " + e.getMessage() + " " + e.getClass().getSimpleName());
+    } catch (AppException e) {
+        println("app " + e.code + ": " + e.getMessage() + " " + (e is NotFound));
+    } catch (RuntimeException e) {
+        println("other runtime: " + e.getClass().getSimpleName());
+    }
+}
+println(readMissing());
+try {
+    throwsChecked();
+} catch (Exception e) {
+    println(e.getMessage());
+}
+try {
+    throw new StackOverflowError("so");
+} catch (Error e) {
+    println("error " + e.getMessage());
+}
+var ex = new IllegalStateException("state");
+println(ex);
+try {
+    throw new NotFound("missing page");
+} catch (Exception e) {
+    var msg = e switch {
+        NotFound nf => "404 " + nf.getMessage(),
+        AppException ae => "app",
+        _ => "other",
+    };
+    println(msg);
+}
+try {
+    Object o = "str";
+    var n = (Integer) o;
+    println(n);
+} catch (ClassCastException | NullPointerException e) {
+    println("cast or npe: " + (e is ClassCastException));
+}

@@ -56,6 +56,7 @@ public final class FileScope {
   private final List<ClassSymbol> onDemandClasses = new ArrayList<>();
   private final List<StaticImport> staticSingle = new ArrayList<>();
   private final List<ClassSymbol> staticOnDemand = new ArrayList<>();
+  private boolean packageModulesAdded;
   private final Map<String, TypeLookup> cache = new HashMap<>();
   private ClassSymbol moduleClass;
 
@@ -89,8 +90,22 @@ public final class FileScope {
     return staticSingle;
   }
 
-  /** Classes imported with {@code import static C.*} plus the implicit static containers. */
+  /**
+   * Classes imported with {@code import static C.*}, the implicit static containers, and the module
+   * classes of packages imported on demand ({@code import p.*} imports p's top-level functions,
+   * values and extensions).
+   */
   public List<ClassSymbol> staticOnDemandImports() {
+    if (!packageModulesAdded) {
+      packageModulesAdded = true;
+      for (String p : onDemandPackages) {
+        for (ClassSymbol m : ctx.syms.moduleClassesIn(p)) {
+          if (!staticOnDemand.contains(m)) {
+            staticOnDemand.add(m);
+          }
+        }
+      }
+    }
     return staticOnDemand;
   }
 

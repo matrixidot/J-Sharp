@@ -1,0 +1,22 @@
+0 1 2 3 4 
+1 16 49 
+5050
+exhausted
+open A
+use A
+close A
+open X
+open Y
+use X
+use Y
+end of scope
+close Y
+close X
+open B
+close B
+caught boom
+close failing
+caught body suppressed=1 close failed
+body ok
+close failing
+caught close failed

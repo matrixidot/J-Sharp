@@ -1,0 +1,53 @@
+import java.util.*;
+import java.util.function.IntBinaryOperator;
+
+public enum Calc(String sym, IntBinaryOperator fn) {
+    Plus("+", (a, b) => a + b),
+    Minus("-", (a, b) => a - b),
+    Pow("^", (a, b) => (int) Math.pow(a, b));
+
+    private static final Map<String, Calc> BY_SYM = new HashMap<>();
+    static {
+        foreach (var c in values()) BY_SYM.put(c.sym, c);
+    }
+    private int uses = 0;
+    public static Calc? lookup(String s) => BY_SYM.get(s);
+    public int run(int a, int b) {
+        uses++;
+        return fn.applyAsInt(a, b);
+    }
+    public int usage => uses;
+}
+
+public enum Singleton {
+    Instance;
+    private int hits;
+    public int hit() => ++hits;
+}
+
+String rate(Calc c) => c switch {
+    Calc.Plus or Calc.Minus => "cheap",
+    Calc.Pow => "costly",
+};
+
+println(Calc.Plus.run(2, 3) + " " + Calc.Minus.run(2, 3) + " " + Calc.Pow.run(2, 10));
+var c = Calc.lookup("^");
+println(c);
+println(c?.run(3, 3));
+println(Calc.lookup("%") ?? Calc.Plus);
+println(Calc.lookup("-") == Calc.Minus);
+Calc.Plus.run(1, 1);
+foreach (var x in Calc.values()) print(x + "=" + x.usage + " ");
+println();
+println(rate(Calc.Minus) + " " + rate(Calc.Pow));
+var arr = Calc.values();
+arr[0] = Calc.Pow;
+println(Calc.values()[0]);
+println(Enum.valueOf(typeof(Calc), "Minus").sym);
+println(Calc.Pow.getDeclaringClass().getSimpleName());
+Singleton.Instance.hit();
+Singleton.Instance.hit();
+println(Singleton.Instance.hit());
+var counts = new EnumMap<Calc, Integer>(typeof(Calc));
+foreach (var s in List.of("^", "+", "^", "-", "^")) counts.merge(Calc.lookup(s)!, 1, Integer::sum);
+println(counts);

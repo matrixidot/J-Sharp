@@ -1,0 +1,18 @@
+package app;
+
+import java.util.*;
+import geo.*;
+import static geo.FmtModule.totalArea;
+
+String kind(Shape s) => s switch {
+    Circle c => "round r=" + c.r,
+    Rect(var w, var h) when w == h => "squarish rect",
+    Rect r => "rect " + r.w + "x" + r.h,
+    Square _ => "square",
+};
+
+List<Shape> shapes = List.of(new Circle(1), new Rect(2, 3), new Rect(2, 2), new Square(1.5));
+foreach (var s in shapes) println(kind(s) + " | " + s.describe());
+println(totalArea(shapes));
+println(new Rect(4, 4).asSquare());
+println(new Rect(4, 5).asSquare());

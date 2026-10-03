@@ -1,0 +1,115 @@
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
+
+public class RangeIterator : Iterator<int> {
+    private int cur;
+    private final int end;
+    private final int step;
+    public RangeIterator(int start, int end, int step) {
+        cur = start;
+        this.end = end;
+        this.step = step;
+    }
+    public override boolean hasNext() => step > 0 ? cur < end : cur > end;
+    public override Integer next() {
+        if (!hasNext()) throw new NoSuchElementException();
+        var v = cur;
+        cur += step;
+        return v;
+    }
+}
+
+public class Range : Iterable<int> {
+    private final int start;
+    private final int end;
+    private final int step;
+    public Range(int start, int end, int step) {
+        this.start = start;
+        this.end = end;
+        this.step = step;
+    }
+    public override Iterator<int> iterator() => new RangeIterator(start, end, step);
+}
+
+public class Fib : Iterable<long> {
+    private final int count;
+    public Fib(int count) { this.count = count; }
+    public override Iterator<long> iterator() => new Iterator<long>() {
+        private long a = 0;
+        private long b = 1;
+        private int produced = 0;
+        public override boolean hasNext() => produced < count;
+        public override Long next() {
+            var r = a;
+            var t = a + b;
+            a = b;
+            b = t;
+            produced++;
+            return r;
+        }
+    };
+}
+
+public class Node<T> {
+    public final T value;
+    public final Node<T>? next;
+    public Node(T value, Node<T>? next) {
+        this.value = value;
+        this.next = next;
+    }
+}
+
+public class LinkedSeq<T> : Iterable<T> {
+    private Node<T>? head;
+    public void push(T v) { head = new Node<>(v, head); }
+    public override Iterator<T> iterator() {
+        Node<T>? start = head;
+        return new Iterator<T>() {
+            private Node<T>? cur = start;
+            public override boolean hasNext() => cur != null;
+            public override T next() {
+                var n = cur!;
+                cur = n.next;
+                return n.value;
+            }
+        };
+    }
+    public LinkedSeq<R> map<R>(Function<T, R> f) {
+        var tmp = new ArrayList<R>();
+        foreach (var x in this) tmp.add(f.apply(x));
+        var out = new LinkedSeq<R>();
+        for (var i = tmp.size() - 1; i >= 0; i--) out.push(tmp.get(i));
+        return out;
+    }
+}
+
+foreach (var i in new Range(0, 10, 3)) print(i + " ");
+println();
+foreach (var i in new Range(5, 0, -2)) print(i + " ");
+println();
+var sum = 0;
+foreach (int i in new Range(1, 101, 1)) sum += i;
+println(sum);
+var fibs = new ArrayList<long>();
+foreach (var f in new Fib(10)) fibs.add(f);
+println(fibs);
+var seq = new LinkedSeq<String>();
+seq.push("c");
+seq.push("b");
+seq.push("a");
+foreach (var s in seq) print(s);
+println();
+foreach (var n in seq.map(s => s.charAt(0) - 'a' + 1)) print(n);
+println();
+var it = new Range(0, 3, 1).iterator();
+while (it.hasNext()) print("[" + it.next() + "]");
+println();
+try {
+    it.next();
+} catch (NoSuchElementException e) {
+    println("exhausted");
+}
+new Range(1, 4, 1).forEach(x => print(x * x + ","));
+println();
+println(StreamSupport.stream(new Fib(8).spliterator(), false).map(x => x * 2).toList());

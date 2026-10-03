@@ -1,0 +1,58 @@
+// checked(expr) and checked { } map to Math.*Exact; default arithmetic wraps.
+int safeAdd(int a, int b) {
+    try {
+        return checked(a + b);
+    } catch (ArithmeticException e) {
+        println("overflow: " + e.getMessage());
+        return -1;
+    }
+}
+
+int wrapInc(int v) => v + 1;
+
+int max = Integer.MAX_VALUE;
+int min = Integer.MIN_VALUE;
+println(safeAdd(1, 2));
+println(safeAdd(max, 1));
+println(max + 1);
+try {
+    checked {
+        int a = max;
+        a++;
+        println("not reached");
+    }
+} catch (ArithmeticException e) {
+    println("caught ++: " + e.getMessage());
+}
+long big = Long.MAX_VALUE / 2 + 1;
+try {
+    println(checked(big * 2));
+} catch (ArithmeticException e) {
+    println("long: " + e.getMessage());
+}
+try {
+    println(checked(-min));
+} catch (ArithmeticException e) {
+    println("neg: " + e.getMessage());
+}
+try {
+    println(checked(min - 1));
+} catch (ArithmeticException e) {
+    println("sub: " + e.getMessage());
+}
+println(checked(1000 * 1000));
+int x = max;
+checked {
+    x -= 1;
+}
+println(x);
+try {
+    checked {
+        x += 2;
+    }
+} catch (ArithmeticException e) {
+    println("compound: " + e.getMessage());
+}
+println(x);
+println(checked(wrapInc(max)));
+println(checked(big + (big - 1)) > 0);

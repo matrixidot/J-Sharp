@@ -1,0 +1,65 @@
+import java.util.*;
+
+public class Config {
+    public String? host;
+    public int? port;
+    private String? cachedUrl;
+    public String url() {
+        cachedUrl ??= (host ?? "localhost") + ":" + (port ?? 80);
+        return cachedUrl!;
+    }
+}
+
+var c = new Config();
+println(c.url());
+c.host = "example.org";
+println(c.url());
+var c2 = new Config();
+c2.host = "h";
+c2.port = 8080;
+println(c2.url());
+
+String? s = null;
+s ??= "first";
+s ??= "second";
+println(s);
+
+var counts = new HashMap<String, int>();
+foreach (var w in "a b a c b a".split(" ")) {
+    int? cur = counts.get(w);
+    cur ??= 0;
+    counts.put(w, cur + 1);
+}
+println(new TreeMap<String, int>(counts));
+
+String?[] arr = new String?[3];
+arr[1] = "mid";
+for (var i = 0; i < arr.length; i++) {
+    arr[i] ??= "slot" + i;
+}
+println(String.join(",", arr));
+
+String? maybeNull = counts.containsKey("z") ? "yes" : null;
+try {
+    println(maybeNull!.length());
+} catch (NullPointerException e) {
+    println("NPE caught");
+}
+var m = new HashMap<String, String>();
+m.put("k", "v");
+println(m.get("k")!.toUpperCase());
+int? boxed = null;
+try {
+    int unboxed = boxed!;
+    println(unboxed);
+} catch (NullPointerException e) {
+    println("NPE on int?");
+}
+try {
+    var v = m.get("missing") ?? throw new IllegalStateException("missing key");
+    println(v);
+} catch (IllegalStateException e) {
+    println(e.getMessage());
+}
+var w = m.get("k") ?? error("unreachable");
+println(w);

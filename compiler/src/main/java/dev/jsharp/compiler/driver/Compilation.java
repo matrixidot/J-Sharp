@@ -61,7 +61,7 @@ public final class Compilation {
   /** Builds the class path: runtime library first, then the user's entries. */
   public static ClassPath openClassPath(CompilerOptions options) {
     List<Path> cp = new ArrayList<>();
-    RuntimeLocator.find().ifPresent(cp::add);
+    cp.addAll(RuntimeLocator.findAll());
     cp.addAll(options.classPath());
     try {
       return ClassPath.of(cp);

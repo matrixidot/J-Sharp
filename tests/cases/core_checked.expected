@@ -1,0 +1,14 @@
+3
+overflow: integer overflow
+-1
+-2147483648
+caught ++: integer overflow
+long: long overflow
+neg: integer overflow
+sub: integer overflow
+1000000
+2147483646
+compound: integer overflow
+2147483646
+-2147483648
+true

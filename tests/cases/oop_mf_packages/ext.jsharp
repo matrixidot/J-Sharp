@@ -1,0 +1,8 @@
+package lib.text;
+
+public static String bracket(this String s, String open = "[", String close = "]") => open + s + close;
+public static int vowels(this String s) {
+    int n = 0;
+    foreach (var c in s.toCharArray()) if ("aeiou".indexOf(c) >= 0) n++;
+    return n;
+}

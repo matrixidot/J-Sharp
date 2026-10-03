@@ -1,0 +1,50 @@
+// char arithmetic, promotion, and char/int overloads.
+char c = 'a';
+println(c + 1);
+println((char) (c + 1));
+c += 2;
+println(c);
+c++;
+println(c);
+++c;
+println(c);
+println(c - 'a');
+println('a' + 'b');
+println("" + 'a' + 'b');
+println('a' + "b");
+println((char) 65 + "" + (char) 66);
+println(c > 'b');
+var sb = new StringBuilder();
+for (char ch = 'a'; ch <= 'e'; ch++) sb.append(ch);
+println(sb);
+var upper = new StringBuilder();
+foreach (var ch in "Hello, World".toCharArray()) {
+    if (Character.isLowerCase(ch)) upper.append((char) (ch - 32));
+    else upper.append(ch);
+}
+println(upper);
+int[] counts = new int[26];
+foreach (var ch in "banana".toCharArray()) counts[ch - 'a']++;
+println(counts[0] + " " + counts[1] + " " + counts[13]);
+char digit = '7';
+println(digit - '0');
+println(Character.getNumericValue(digit) * 2);
+char tab = '\t';
+println((int) tab);
+println((int) 'A');
+println('A');
+println((int) '\\');
+println("x".charAt(0) == 'x');
+String rot13(String s) {
+    var out = new StringBuilder();
+    foreach (var ch in s.toCharArray()) {
+        if (ch >= 'a' && ch <= 'z') out.append((char) ('a' + (ch - 'a' + 13) % 26));
+        else out.append(ch);
+    }
+    return out.toString();
+}
+println(rot13("hello"));
+println(rot13(rot13("round trip")));
+char max = Character.MAX_VALUE;
+max++;
+println((int) max);

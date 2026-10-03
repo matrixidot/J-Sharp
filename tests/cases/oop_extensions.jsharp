@@ -1,0 +1,47 @@
+import java.util.*;
+
+public static int doubled(this int x) => x * 2;
+public static boolean isEven(this int x) => x % 2 == 0;
+public static String repeatTimes(this String s, int n, String sep = "") {
+    var sb = new StringBuilder();
+    for (int i = 0; i < n; i++) {
+        if (i > 0) sb.append(sep);
+        sb.append(s);
+    }
+    return sb.toString();
+}
+public static T lastOr<T>(this List<T> xs, T fallback) => xs.isEmpty() ? fallback : xs.get(xs.size() - 1);
+public static String orEmpty(this String? s) => s ?? "<empty>";
+
+public class Money {
+    public final long cents;
+    public Money(long cents) { this.cents = cents; }
+    public String format() => "member:" + cents;
+}
+
+public class MoneyExt {
+    public static String format(this Money m) => "extension";
+    public static String pretty(this Money m) => "$" + (m.cents / 100) + "." + String.format("%02d", m.cents % 100);
+    public static Money plus(this Money m, Money other) => new Money(m.cents + other.cents);
+}
+
+public open class Animal { public String name() => "animal"; }
+public class Dog : Animal { }
+public static String hello(this Animal a) => "hello " + a.name();
+
+println(5.doubled().doubled());
+println(7.isEven() + " " + 10.isEven());
+println("ab".repeatTimes(3));
+println("ab".repeatTimes(3, sep: "-"));
+println(List.of(1, 2, 3).lastOr(0) + " " + new ArrayList<Integer>().lastOr(-1));
+String? nothing = null;
+println(nothing.orEmpty() + " " + "x".orEmpty());
+var m = new Money(1999);
+println(m.format());
+println(m.pretty());
+println(m.plus(new Money(1)).plus(new Money(250)).pretty());
+println(MoneyExt.pretty(m));
+println(new Dog().hello());
+println(doubled(21));
+int k = 3;
+println((k + 1).doubled());

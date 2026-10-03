@@ -1,0 +1,67 @@
+import java.util.*;
+import java.util.function.*;
+
+public class Lazy<T> {
+    private Supplier<T>? init;
+    private T? value;
+    private boolean done;
+    public Lazy(Supplier<T> init) { this.init = init; }
+    public T get() {
+        if (!done) {
+            value = init!.get();
+            done = true;
+            init = null;
+        }
+        return value!;
+    }
+    public Lazy<R> map<R>(Function<T, R> f) => new Lazy<R>(() => f.apply(get()));
+}
+
+public class Pipeline<T> {
+    private final List<Function<T, T>> stages = new ArrayList<>();
+    private final List<String> names = new ArrayList<>();
+    public Pipeline<T> add(String name, Function<T, T> stage) {
+        names.add(name);
+        stages.add(stage);
+        return this;
+    }
+    public T run(T input, Consumer<String> trace) {
+        var cur = input;
+        for (var i = 0; i < stages.size(); i++) {
+            cur = stages.get(i).apply(cur);
+            trace.accept(names.get(i) + " -> " + cur);
+        }
+        return cur;
+    }
+}
+
+public static List<R> zipWith<A, B, R>(List<A> xs, List<B> ys, BiFunction<A, B, R> f) {
+    var out = new ArrayList<R>();
+    for (var i = 0; i < Math.min(xs.size(), ys.size()); i++) out.add(f.apply(xs.get(i), ys.get(i)));
+    return out;
+}
+
+public static R foldLeft<T, R>(Iterable<T> xs, R init, BiFunction<R, T, R> f) {
+    var acc = init;
+    foreach (var x in xs) acc = f.apply(acc, x);
+    return acc;
+}
+
+var evals = new int[1];
+var lazy = new Lazy<String>(() => {
+    evals[0]++;
+    return "computed";
+});
+println(evals[0]);
+var upper = lazy.map(String::toUpperCase);
+println(upper.get());
+println(lazy.get());
+println(upper.get());
+println(evals[0]);
+
+var p = new Pipeline<int>().add("double", x => x * 2).add("inc", x => x + 1).add("square", x => x * x);
+println(p.run(3, s => println("  " + s)));
+println(zipWith(List.of(1, 2, 3), List.of("a", "b", "c"), (n, s) => s.repeat(n)));
+println(foldLeft(List.of(1, 2, 3, 4), "", (acc, x) => acc + x));
+println(foldLeft(List.of("x", "yy"), 0, (acc, s) => acc + s.length()));
+println(foldLeft(List.of(1, 2, 3), 0, (acc, x) => acc + x * x));

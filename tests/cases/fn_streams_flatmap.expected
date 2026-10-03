@@ -1,0 +1,11 @@
+11
+9
+brown dog end fox jumps lazy over quick the
+{brown=1, dog=1, end=1, fox=1, jumps=1, lazy=1, over=1, quick=1, the=3}
+[10, 20, 30, 40, 50, 60]
+3
+21
+[11, 12, 13, 22, 23, 33]
+[a, b, c, d]
+26
+xyz

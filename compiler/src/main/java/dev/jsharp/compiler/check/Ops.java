@@ -1106,7 +1106,14 @@ final class Ops {
         p.setter(),
         List.of(),
         t,
-        Attr.callKind(p.setter(), recv, false));
+        Attr.callKind(p.setter(), recv, isSuperReceiver(recv)));
+  }
+
+  /** {@code super.p = v} must call the superclass setter non-virtually. */
+  private boolean isSuperReceiver(BExpr recv) {
+    return recv instanceof BExpr.This th
+        && th.type() instanceof ClassType ct
+        && ct.sym() != a.env.cls;
   }
 
   private BLValue beanLValue(BExpr recv, Type site, MethodSymbol setter, String name, Span span) {

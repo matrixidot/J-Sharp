@@ -1,0 +1,111 @@
+// Exception filters (`when`), rethrow with `throw;`, wrapping, throw expressions.
+import java.util.*;
+
+public class AppError : RuntimeException {
+    public final int code;
+    public AppError(int code) {
+        super("code " + code);
+        this.code = code;
+    }
+}
+
+class Ctr {
+    public static int n;
+    public static boolean log(String s) {
+        n++;
+        println("filter saw " + s);
+        return false;
+    }
+}
+
+String classify(int code) {
+    try {
+        throw new AppError(code);
+    } catch (AppError e) when (e.code >= 500) {
+        return "server " + e.code;
+    } catch (AppError e) when (e.code >= 400) {
+        return "client " + e.code;
+    } catch (AppError e) {
+        return "other " + e.code;
+    }
+}
+
+void rethrower() {
+    try {
+        throw new IllegalArgumentException("orig");
+    } catch (IllegalArgumentException e) {
+        println("logging " + e.getMessage());
+        throw;
+    }
+}
+
+println(classify(503));
+println(classify(404));
+println(classify(302));
+try {
+    try {
+        throw new IllegalStateException("x");
+    } catch (IllegalStateException e) when (e.getMessage().equals("y")) {
+        println("inner");
+    }
+} catch (IllegalStateException e) {
+    println("outer got " + e.getMessage());
+}
+try {
+    throw new RuntimeException("r");
+} catch (RuntimeException e) when (Ctr.log(e.getMessage())) {
+    println("never");
+} catch (RuntimeException e) {
+    println("fallback " + Ctr.n);
+}
+try {
+    rethrower();
+} catch (IllegalArgumentException e) {
+    println("rethrown " + e.getMessage());
+}
+IllegalArgumentException? saved = null;
+try {
+    try {
+        throw new IllegalArgumentException("same");
+    } catch (IllegalArgumentException e) {
+        saved = e;
+        throw e;
+    }
+} catch (IllegalArgumentException e2) {
+    println(e2 === saved);
+}
+try {
+    try {
+        Integer.parseInt("zz");
+    } catch (NumberFormatException e) {
+        throw new IllegalStateException("wrapped", e);
+    }
+} catch (IllegalStateException e) {
+    println(e.getMessage() + " <- " + e.getCause().getClass().getSimpleName());
+}
+String? maybe = null;
+try {
+    String v = maybe ?? throw new NoSuchElementException("missing");
+    println(v);
+} catch (NoSuchElementException e) {
+    println(e.getMessage());
+}
+var attempts = 0;
+var done = false;
+while (!done) {
+    try {
+        attempts++;
+        if (attempts < 3) throw new AppError(attempts);
+        done = true;
+    } catch (AppError e) when (e.code < 3) {
+        println("retry after " + e.getMessage());
+    } finally {
+        println("attempt " + attempts + " finished");
+    }
+}
+var threshold = 2;
+try {
+    throw new AppError(5);
+} catch (AppError e) when (e.code > threshold && e.code % 2 == 1) {
+    println("odd above threshold");
+}

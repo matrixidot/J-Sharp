@@ -1,0 +1,12 @@
+import java.util.*;
+import java.util.stream.*;
+
+var words = List.of("apple", "avocado", "banana", "cherry", "blueberry");
+var counts = words.stream().collect(Collectors.groupingBy(w => w.charAt(0), TreeMap::new, Collectors.counting()));
+println(counts);
+var lengths = words.stream().collect(Collectors.toMap(w => w, String::length, (a, b) => a + b, TreeMap::new));
+println(lengths);
+var sorted = Stream.of(3, 1, 2, 3).collect(Collectors.toCollection(TreeSet::new));
+println(sorted);
+var deque = Stream.of("x", "y").collect(Collectors.toCollection(ArrayDeque::new));
+println(deque.peekLast());

@@ -722,6 +722,28 @@ public final class Attr {
       error(Code.STATIC_CONTEXT, s.span(), "'super' cannot be used in a static context");
     }
     noteThisUse();
+    if (s.qualifier() != null) {
+      // I.super.m(): I must be a direct superinterface (Java rule).
+      Target q = target(s.qualifier(), true);
+      if (q instanceof TypeTarget tt && tt.type() instanceof ClassType qt) {
+        for (ClassType i : env.cls.interfaces()) {
+          if (i.sym() == qt.sym()) {
+            return new SuperTarget(i, s.span());
+          }
+        }
+        error(
+            Code.INVALID_THIS,
+            s.qualifier().span(),
+            "'"
+                + qt.display()
+                + ".super' needs "
+                + qt.display()
+                + " to be a direct superinterface of "
+                + env.cls.name());
+      } else {
+        error(Code.INVALID_THIS, s.qualifier().span(), "'X.super' needs an interface name");
+      }
+    }
     ClassType sup = env.cls.superclass();
     if (env.cls.isInterface() || sup == null) {
       sup = syms.objectType();
@@ -1099,6 +1121,15 @@ public final class Attr {
   }
 
   BExpr propertyGet(BExpr recv, Type site, PropertySymbol p, Span span) {
+    if (p.owner().isRecord()
+        && p.owner() == env.cls
+        && !p.isStatic()
+        && recv instanceof BExpr.This
+        && p.backingField() != null) {
+      // Inside a record, a component reads its field (Java rule); this is what lets an explicit
+      // accessor `double c() => round(c)` use the stored value instead of recursing.
+      return fieldGet(recv, site, p.backingField(), span);
+    }
     MethodSymbol getter = p.getter();
     if (getter == null) {
       error(Code.UNRESOLVED_MEMBER, span, "property '" + p.name() + "' has no getter");

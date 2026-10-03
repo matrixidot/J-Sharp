@@ -1,0 +1,60 @@
+import java.util.*;
+
+public record Version(int major, int minor) : Comparable<Version> {
+    public static final Version ZERO = new Version(0, 0);
+    public override int compareTo(Version o) =>
+        major != o.major ? Integer.compare(major, o.major) : Integer.compare(minor, o.minor);
+    public boolean isZero => this == ZERO;
+    public Version bump() => this with { minor = minor + 1 };
+    public static Version parse(String s) {
+        var parts = s.split("\\.");
+        return new Version(Integer.parseInt(parts[0]), Integer.parseInt(parts[1]));
+    }
+}
+
+public record Bag(String label, int[] xs) {
+    public int total() {
+        int t = 0;
+        foreach (var x in xs) t += x;
+        return t;
+    }
+}
+
+public record Temp(double celsius) {
+    public double celsius() => Math.round(celsius * 10) / 10.0;
+    public double fahrenheit => celsius * 9 / 5 + 32;
+}
+
+public record Line(Version from, Version to);
+
+String classify(Object o) => o switch {
+    Line(Version(var a, _), Version(var b, _)) when a == b => "same major " + a,
+    Line(var f, var t) => "span " + f.major + "->" + t.major,
+    Version v when v.isZero => "zero",
+    Version(var maj, var min) => "v" + maj + "." + min,
+    _ => "unknown",
+};
+
+var vs = new ArrayList<Version>(List.of(Version.parse("2.0"), Version.parse("1.5"), Version.parse("1.10")));
+Collections.sort(vs);
+println(vs);
+var byVersion = new TreeMap<Version, String>();
+byVersion.put(new Version(3, 1), "c");
+byVersion.put(new Version(1, 0), "a");
+byVersion.put(new Version(2, 2), "b");
+println(byVersion.firstKey() + " " + byVersion.lastEntry().getValue());
+println(new Version(1, 9).bump());
+println(new Version(0, 0).isZero + " " + Version.ZERO.bump().isZero);
+var b1 = new Bag("a", new int[] { 1, 2 });
+var b2 = new Bag("a", new int[] { 1, 2 });
+println(b1 == b2);
+println(b1 == new Bag("a", b1.xs));
+println(b1.total());
+var t = new Temp(21.456);
+println(t.celsius + " " + t);
+println(t.fahrenheit > 70);
+println(classify(new Line(new Version(1, 0), new Version(1, 5))));
+println(classify(new Line(new Version(1, 0), new Version(3, 5))));
+println(classify(Version.ZERO));
+println(classify(new Version(4, 2)));
+println(classify("x"));

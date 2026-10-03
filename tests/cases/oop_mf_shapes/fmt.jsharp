@@ -1,0 +1,11 @@
+package geo;
+
+class Fmt {
+    static String two(double d) => $"{d:F2}";
+}
+
+public static double totalArea(java.util.List<Shape> shapes) {
+    double t = 0;
+    foreach (var s in shapes) t += s.area();
+    return t;
+}

@@ -1,0 +1,43 @@
+import java.util.*;
+
+public static Optional<int> parse(String s) {
+    try {
+        return Optional.of(Integer.parseInt(s));
+    } catch (NumberFormatException e) {
+        return Optional.empty();
+    }
+}
+
+public static Optional<String> lookup(Map<String, String> m, String k) => Optional.ofNullable(m.get(k));
+
+println(parse("42"));
+println(parse("x"));
+println(parse("7").map(n => n * 6).orElse(0));
+println(parse("nope").map(n => n * 6).orElse(0));
+println(parse("10").filter(n => n > 5).isPresent());
+println(parse("3").filter(n => n > 5).isPresent());
+println(parse("5").flatMap(n => parse("" + (n + 1))).get());
+var m = new HashMap<String, String>();
+m.put("home", "/usr/ann");
+println(lookup(m, "home").map(String::length).orElse(-1));
+println(lookup(m, "shell").orElseGet(() => "/bin/sh"));
+lookup(m, "home").ifPresent(v => println("home is " + v));
+lookup(m, "x").ifPresentOrElse(v => println(v), () => println("absent"));
+println(lookup(m, "home").or(() => Optional.of("fallback")).get());
+println(lookup(m, "zzz").or(() => Optional.of("fallback")).get());
+try {
+    lookup(m, "zzz").orElseThrow(() => new IllegalArgumentException("missing zzz"));
+} catch (IllegalArgumentException e) {
+    println("caught: " + e.getMessage());
+}
+try {
+    Optional.empty().get();
+} catch (NoSuchElementException e) {
+    println(e.getMessage());
+}
+var firstLong = List.of("a", "bbb", "cc", "dddd").stream().filter(s => s.length() > 2).findFirst();
+println(firstLong.orElse("none"));
+println(OptionalInt.of(3).getAsInt() + OptionalDouble.empty().orElse(1.5));
+println(Optional.of("x").stream().count());
+String? nullable = lookup(m, "none").orElse(null);
+println(nullable ?? "was null");

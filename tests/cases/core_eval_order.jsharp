@@ -1,0 +1,62 @@
+// Left-to-right evaluation, short-circuiting of && || ?? ?., assignment and compound semantics.
+class T {
+    public static StringBuilder log = new StringBuilder();
+    public static int v(int x) {
+        log.append(x);
+        return x;
+    }
+    public static String? n(String? s) {
+        log.append(s ?? "N");
+        return s;
+    }
+}
+
+int f(int a, int b, int c) => a * 100 + b * 10 + c;
+
+var r = T.v(1) + T.v(2) * T.v(3);
+println(r + " " + T.log);
+T.log.setLength(0);
+println(f(T.v(1), T.v(2), T.v(3)) + " " + T.log);
+int a;
+int b;
+a = b = T.v(4);
+println(a + b);
+int[] arr = new int[3];
+int i = 0;
+arr[i] = i = 2;
+println(arr[0] + " " + i + " " + arr[2]);
+T.log.setLength(0);
+String? s = T.n("x") ?? T.n("y");
+println(s + " " + T.log);
+T.log.setLength(0);
+String? s2 = T.n(null) ?? T.n("y");
+println(s2 + " " + T.log);
+T.log.setLength(0);
+String? nul = null;
+var len = nul?.substring(T.v(1));
+println(len + " [" + T.log + "]");
+T.log.setLength(0);
+var both = T.v(0) > 0 && T.v(5) > 0;
+println(both + " " + T.log);
+T.log.setLength(0);
+var either = T.v(1) > 0 || T.v(6) > 0;
+println(either + " " + T.log);
+var k = 0;
+var xs = new int[] { 10, 20 };
+xs[k] += (k = 1);
+println(xs[0] + " " + xs[1] + " " + k);
+var z = 5;
+z = z++;
+println(z);
+T.log.setLength(0);
+var str = "" + T.v(7) + T.v(8);
+println(str + " " + T.log);
+T.log.setLength(0);
+var cmp = T.v(3) - T.v(1) - T.v(1);
+println(cmp + " " + T.log);
+var j = 1;
+var expr = j + (j = 10) + j;
+println(expr);
+T.log.setLength(0);
+var interp = $"{T.v(4)}-{T.v(5)}";
+println(interp + " " + T.log);

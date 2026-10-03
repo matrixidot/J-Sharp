@@ -1,0 +1,64 @@
+// Type patterns in switch and `is`, guards, `as`, `is not`, flow scoping of pattern bindings.
+import java.util.*;
+
+String describe(Object? o) => o switch {
+    null => "null",
+    Integer i when i > 100 => "big int " + i,
+    Integer i => "int " + i,
+    Long l => "long " + l,
+    String s when s.isEmpty() => "empty string",
+    String s => "string of " + s.length(),
+    int[] arr => "int array " + arr.length,
+    List<?> list => "list " + list.size(),
+    Object other => "other " + other.getClass().getSimpleName(),
+};
+
+String firstChar(Object o) {
+    if (!(o is String s)) return "?";
+    return s.substring(0, 1);
+}
+
+var inputs = new ArrayList<Object?>();
+inputs.add(null);
+inputs.add(5);
+inputs.add(500);
+inputs.add(5L);
+inputs.add("");
+inputs.add("abc");
+inputs.add(new int[3]);
+inputs.add(List.of(1, 2));
+inputs.add(2.5);
+foreach (var o in inputs) println(describe(o));
+
+Object v = "hello";
+if (v is String s && s.length() > 3) println("long string " + s);
+if (v is not Integer) println("not an int");
+if (!(v is String t)) {
+    println("unreachable");
+} else {
+    println(t.toUpperCase());
+}
+println(firstChar("xyz") + firstChar(42));
+Object num = 42;
+String? asStr = num as String;
+Integer? asInt = num as Integer;
+println(asStr == null);
+println(asInt);
+println(num is Number);
+println(num is Comparable<?>);
+Object? nothing = null;
+println(nothing is Object);
+println(nothing is null);
+println(num is not null);
+int small = 7;
+println(small is > 0 and < 10);
+println(small is 1 or 7);
+println(small is not (> 5));
+CharSequence cs = new StringBuilder("sb");
+var kind = cs switch {
+    String str => "String " + str,
+    StringBuilder sb when sb.length() > 5 => "long builder",
+    StringBuilder sb => "builder " + sb.reverse(),
+    _ => "other",
+};
+println(kind);

@@ -1,0 +1,44 @@
+// Unchecked (wrapping) integer arithmetic is the default.
+int max = Integer.MAX_VALUE;
+int min = Integer.MIN_VALUE;
+println(max + 1);
+println(min - 1);
+println(-min);
+println(Math.abs(min));
+println(min / -1);
+println(min % -1);
+println(max * 2);
+println(46341 * 46341);
+long lmax = Long.MAX_VALUE;
+println(lmax + 1);
+println(max + 1L);
+long wrong = max * 2;
+println(wrong);
+long right = max * 2L;
+println(right);
+byte b = 127;
+b++;
+println(b);
+short s = -32768;
+s--;
+println(s);
+char c = (char) 0;
+c--;
+println((int) c);
+int counter = max;
+counter += 10;
+println(counter);
+var i = 0;
+var sum = 0;
+while (i < 5) {
+    sum += max;
+    i++;
+}
+println(sum);
+int lit = -2147483648;
+println(lit);
+long llit = -9223372036854775808L;
+println(llit == Long.MIN_VALUE);
+println(Integer.toBinaryString(-1).length());
+println(0x7FFFFFFF + 0x7FFFFFFF);
+println(0xFFFFFFFF);

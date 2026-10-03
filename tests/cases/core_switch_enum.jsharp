@@ -1,0 +1,74 @@
+// switch on enums: exhaustive expressions without default, statements, null selectors, enum with fields.
+public enum Dir { North, East, South, West }
+public enum Op(String symbol) {
+    Add("+"), Sub("-"), Mul("*");
+    public int apply(int a, int b) => this switch {
+        Add => a + b,
+        Sub => a - b,
+        Mul => a * b,
+    };
+}
+
+Dir turnRight(Dir d) => d switch {
+    Dir.North => Dir.East,
+    Dir.East => Dir.South,
+    Dir.South => Dir.West,
+    Dir.West => Dir.North,
+};
+
+boolean vertical(Dir d) => d switch {
+    Dir.North or Dir.South => true,
+    Dir.East or Dir.West => false,
+};
+
+var d = Dir.North;
+for (int i = 0; i < 5; i++) {
+    print(d + " ");
+    d = turnRight(d);
+}
+println();
+println(vertical(Dir.South) + " " + vertical(Dir.West));
+foreach (var op in Op.values()) print($"7{op.symbol}3={op.apply(7, 3)} ");
+println();
+
+String describe(Dir? d) {
+    switch (d) {
+        case Dir.North:
+            return "up";
+        case Dir.South:
+            return "down";
+        default:
+            return "sideways-or-null";
+    }
+}
+println(describe(Dir.North));
+println(describe(Dir.South));
+println(describe(Dir.East));
+println(describe(null));
+
+String nullable(Dir? d) => d switch {
+    null => "none",
+    Dir.North => "N",
+    _ => "not N",
+};
+println(nullable(null) + " " + nullable(Dir.North) + " " + nullable(Dir.West));
+
+var counts = new int[Dir.values().length];
+foreach (var x in new Dir[] { Dir.East, Dir.East, Dir.West }) {
+    switch (x) {
+        case Dir.East:
+            counts[x.ordinal()]++;
+            break;
+        case Dir.West:
+            counts[x.ordinal()] += 10;
+            break;
+        default:
+            break;
+    }
+}
+println(java.util.Arrays.toString(counts));
+var em = new java.util.EnumMap<Dir, String>(typeof(Dir));
+em.put(Dir.West, "w");
+em.put(Dir.North, "n");
+println(em);
+println(Dir.valueOf("East").compareTo(Dir.North) > 0);

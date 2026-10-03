@@ -1,0 +1,58 @@
+import java.util.*;
+
+public open class Animal { public override String toString() => "animal"; }
+public class Dog : Animal { public override String toString() => "dog"; }
+
+public class V {
+    public static String count(params Object[] xs) => "objects:" + xs.length;
+    public static String count(params String[] xs) => "strings:" + xs.length;
+
+    public static String join<T>(String sep, params T[] xs) {
+        var sb = new StringBuilder();
+        foreach (var x in xs) {
+            if (sb.length() > 0) sb.append(sep);
+            sb.append(x);
+        }
+        return sb.toString();
+    }
+
+    public static String pick(Animal a) => "pick(Animal)";
+    public static String pick(Dog d) => "pick(Dog)";
+    public static String pick(Object o) => "pick(Object)";
+
+    public static String nul(String? s) => "nul(String)";
+    public static String nul(Object? o) => "nul(Object)";
+
+    public static String coll(Collection<Integer> c) => "coll(Collection)";
+    public static String coll(List<Integer> l) => "coll(List)";
+    public static String coll(Iterable<Integer> i) => "coll(Iterable)";
+
+    public static int sum(params int[] xs) {
+        int t = 0;
+        foreach (var x in xs) t += x;
+        return t;
+    }
+}
+
+println(V.count("a", "b"));
+println(V.count("a", 1));
+println(V.count());
+println(V.count(new String[] { "x", "y", "z" }));
+println(V.join("-", 1, 2, 3));
+println(V.join("/", "a", "b"));
+println(V.join(", ", new Dog(), new Animal()));
+println(V.join("|"));
+Animal a = new Dog();
+println(V.pick(a));
+println(V.pick(new Dog()));
+println(V.pick("s"));
+println(V.nul(null));
+println(V.nul("x"));
+println(V.coll(new ArrayList<Integer>()));
+println(V.coll(new HashSet<Integer>()));
+println(V.coll(new ArrayDeque<Integer>()));
+Iterable<Integer> it = List.of(1);
+println(V.coll(it));
+println(V.sum() + V.sum(1) + V.sum(1, 2, 3) + V.sum(new int[] { 10 }));
+println(String.format("%s=%d", "x", 5));
+println(Arrays.asList("p", "q").size());

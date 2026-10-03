@@ -1,0 +1,43 @@
+public interface Shape {
+    double area();
+    default String describe() => name() + " area=" + fmt(area());
+    default String name() => "shape";
+    private String fmt(double d) => $"{d:F1}";
+    static Shape unit() => new Square(1);
+    static String kind() => "Shape";
+}
+
+public interface Colored {
+    String color();
+    default String name() => "colored";
+}
+
+public class Square : Shape, Colored {
+    private final double side;
+    public Square(double side) { this.side = side; }
+    public override double area() => side * side;
+    public override String color() => "red";
+    public override String name() => "square/" + color();
+}
+
+public class Circle : Shape {
+    private final double r;
+    public Circle(double r) { this.r = r; }
+    public override double area() => 3.0 * r * r;
+}
+
+public interface Animal { default String sound() => "..."; default String intro() => "I say " + sound(); }
+public interface Dog : Animal { default override String sound() => "woof"; }
+public interface Loud : Animal { }
+public class Puppy : Dog, Loud { }
+public class Kitten : Animal { public override String sound() => "mew"; }
+
+Shape[] shapes = { new Square(2), new Circle(1), Shape.unit() };
+foreach (var s in shapes) println(s.describe());
+println(Shape.kind());
+Colored c = new Square(3);
+println(c.name());
+println(new Puppy().intro());
+println(new Kitten().intro());
+Animal a = new Puppy();
+println(a.sound());

@@ -1,0 +1,8 @@
+// Deconstruction into existing variables and nested deconstruction declarations.
+var x = 1;
+var y = 2;
+(x, y) = (y, x);
+println(x + " " + y);
+var nested = (1, (2, 3));
+var (n1, (n2, n3)) = nested;
+println(n1 + n2 + n3);

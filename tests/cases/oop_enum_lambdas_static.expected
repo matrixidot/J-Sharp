@@ -1,0 +1,12 @@
+5 -1 1024
+Pow
+27
+Plus
+true
+Plus=2 Minus=1 Pow=2 
+cheap costly
+Plus
+-
+Calc
+3
+{Plus=1, Minus=1, Pow=3}

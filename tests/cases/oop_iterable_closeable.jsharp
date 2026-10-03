@@ -1,0 +1,81 @@
+import java.util.*;
+
+public class Range : Iterable<Integer> {
+    private final int lo;
+    private final int hi;
+    private final int step;
+    public Range(int lo, int hi, int step = 1) { this.lo = lo; this.hi = hi; this.step = step; }
+    public override Iterator<Integer> iterator() => new RangeIterator(lo, hi, step);
+
+    private class RangeIterator : Iterator<Integer> {
+        private int cur;
+        private final int hi;
+        private final int step;
+        public RangeIterator(int lo, int hi, int step) { cur = lo; this.hi = hi; this.step = step; }
+        public override boolean hasNext() => cur < hi;
+        public override Integer next() {
+            if (!hasNext()) throw new NoSuchElementException();
+            val v = cur;
+            cur += step;
+            return v;
+        }
+    }
+}
+
+public class Resource : AutoCloseable {
+    private final String name;
+    public Resource(String name) { this.name = name; println("open " + name); }
+    public void use() => println("use " + name);
+    public override void close() => println("close " + name);
+}
+
+public class Failing : AutoCloseable {
+    public override void close() { println("close failing"); throw new IllegalStateException("close failed"); }
+}
+
+foreach (var i in new Range(0, 5)) print(i + " ");
+println();
+foreach (int i in new Range(1, 10, 3)) print(i * i + " ");
+println();
+int total = 0;
+foreach (var i in new Range(0, 101)) total += i;
+println(total);
+var it = new Range(0, 1).iterator();
+it.next();
+try {
+    it.next();
+} catch (NoSuchElementException e) {
+    println("exhausted");
+}
+using (var r = new Resource("A")) {
+    r.use();
+}
+void nested() {
+    using var x = new Resource("X");
+    using var y = new Resource("Y");
+    x.use();
+    y.use();
+    println("end of scope");
+}
+nested();
+try {
+    using (var r = new Resource("B")) {
+        throw new RuntimeException("boom");
+    }
+} catch (RuntimeException e) {
+    println("caught " + e.getMessage());
+}
+try {
+    using (var f = new Failing()) {
+        throw new RuntimeException("body");
+    }
+} catch (RuntimeException e) {
+    println("caught " + e.getMessage() + " suppressed=" + e.getSuppressed().length + " " + e.getSuppressed()[0].getMessage());
+}
+try {
+    using (var f = new Failing()) {
+        println("body ok");
+    }
+} catch (IllegalStateException e) {
+    println("caught " + e.getMessage());
+}

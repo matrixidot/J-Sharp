@@ -1,0 +1,20 @@
+import java.util.*;
+import java.util.stream.*;
+
+println(args.length);
+foreach (var a in args) println("<" + a + ">");
+var nums = Arrays.stream(args).filter(s => s.matches("-?\\d+")).mapToInt(Integer::parseInt).toArray();
+println(Arrays.toString(nums));
+println(IntStream.of(nums).sum());
+var words = Arrays.stream(args).filter(s => !s.matches("-?\\d+")).map(String::toUpperCase).sorted().collect(Collectors.joining(","));
+println(words);
+String? first = args.length > 0 ? args[0] : null;
+println(first ?? "none");
+var flags = new TreeMap<String, String>();
+foreach (var a in args) {
+    if (a.startsWith("--") && a.contains("=")) {
+        var idx = a.indexOf('=');
+        flags.put(a.substring(2, idx), a.substring(idx + 1));
+    }
+}
+println(flags);

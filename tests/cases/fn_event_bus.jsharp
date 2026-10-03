@@ -1,0 +1,47 @@
+import java.util.*;
+import java.util.function.*;
+
+public class EventBus {
+    private final Map<String, List<Consumer<String>>> handlers = new TreeMap<>();
+    public Runnable subscribe(String topic, Consumer<String> h) {
+        handlers.computeIfAbsent(topic, k => new ArrayList<>()).add(h);
+        return () => handlers.get(topic).remove(h);
+    }
+    public int publish(String topic, String msg) {
+        var hs = handlers.get(topic);
+        if (hs == null) return 0;
+        foreach (var h in List.copyOf(hs)) h.accept(msg);
+        return hs.size();
+    }
+}
+
+var bus = new EventBus();
+var log = new ArrayList<String>();
+var unsubA = bus.subscribe("news", m => log.add("A:" + m));
+bus.subscribe("news", m => log.add("B:" + m.length()));
+bus.subscribe("alerts", m => log.add("ALERT " + m.toUpperCase()));
+println(bus.publish("news", "hello"));
+println(bus.publish("alerts", "fire"));
+println(bus.publish("sports", "goal"));
+unsubA.run();
+println(bus.publish("news", "bye"));
+println(log);
+
+var counters = new ArrayList<Supplier<int>>();
+for (var i = 0; i < 3; i++) {
+    val captured = i * 10;
+    var count = new int[] { captured };
+    counters.add(() => ++count[0]);
+}
+foreach (var c in counters) print(c.get() + " ");
+println();
+foreach (var c in counters) print(c.get() + " ");
+println();
+var actions = new LinkedHashMap<String, Runnable>();
+var state = new StringBuilder();
+actions.put("a", () => state.append("A"));
+actions.put("b", () => state.append("B"));
+actions.put("c", () => state.append("C"));
+foreach (var k in List.of("c", "a", "c", "b")) actions.get(k).run();
+println(state);
+println(actions.keySet());

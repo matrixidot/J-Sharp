@@ -1,0 +1,41 @@
+import java.util.*;
+
+public record City(String name, String country, int pop);
+
+public static List<String> names(List<City> cs) => cs.stream().map(c => c.name).toList();
+
+var cities = new ArrayList<City>(List.of(
+    new City("Lyon", "FR", 513),
+    new City("Paris", "FR", 2161),
+    new City("Bonn", "DE", 330),
+    new City("Berlin", "DE", 3645),
+    new City("Nice", "FR", 342),
+    new City("Kiel", "DE", 246)));
+
+Comparator<City> byCountry = Comparator.comparing(City::country);
+cities.sort(byCountry.thenComparing(c => c.name));
+println(names(cities));
+Comparator<int> desc = Comparator.reverseOrder();
+cities.sort(byCountry.reversed().thenComparing(c => c.pop, desc));
+println(names(cities));
+cities.sort(Comparator.comparingInt(City::pop));
+println(names(cities));
+Comparator<City> byLen = Comparator.comparingInt(c => c.name.length());
+Comparator<String> rev = Comparator.reverseOrder();
+cities.sort(byLen.thenComparing(c => c.name, rev));
+println(names(cities));
+println(Collections.max(cities, Comparator.comparingInt(City::pop)).name);
+println(cities.stream().min(Comparator.comparing(City::name, rev)).get().name);
+
+var withNulls = new ArrayList<String?>(Arrays.asList("pear", null, "apple", null, "fig"));
+withNulls.sort(Comparator.nullsFirst(Comparator.naturalOrder()));
+println(withNulls);
+withNulls.sort(Comparator.nullsLast(Comparator.reverseOrder()));
+println(withNulls);
+
+Comparator<String> byLastChar = (a, b) => Character.compare(a.charAt(a.length() - 1), b.charAt(b.length() - 1));
+var ws = new ArrayList<String>(List.of("alpha", "beta", "gamma", "delta", "pi", "omicron"));
+ws.sort(byLastChar.thenComparing(Comparator.naturalOrder()));
+println(ws);
+ws.sort(byLastChar.reversed());
+println(ws);

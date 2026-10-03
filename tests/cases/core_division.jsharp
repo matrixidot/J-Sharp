@@ -1,0 +1,52 @@
+// Integer division truncates toward zero; floating division follows IEEE 754.
+println(7 / 2);
+println(-7 / 2);
+println(7 / -2);
+println(-7 % 3);
+println(7 % -3);
+println(Math.floorDiv(-7, 2));
+println(Math.floorMod(-7, 3));
+println(-7 >> 1);
+println(7L / 2);
+println(7 / 2.0);
+println(7.5 % 2);
+println(-7.5 % 2);
+println(1 / 3 * 3);
+println(1.0 / 3 * 3);
+println(10 / 3 * 3 + 10 % 3);
+int zero = 0;
+try {
+    println(5 / zero);
+} catch (ArithmeticException e) {
+    println("div: " + e.getMessage());
+}
+try {
+    println(5 % zero);
+} catch (ArithmeticException e) {
+    println("mod: " + e.getMessage());
+}
+long lz = 0;
+try {
+    println(5L / lz);
+} catch (ArithmeticException e) {
+    println("ldiv: " + e.getMessage());
+}
+println(5.0 / zero);
+println(-5.0 / zero);
+println(0.0 / zero);
+println(5 % 0.0);
+println(5.0f / 2);
+double avg(int[] xs) {
+    var total = 0;
+    foreach (var x in xs) total += x;
+    return (double) total / xs.length;
+}
+println(avg(new int[] { 1, 2, 4 }));
+int half = 9 / 2;
+double dhalf = 9 / 2;
+println(half + " " + dhalf);
+var q = 100;
+q /= 7;
+println(q);
+q %= 5;
+println(q);

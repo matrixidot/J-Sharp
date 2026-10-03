@@ -1,0 +1,27 @@
+import java.util.function.*;
+
+public static Function<A, C> compose<A, B, C>(Function<B, C> f, Function<A, B> g) => x => f.apply(g.apply(x));
+public static Function<A, Function<B, C>> curry<A, B, C>(BiFunction<A, B, C> f) => a => b => f.apply(a, b);
+public static BiFunction<A, B, C> uncurry<A, B, C>(Function<A, Function<B, C>> f) => (a, b) => f.apply(a).apply(b);
+public static BiFunction<B, A, C> flip<A, B, C>(BiFunction<A, B, C> f) => (b, a) => f.apply(a, b);
+public static Function<T, T> repeat<T>(Function<T, T> f, int times) {
+    Function<T, T> acc = Function.identity();
+    for (var i = 0; i < times; i++) acc = acc.andThen(f);
+    return acc;
+}
+
+Function<int, int> inc = x => x + 1;
+Function<int, int> dbl = x => x * 2;
+println(compose(inc, dbl).apply(5));
+println(compose(dbl, inc).apply(5));
+Function<int, String> show = n => "<" + n + ">";
+println(compose(show, inc).apply(41));
+BiFunction<String, int, String> rep = (s, n) => s.repeat(n);
+var curried = curry(rep);
+println(curried.apply("ab").apply(3));
+var back = uncurry(curried);
+println(back.apply("x", 4));
+var flipped = flip(rep);
+println(flipped.apply(2, "yo"));
+println(repeat(dbl, 10).apply(1));
+println(repeat(inc, 0).apply(7));

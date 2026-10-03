@@ -1,0 +1,16 @@
+add(+) 12,4 -> 16
+sub(-) 12,4 -> 8
+mul(*) 12,4 -> 48
+div(/) 12,4 -> 3
+true
+2
+unknown op %
+no Mod
+Mon false true
+rest almost work
+{Mon=8, Wed=7, Fri=6}
+[Mon, Thu, Sun]
+true
+[Sat, Sun] 5
+mul(*)
+2 Wed

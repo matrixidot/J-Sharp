@@ -1,0 +1,47 @@
+// Index-from-end (^) and ranges (..) on arrays, lists, and strings; assignment through ^.
+import java.util.*;
+
+int[] xs = new int[] { 10, 20, 30, 40, 50 };
+println(xs[^1]);
+println(xs[^5]);
+println(Arrays.toString(xs[1..3]));
+println(Arrays.toString(xs[..2]));
+println(Arrays.toString(xs[3..]));
+println(Arrays.toString(xs[^2..]));
+println(Arrays.toString(xs[..^1]));
+var copy = xs[..];
+copy[0] = 99;
+println(xs[0] + " " + copy[0]);
+var list = new ArrayList<String>(List.of("a", "b", "c", "d"));
+println(list[0] + list[^1]);
+println(list[1..3]);
+var sub = list[1..3];
+sub.set(0, "B");
+println(list);
+String s = "abcdef";
+println(s[^2..]);
+println(s[1..^1]);
+int n = 2;
+println(s[n..(n + 2)]);
+println(s[n..n + 2]);
+println(s[^n]);
+xs[^1] = 7;
+println(xs[4]);
+xs[^2] += 1;
+println(xs[3]);
+list[^1] = "z";
+println(list);
+try {
+    println(xs[^0]);
+} catch (ArrayIndexOutOfBoundsException e) {
+    println("^0 out of bounds");
+}
+var empty = xs[2..2];
+println(empty.length);
+var i = 0;
+var calls = new int[1];
+int[] get(int[] counter, int[] arr) {
+    counter[0]++;
+    return arr;
+}
+println(get(calls, xs)[^1] + " calls=" + calls[0]);

@@ -1,0 +1,14 @@
+true
+false
+in lock held=false
+7 held=false
+reentrant true
+4000
+java.lang.String
+Item
+true
+int
+qty
+Item
+label
+qty=3

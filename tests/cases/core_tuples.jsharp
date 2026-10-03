@@ -1,0 +1,42 @@
+// Tuples: construction, named elements, deconstruction (incl. nested/discards), returns, equality.
+import java.util.*;
+
+(int, int) divmod(int x, int y) => (x / y, x % y);
+
+(String, boolean) classify(int n) => n switch {
+    0 => ("zero", false),
+    > 0 => ("pos", true),
+    _ => ("neg", false),
+};
+
+(int, String) t = (1, "a");
+println(t.item1 + " " + t.item2);
+println(t);
+(int id, String name) named = (7, "seven");
+println(named.id + named.name);
+println(named.item1);
+var (a, b) = t;
+println(a + b);
+var (q, r) = divmod(17, 5);
+println(q + " " + r);
+var dm = divmod(-7, 2);
+println(dm);
+println((1, "x") == (1, "x"));
+println((1, "x") == (2, "x"));
+var pairs = new ArrayList<(String, int)>();
+pairs.add(("b", 2));
+pairs.add(("a", 1));
+pairs.sort((p1, p2) => p1.item1.compareTo(p2.item1));
+foreach (var (nm, num) in pairs) print(nm + num + " ");
+println();
+var (_, second) = ("ignored", 42);
+println(second);
+var triple = (1, 2.5, 'c');
+println(triple.item3);
+println(triple);
+var (lbl, ok) = classify(-3);
+println(lbl + " " + ok);
+println(classify(0).item1 + classify(9).item1);
+var nested = (1, (2, 3));
+println(nested.item2.item2);
+println(nested);

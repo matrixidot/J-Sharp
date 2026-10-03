@@ -249,8 +249,11 @@ public sealed interface Expr extends Node {
   /** {@code this} or {@code Outer.this}. */
   record This(String qualifier, Span span) implements Expr {}
 
-  /** {@code super} (only valid as a member access target). */
-  record Super(Span span) implements Expr {}
+  /**
+   * {@code super} or {@code I.super} (only valid as a member access target); the qualifier names a
+   * direct superinterface whose default method is called.
+   */
+  record Super(Expr qualifier, Span span) implements Expr {}
 
   /** {@code typeof(T)}. */
   record TypeOf(TypeNode type, Span span) implements Expr {}

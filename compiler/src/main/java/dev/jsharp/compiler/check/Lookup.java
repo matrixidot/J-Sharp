@@ -220,6 +220,9 @@ final class Lookup {
    */
   boolean isAccessible(Symbol member, ClassSymbol owner, Type site, ClassSymbol from) {
     long f = member.flags();
+    if (site instanceof Type.ArrayType && member.name().equals("clone")) {
+      return true; // arrays override clone() publicly (JLS 10.7)
+    }
     if (Flags.is(f, Flags.PUBLIC) || (owner.isInterface() && !Flags.is(f, Flags.PRIVATE))) {
       return true;
     }

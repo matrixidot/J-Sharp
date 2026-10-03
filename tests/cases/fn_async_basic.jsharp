@@ -1,0 +1,43 @@
+import java.util.*;
+import java.util.function.*;
+
+public static async Task<int> square(int x) {
+    await Task.delay(1);
+    return x * x;
+}
+
+public static async Task<String> greet(String name) => "hello " + name;
+
+public static async Task<int> sumSquares(int n) {
+    var total = 0;
+    for (var i = 1; i <= n; i++) total += await square(i);
+    return total;
+}
+
+public static async Task<List<R>> mapAsync<T, R>(List<T> xs, Function<T, R> f) {
+    var tasks = new ArrayList<Task<R>>();
+    foreach (var x in xs) tasks.add(Task.run(() => f.apply(x)));
+    return await Task.whenAll(tasks);
+}
+
+println(await square(7));
+println(await greet("ann"));
+println(await sumSquares(4));
+var tasks = new ArrayList<Task<int>>();
+for (var i = 1; i <= 5; i++) tasks.add(square(i));
+var results = await Task.whenAll(tasks);
+println(results);
+var both = await Task.whenAll(square(2), square(3));
+println(both);
+var t = Task.run(() => 6 * 7);
+println(await t);
+println(await Task.completed("done"));
+var chained = square(3).thenApply(v => v + 1);
+println(await Task.from(chained));
+var total = 0;
+foreach (var r in await Task.whenAll(tasks)) total += r;
+println(total);
+println(await mapAsync(List.of("a", "bb", "ccc"), String::length));
+var pending = new Task<String>();
+println(await Task.whenAny(Task.completed("fast"), pending));
+println(pending.isDone());

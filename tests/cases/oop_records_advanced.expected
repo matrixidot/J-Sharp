@@ -1,0 +1,17 @@
+Rect[w=2.0, h=3.0]
+true
+false
+true
+6.0
+Rect[w=2.0, h=2.0] Rect[w=2.0, h=3.0]
+square 2.0 | rect 6.0 | square 1.0
+5.0
+negative: -1.0x3.0
+1
+Pair[first=abc, second=7]
+Pair[first=7, second=abc]
+4
+14
+Lovelace, Ada
+[Ada]
+true

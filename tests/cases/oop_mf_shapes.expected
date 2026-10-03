@@ -1,0 +1,7 @@
+round r=1.0 | Circle 3.00
+rect 2.0x3.0 | Rect 6.00
+squarish rect | Rect 4.00
+square | Square of side 1.50
+15.25
+Square[side=4.0]
+null

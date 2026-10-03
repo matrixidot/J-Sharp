@@ -1,0 +1,53 @@
+import java.util.*;
+import java.util.function.*;
+
+public class MathUtil {
+    public static int twice(int x) => x * 2;
+    public static boolean isVowel(char c) => "aeiou".indexOf(c) >= 0;
+}
+
+public class Greeter {
+    private final String greeting;
+    public Greeter(String greeting) { this.greeting = greeting; }
+    public String greet(String name) => greeting + ", " + name;
+    public static String shout(String s) => s.toUpperCase() + "!";
+}
+
+Function<int, int> tw = MathUtil::twice;
+println(tw.apply(21));
+IntUnaryOperator tw2 = MathUtil::twice;
+println(tw2.applyAsInt(5));
+Function<String, String> sh = Greeter::shout;
+println(sh.apply("hey"));
+var g = new Greeter("Hello");
+Function<String, String> bound = g::greet;
+println(bound.apply("Ann"));
+BiFunction<Greeter, String, String> unbound = Greeter::greet;
+println(unbound.apply(new Greeter("Hi"), "Bob"));
+Function<String, int> len = String::length;
+println(len.apply("four"));
+BiFunction<String, String, boolean> sw = String::startsWith;
+println(sw.apply("jsharp", "js"));
+Comparator<String> cmp = String::compareToIgnoreCase;
+println(cmp.compare("apple", "BANANA") < 0);
+Function<int, String> hex = Integer::toHexString;
+println(hex.apply(255));
+ToIntFunction<String> parse = Integer::parseInt;
+println(parse.applyAsInt("123") + 1);
+BinaryOperator<int> mx = Math::max;
+println(mx.apply(3, 9));
+var words = List.of("kiwi", "fig", "banana");
+println(words.stream().map(String::toUpperCase).toList());
+println(words.stream().map(g::greet).toList());
+println(words.stream().mapToInt(String::length).sum());
+Supplier<String> gs = "abc"::toUpperCase;
+println(gs.get());
+var sb = new StringBuilder();
+Consumer<String> app = sb::append;
+words.forEach(app);
+println(sb);
+Predicate<String> empty = String::isEmpty;
+println(empty.negate().test(""));
+Predicate<char> vowel = MathUtil::isVowel;
+println(vowel.test('e'));
+println("education".chars().filter(c => MathUtil.isVowel((char) c)).count());

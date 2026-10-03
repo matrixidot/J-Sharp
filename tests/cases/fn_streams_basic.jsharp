@@ -1,0 +1,27 @@
+import java.util.*;
+import java.util.stream.*;
+
+var nums = List.of(5, 3, 8, 1, 9, 2, 7);
+println(nums.stream().filter(n => n % 2 == 1).map(n => n * n).toList());
+println(nums.stream().reduce(0, (a, b) => a + b));
+println(nums.stream().reduce(Integer::max).get());
+println(nums.stream().mapToInt(n => n).max().getAsInt());
+println(nums.stream().sorted().toList());
+println(nums.stream().sorted(Comparator.reverseOrder()).limit(3).toList());
+println(nums.stream().skip(2).findFirst().orElse(-1));
+println(nums.stream().anyMatch(n => n > 8));
+println(nums.stream().allMatch(n => n > 0));
+println(nums.stream().noneMatch(n => n == 4));
+println(nums.stream().count());
+println(IntStream.range(0, 5).sum());
+println(IntStream.rangeClosed(1, 5).reduce(1, (a, b) => a * b));
+println(IntStream.range(0, 4).mapToObj(i => "i" + i).collect(Collectors.joining(",")));
+println(IntStream.iterate(1, i => i * 3).limit(5).boxed().toList());
+var stats = nums.stream().mapToInt(Integer::intValue).summaryStatistics();
+println(stats.getMin() + " " + stats.getMax() + " " + stats.getSum() + " " + stats.getAverage());
+println(Stream.iterate(1, x => x <= 100, x => x * 2).map(String::valueOf).collect(Collectors.joining("|")));
+println(nums.stream().mapToDouble(n => n / 2.0).sum());
+var evens = new ArrayList<int>();
+nums.stream().filter(n => n % 2 == 0).forEach(evens::add);
+println(evens);
+println(Stream.of("b", "a", "c").peek(s => print(s)).map(String::toUpperCase).toList());

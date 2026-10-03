@@ -1,0 +1,76 @@
+// switch on strings: statements, expressions, hash collisions, null, guards.
+String classify(String s) {
+    switch (s) {
+        case "Aa":
+            return "Aa-branch";
+        case "BB":
+            return "BB-branch";
+        case "":
+            return "empty";
+        default:
+            return "other:" + s;
+    }
+}
+println(classify("Aa"));
+println(classify("BB"));
+println(classify(""));
+println(classify("C"));
+println("Aa".hashCode() == "BB".hashCode());
+
+String classifyNullable(String? s) {
+    switch (s) {
+        case "x":
+            return "x";
+        default:
+            return "default";
+    }
+}
+println(classifyNullable(null));
+println(classifyNullable("x"));
+
+int score(String day) => day switch {
+    "Sat" or "Sun" => 0,
+    "Fri" => 5,
+    _ => 8,
+};
+var total = score("Sun") + score("Fri") + score("Mon");
+println(total);
+
+String desc(String w) {
+    switch (w) {
+        case "a" when w.length() == 1:
+            return "single a";
+        case var other when other.length() > 3:
+            return "long " + other;
+        default:
+            return "short " + w;
+    }
+}
+println(desc("a"));
+println(desc("abcd"));
+println(desc("ab"));
+
+String n2(String? s) => s switch { null => "null!", "a" => "A", _ => "?" };
+println(n2(null));
+println(n2("a"));
+println(n2("b"));
+
+var log = new StringBuilder();
+loop: foreach (var cmd in new String[] { "go", "skip", "go", "end", "go" }) {
+    switch (cmd) {
+        case "go":
+            log.append("G");
+            break;
+        case "skip":
+            continue;
+        case "end":
+            break loop;
+        default:
+            log.append("?");
+    }
+    log.append(".");
+}
+println(log);
+var built = new StringBuilder("he").append("llo").toString();
+var hit = switch (built) { "hello" => "matched by value", _ => "missed" };
+println(hit);

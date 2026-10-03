@@ -1,0 +1,10 @@
+[Berlin, Bonn, Kiel, Lyon, Nice, Paris]
+[Paris, Lyon, Nice, Berlin, Bonn, Kiel]
+[Kiel, Bonn, Nice, Lyon, Paris, Berlin]
+[Nice, Lyon, Kiel, Bonn, Paris, Berlin]
+Berlin
+Paris
+[null, null, apple, fig, pear]
+[pear, fig, apple, null, null]
+[alpha, beta, delta, gamma, pi, omicron]
+[omicron, pi, alpha, beta, delta, gamma]

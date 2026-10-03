@@ -1,0 +1,19 @@
+package lib.ui;
+
+import lib.core.*;
+import lib.text.*;
+
+public open class Button : Component, Clickable {
+    private int clicks = 0;
+    public final String label;
+    public Button(String label) { super("btn"); this.label = label; }
+    public override String kind() => "button";
+    public override void click() { clicks++; emit("click" + clicks); }
+    protected override String render() => label.bracket() + "x" + clicks;
+}
+
+public class IconButton : Button {
+    public IconButton(String label) { super(label); }
+    public override String kind() => "icon-" + super.kind();
+    protected override String render() => "*" + super.render() + "*" + id.bracket("(", ")");
+}

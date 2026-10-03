@@ -1,0 +1,72 @@
+import java.util.*;
+
+public class Squares : AbstractList<Integer> {
+    private final int n;
+    public Squares(int n) { this.n = n; }
+    public override Integer get(int index) {
+        Objects.checkIndex(index, n);
+        return index * index;
+    }
+    public override int size() => n;
+}
+
+public class Inventory : AbstractMap<String, Integer> {
+    private final TreeMap<String, Integer> data = new TreeMap<>();
+    public void add(String k, int qty) => data.merge(k, qty, Integer::sum);
+    public override Set<Map.Entry<String, Integer>> entrySet() => data.entrySet();
+}
+
+public open class AppException : RuntimeException {
+    private final int code;
+    public AppException(String msg, int code) { super(msg); this.code = code; }
+    public int getCode() => code;
+    public override String getMessage() => "[" + code + "] " + super.getMessage();
+}
+
+public class NotFound : AppException {
+    public NotFound(String what) { super(what + " not found", 404); }
+}
+
+public class Joined : CharSequence {
+    private final String s;
+    public Joined(params String[] parts) { s = String.join("", parts); }
+    public override int length() => s.length();
+    public override char charAt(int i) => s.charAt(i);
+    public override CharSequence subSequence(int a, int b) => s.subSequence(a, b);
+    public override String toString() => s;
+}
+
+var sq = new Squares(5);
+println(sq);
+println(sq.size() + " " + sq.get(3) + " " + sq.contains(16) + " " + sq.indexOf(9));
+println(sq.subList(1, 3));
+int sum = 0;
+foreach (var x in sq) sum += x;
+println(sum);
+List<Integer> view = Collections.unmodifiableList(sq);
+println(view.get(4));
+try {
+    sq.get(5);
+} catch (IndexOutOfBoundsException e) {
+    println("oob");
+}
+try {
+    sq.add(1);
+} catch (UnsupportedOperationException e) {
+    println("read-only");
+}
+var inv = new Inventory();
+inv.add("pear", 2);
+inv.add("apple", 3);
+inv.add("pear", 5);
+println(inv);
+println(inv.get("pear") + " " + inv.containsKey("kiwi") + " " + inv.size());
+try {
+    throw new NotFound("user");
+} catch (AppException e) {
+    println(e.getMessage() + " code=" + e.getCode() + " " + (e is NotFound));
+}
+var j = new Joined("ab", "cd", "e");
+println(j.length() + " " + j.charAt(2) + " " + j.subSequence(1, 4));
+println(String.join("+", List.of(j, "x")));
+println(new StringBuilder().append(j).reverse());

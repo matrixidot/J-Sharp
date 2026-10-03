@@ -1,0 +1,56 @@
+public class Address {
+    public String? city;
+    public String? zip;
+    public Address(String? city, String? zip) { this.city = city; this.zip = zip; }
+}
+
+public class Person {
+    public String name;
+    public Address? address;
+    public Person? manager;
+    public Person(String name, Address? address, Person? manager) {
+        this.name = name;
+        this.address = address;
+        this.manager = manager;
+    }
+    public String greet(String suffix) => name + ": " + suffix;
+}
+
+public static int counter = 0;
+public static String tick() {
+    counter++;
+    return "t";
+}
+public static String describe(Person? p) => p?.address?.city?.toUpperCase() ?? "unknown";
+public static Person? findBoss(Person p) => p.manager;
+
+var boss = new Person("Zed", new Address("Oslo", null), null);
+var emp = new Person("Amy", null, boss);
+var temp = new Person("Tim", new Address(null, "0150"), emp);
+println(describe(boss));
+println(describe(emp));
+println(describe(temp));
+println(describe(null));
+println(emp.manager?.address?.city);
+println(boss.manager?.address?.city);
+println(temp.manager?.manager?.name);
+println(temp.manager?.manager?.manager?.name ?? "no top");
+println(temp.address?.zip?.length());
+println(emp.address?.zip?.length());
+String? a = null;
+String? b = null;
+String c = "third";
+println(a ?? b ?? c);
+b = "second";
+println(a ?? b ?? c);
+int depth = temp.manager?.manager?.name?.length() ?? 0;
+println(depth);
+println((emp.address?.city ?? temp.address?.zip ?? "none").length());
+println(findBoss(temp)?.name);
+println(findBoss(boss)?.name);
+Person? nobody = null;
+println(nobody?.greet(tick()));
+println(counter);
+Person? someone = boss;
+println(someone?.greet(tick()));
+println(counter);

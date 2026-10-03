@@ -1,0 +1,50 @@
+import java.util.*;
+
+public static int? parseOrNull(String s) {
+    try {
+        return Integer.parseInt(s);
+    } catch (NumberFormatException e) {
+        return null;
+    }
+}
+
+public static double? safeDiv(double a, double b) => b == 0.0 ? null : a / b;
+
+int? a = parseOrNull("12");
+int? b = parseOrNull("x");
+println(a);
+println(b);
+println(a ?? -1);
+println(b ?? -1);
+var sum = (a ?? 0) + (b ?? 0);
+println(sum);
+if (a != null) {
+    int doubled = a * 2;
+    println(doubled);
+}
+println(safeDiv(1.0, 4.0));
+println(safeDiv(1.0, 0.0));
+println(safeDiv(9.0, 3.0) ?? Double.NaN);
+long? big = 5_000_000_000L;
+println(big! + 1);
+boolean? flag = null;
+println(flag ?? false);
+flag = true;
+if (flag == true) println("flag set");
+char? ch = 'q';
+println(ch);
+var nums = new ArrayList<int?>();
+nums.add(3);
+nums.add(null);
+nums.add(4);
+var total = 0;
+foreach (var n in nums) total += n ?? 100;
+println(total);
+int? x = 1000;
+int? y = 1000;
+println(x == y);
+int? c = null;
+println(c == null);
+int? d = 7;
+println(d == 7);
+println(d + 1);

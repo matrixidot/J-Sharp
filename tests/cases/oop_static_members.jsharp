@@ -1,0 +1,60 @@
+import java.util.*;
+
+public class Registry {
+    private static final List<String> items = new ArrayList<>();
+    public static int version = computeVersion();
+    static {
+        println("Registry static init, version=" + version);
+        items.add("builtin");
+    }
+    private static int computeVersion() { println("computing version"); return 3; }
+    public static int count => items.size();
+    public static String mode { get; set; } = "slow";
+    public static void register(String s) { items.add(s); }
+    public static String dump() => String.join(",", items);
+
+    public enum Level { Low, High }
+}
+
+public class Lazy {
+    static { println("Lazy init"); }
+    public static void touch() => println("touched");
+}
+
+public class Pair<A, B> {
+    public final A a;
+    public final B b;
+    private Pair(A a, B b) { this.a = a; this.b = b; }
+    public static Pair<X, Y> of<X, Y>(X x, Y y) => new Pair<X, Y>(x, y);
+    public override String toString() => "<" + a + "," + b + ">";
+}
+
+public class Instance {
+    private static int nextId = 1;
+    public final int id;
+    public Instance() { id = nextId++; }
+    public static int issued => nextId - 1;
+}
+
+private var hits = 0;
+public val GREETING = "hi";
+void bump() { hits++; }
+
+println("main start");
+Registry.register("x");
+println(Registry.count + " " + Registry.dump());
+Registry.mode = "fast";
+println(Registry.mode + " " + Registry.getMode());
+Registry.version += 10;
+println(Registry.version);
+println(Registry.Level.High.ordinal());
+println("before lazy");
+Lazy.touch();
+Lazy.touch();
+println(Pair.of("k", 2));
+new Instance();
+new Instance();
+println(new Instance().id + " " + Instance.issued);
+bump();
+bump();
+println(GREETING + " " + hits);

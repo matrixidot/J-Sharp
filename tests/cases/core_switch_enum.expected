@@ -1,0 +1,11 @@
+North East South West North 
+true false
+7+3=10 7-3=4 7*3=21 
+up
+down
+sideways-or-null
+sideways-or-null
+none N not N
+[0, 2, 0, 10]
+{North=n, West=w}
+true

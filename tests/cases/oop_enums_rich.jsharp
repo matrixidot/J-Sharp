@@ -1,0 +1,68 @@
+import java.util.*;
+
+public interface Describable { String describe(); }
+
+public enum Op(String symbol, int precedence) : Describable {
+    Add("+", 1), Sub("-", 1), Mul("*", 2), Div("/", 2);
+
+    public int apply(int a, int b) => this switch {
+        Add => a + b,
+        Sub => a - b,
+        Mul => a * b,
+        Div => a / b,
+    };
+    public override String describe() => name().toLowerCase() + "(" + symbol + ")";
+    public static Op parse(String s) {
+        foreach (var o in values()) if (o.symbol == s) return o;
+        throw new IllegalArgumentException("unknown op " + s);
+    }
+    public boolean bindsTighter(Op other) => precedence > other.precedence;
+}
+
+public enum Day {
+    Mon, Tue, Wed, Thu, Fri, Sat, Sun;
+    public boolean weekend => this == Sat || this == Sun;
+    public Day next() => values()[(ordinal() + 1) % values().length];
+}
+
+String kind(Day d) {
+    switch (d) {
+        case Day.Sat:
+        case Day.Sun:
+            return "rest";
+        case Day.Fri:
+            return "almost";
+        default:
+            return "work";
+    }
+}
+
+foreach (var o in Op.values()) println(o.describe() + " 12,4 -> " + o.apply(12, 4));
+println(Op.parse("*").bindsTighter(Op.Sub));
+println(Op.valueOf("Div").precedence);
+try {
+    Op.parse("%");
+} catch (IllegalArgumentException e) {
+    println(e.getMessage());
+}
+try {
+    Op.valueOf("Mod");
+} catch (IllegalArgumentException e) {
+    println("no Mod");
+}
+println(Day.Sun.next() + " " + Day.Fri.weekend + " " + Day.Sat.weekend);
+println(kind(Day.Sun) + " " + kind(Day.Fri) + " " + kind(Day.Tue));
+var hours = new EnumMap<Day, Integer>(typeof(Day));
+hours.put(Day.Fri, 6);
+hours.put(Day.Mon, 8);
+hours.put(Day.Wed, 7);
+println(hours);
+var sorted = new ArrayList<Day>(List.of(Day.Sun, Day.Mon, Day.Thu));
+Collections.sort(sorted);
+println(sorted);
+println(Day.Thu.compareTo(Day.Tue) > 0);
+var weekend = EnumSet.range(Day.Sat, Day.Sun);
+println(weekend + " " + EnumSet.complementOf(weekend).size());
+Describable d = Op.Mul;
+println(d.describe());
+println(Day.Wed.ordinal() + " " + Day.Wed.name());

@@ -10,8 +10,8 @@ tasks.test {
     inputs.dir("interop")
     systemProperty("jsharp.cases", file("cases").absolutePath)
     systemProperty("jsharp.interop", file("interop").absolutePath)
-    systemProperty("jsharp.runtime.classpath", project(":runtime").sourceSets["main"].output.classesDirs.asPath)
+    systemProperty("jsharp.runtime.classpath", project(":runtime").sourceSets["main"].output.asPath)
     systemProperty("jsharp.java", javaLauncher.get().executablePath.asFile.absolutePath)
-    dependsOn(":runtime:classes")
+    dependsOn(":runtime:classes", ":runtime:compileJSharp")
     maxParallelForks = 1
 }

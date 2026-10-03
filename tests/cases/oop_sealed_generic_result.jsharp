@@ -1,0 +1,53 @@
+import java.util.*;
+import java.util.function.Function;
+
+public sealed interface Outcome<T> permits Ok, Err {
+    default Outcome<R> map<R>(Function<T, R> f) => this switch {
+        Ok<T> ok => new Ok<R>(f.apply(ok.value)),
+        Err<T> err => new Err<R>(err.message),
+    };
+    default T orElse(T fallback) => this switch {
+        Ok<T>(var v) => v,
+        Err<T> _ => fallback,
+    };
+    static Outcome<Integer> parse(String s) {
+        try {
+            return new Ok<Integer>(Integer.parseInt(s));
+        } catch (NumberFormatException e) {
+            return new Err<Integer>("bad number: " + s);
+        }
+    }
+}
+public record Ok<T>(T value) : Outcome<T>;
+public record Err<T>(String message) : Outcome<T>;
+
+public class Maybe<T> {
+    private final T? value;
+    private Maybe(T? value) { this.value = value; }
+    public static Maybe<U> of<U>(U? v) => new Maybe<U>(v);
+    public boolean present => value != null;
+    public T getOr(T other) => value ?? other;
+    public Maybe<R> then<R>(Function<T, R?> f) {
+        val v = value;
+        return v == null ? Maybe.of<R>(null) : Maybe.of(f.apply(v));
+    }
+    public override String toString() => present ? "Some(" + value + ")" : "None";
+}
+
+String describe(Outcome<Integer> o) => o switch {
+    Ok<Integer>(var v) when v < 0 => "negative " + v,
+    Ok<Integer>(var v) => "ok " + v,
+    Err<Integer>(var m) => "error: " + m,
+};
+
+foreach (var s in List.of("42", "-7", "x1")) println(describe(Outcome.parse(s)));
+println(Outcome.parse("20").map(x => x * 2).orElse(0));
+println(Outcome.parse("zz").map(x => x * 2).orElse(-1));
+Outcome<String> os = Outcome.parse("5").map(x => "#" + x);
+println(os);
+println(Outcome.parse("q").map(x => "#" + x));
+var m = Maybe.of("hello");
+println(m + " " + m.present + " " + m.then(s => s.length()));
+Maybe<String> none = Maybe.of<String>(null);
+println(none + " " + none.getOr("dflt") + " " + none.then(s => s.length()));
+println(m.then(s => s.length() > 10 ? s : null));

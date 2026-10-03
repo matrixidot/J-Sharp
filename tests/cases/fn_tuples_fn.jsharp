@@ -1,0 +1,25 @@
+import java.util.*;
+import java.util.function.*;
+
+public static (int min, int max) minMax(List<int> xs) {
+    var lo = Integer.MAX_VALUE;
+    var hi = Integer.MIN_VALUE;
+    foreach (var x in xs) {
+        lo = Math.min(lo, x);
+        hi = Math.max(hi, x);
+    }
+    return (lo, hi);
+}
+
+var (lo, hi) = minMax(List.of(4, -2, 9));
+println(lo + " " + hi);
+var r = minMax(List.of(1));
+println(r.min + r.max);
+Function<String, (String, int)> withLen = s => (s, s.length());
+var pairs = List.of("aa", "b").stream().map(withLen).toList();
+println(pairs);
+BiFunction<int, int, (int, int)> divmod = (a, b) => (a / b, a % b);
+var (q, rem) = divmod.apply(17, 5);
+println(q + " r " + rem);
+Supplier<(String name, boolean ok)> status = () => ("svc", true);
+println(status.get().name + " " + status.get().ok);

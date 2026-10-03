@@ -754,6 +754,9 @@ public final class ClassChecker {
       Span at = nameSpan(m);
       List<MethodSymbol> over = overridden(a, c, m);
       boolean declaredOverride = m.has(Flags.OVERRIDE);
+      if (over.isEmpty() && addsAccessor(a, c, m)) {
+        continue; // `override T p { get; set; }` over a get-only property adds a new setter
+      }
       if (over.isEmpty()) {
         if (declaredOverride && at != null) {
           Diagnostic.Builder d =
@@ -808,7 +811,17 @@ public final class ClassChecker {
                   + ")");
         }
         ClassType as = a.types.asSuper(c.thisType(), o.owner());
-        Map<TypeVarSymbol, Type> subst = as == null ? Map.of() : a.types.typeArgMap(as);
+        Map<TypeVarSymbol, Type> subst =
+            new java.util.HashMap<>(as == null ? Map.of() : a.types.typeArgMap(as));
+        // Generic methods: the overrider's type parameters stand for the overridden ones.
+        if (o.typeParams().size() == m.typeParams().size()) {
+          for (int i = 0; i < o.typeParams().size(); i++) {
+            subst.put(
+                o.typeParams().get(i),
+                new Type.TypeVar(
+                    m.typeParams().get(i), dev.jsharp.compiler.types.Nullness.NON_NULL));
+          }
+        }
         Type theirRet = o.returnType() == null ? null : Types.subst(o.returnType(), subst);
         Type myRet = m.returnType();
         if (theirRet != null && myRet != null && !myRet.isError() && !theirRet.isError()) {
@@ -862,6 +875,17 @@ public final class ClassChecker {
                 Descriptors.method(
                     erasedParamsList(y),
                     y.returnType() == null ? PrimType.VOID : y.returnType().erasure()));
+  }
+
+  /**
+   * True for a setter of an {@code override} property whose getter overrides: the property
+   * overrides a get-only one and adds a setter (allowed, as in C#).
+   */
+  private static boolean addsAccessor(Attr a, ClassSymbol c, MethodSymbol m) {
+    if (!m.has(Flags.SETTER) || m.property() == null || m.property().getter() == null) {
+      return false;
+    }
+    return !overridden(a, c, m.property().getter()).isEmpty();
   }
 
   private static int accessRank(long f) {

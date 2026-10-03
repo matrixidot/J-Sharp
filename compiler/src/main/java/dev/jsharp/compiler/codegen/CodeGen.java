@@ -624,6 +624,7 @@ final class CodeGen {
     MethodSymbol m = c.method();
     if (c.receiver() != null) {
       expr(c.receiver());
+      castReceiver(m.owner(), c.receiver());
     }
     for (BExpr a : c.args()) {
       expr(a);
@@ -639,7 +640,8 @@ final class CodeGen {
       cb.checkcast(owner);
       return;
     }
-    if (c.kind() != BExpr.CallKind.SPECIAL && c.kind() != BExpr.CallKind.STATIC) {
+    // super.m() names the direct superclass and I.super.m() the interface I (the receiver's type).
+    if (c.kind() != BExpr.CallKind.STATIC && !m.isConstructor()) {
       ownerSym = qualifyingClass(ownerSym, c.receiver());
       owner = Descs.of(ownerSym);
     }
@@ -649,8 +651,7 @@ final class CodeGen {
     switch (c.kind()) {
       case STATIC -> cb.invokestatic(owner, name, desc, itf);
       case SPECIAL -> cb.invokespecial(owner, name, desc, itf);
-      case INTERFACE -> cb.invokeinterface(owner, name, desc);
-      case VIRTUAL -> {
+      case INTERFACE, VIRTUAL -> {
         if (itf) {
           cb.invokeinterface(owner, name, desc);
         } else {
@@ -689,7 +690,29 @@ final class CodeGen {
     if (declaring == syms.objectSym() && q.isInterface()) {
       return declaring;
     }
+    if (!types.isSubtype(ct, declaring.thisType().erasure())) {
+      return declaring; // e.g. a type variable whose first bound is not the declaring type
+    }
     return q;
+  }
+
+  /**
+   * Casts a receiver whose erased static type does not reach the member's declaring class: a type
+   * variable {@code T : CharSequence, Comparable<T>} erases to CharSequence, so calling compareTo
+   * needs a cast to Comparable (as javac emits).
+   */
+  private void castReceiver(ClassSymbol declaring, BExpr receiver) {
+    Type rt = receiver.type();
+    if (rt == null
+        || rt instanceof PrimType
+        || rt instanceof Type.ArrayType
+        || declaring == syms.objectSym()) {
+      return;
+    }
+    if (rt.erasure() instanceof ClassType ct
+        && !types.isSubtype(ct, declaring.thisType().erasure())) {
+      cb.checkcast(Descs.of(declaring));
+    }
   }
 
   private void newArray(BExpr.NewArray na) {

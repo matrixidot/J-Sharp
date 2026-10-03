@@ -1,0 +1,67 @@
+public class O {
+    public static String f(long x) => "f(long)";
+    public static String f(Integer x) => "f(Integer)";
+
+    public static String g(Object x) => "g(Object)";
+    public static String g(params int[] xs) => "g(int...)";
+
+    public static String h(Object x) => "h(Object)";
+    public static String h(String x) => "h(String)";
+    public static String h(CharSequence x) => "h(CharSequence)";
+
+    public static String k(double x) => "k(double)";
+    public static String k(long x) => "k(long)";
+
+    public static String c(char x) => "c(char)";
+    public static String c(int x) => "c(int)";
+
+    public static String v(int a, params int[] rest) => "v(int, int...) " + rest.length;
+    public static String v(int a, int b) => "v(int, int)";
+
+    public static String w(Long x) => "w(Long)";
+    public static String w(Object x) => "w(Object)";
+
+    public static String n(int x) => "n(int)";
+    public static String n(Integer x) => "n(Integer)";
+}
+
+public open class Base {
+    public String m(Object o) => "Base.m(Object)";
+    public open String p(Object o) => "Base.p(Object)";
+}
+
+public class Derived : Base {
+    public String m(String s) => "Derived.m(String)";
+    public override String p(Object o) => "Derived.p(Object)";
+}
+
+println(O.f(1));
+println(O.f(Integer.valueOf(1)));
+println(O.g(1));
+println(O.g(1, 2));
+println(O.g());
+println(O.h("s"));
+println(O.h(new StringBuilder("sb")));
+println(O.h(42));
+println(O.k(3));
+println(O.k(3.0f));
+println(O.c('a'));
+println(O.c(97));
+char ch = 'z';
+println(O.c(ch + 1));
+println(O.v(1, 2));
+println(O.v(1));
+println(O.v(1, 2, 3));
+println(O.w(5L));
+println(O.w(5));
+println(O.n(5));
+Integer boxed = 5;
+println(O.n(boxed));
+byte by = 1;
+println(O.k(by));
+var d = new Derived();
+println(d.m("x"));
+println(d.m(1));
+Base asBase = d;
+println(asBase.m("x"));
+println(asBase.p("x"));

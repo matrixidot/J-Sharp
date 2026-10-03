@@ -1,0 +1,12 @@
+eng: Ann, Cid, Fay
+ops: Bob, Eve
+sales: Dee
+{eng=350, ops=165, sales=90}
+{eng=34.333333333333336, ops=38.0, sales=39.0}
+{high=Ann/Cid/Fay, std=Bob/Dee/Eve}
+{false=3, true=3}
+eng -> Fay
+ops -> Bob
+sales -> Dee
+50
+<Fay, Eve, Dee, Cid, Bob, Ann>

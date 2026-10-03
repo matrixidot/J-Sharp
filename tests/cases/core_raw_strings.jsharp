@@ -1,0 +1,27 @@
+// Raw strings (no escapes, indentation stripped) and interpolated raw strings.
+var name = "World";
+var block = """
+    Hello,
+      "quoted" \n not escaped
+    End
+    """;
+print(block);
+var inl = """single "line" \t""";
+println(inl);
+var interp = $"""
+    Dear {name},
+    total: {3 * 7:D3}
+    """;
+print(interp);
+println(block.lines().count());
+var noTrail = """
+    a
+    b""";
+println("[" + noTrail + "]");
+var deeper = """
+        x
+      y
+      """;
+print(deeper);
+println("esc: \"q\" \\ AB end");
+println("multi\nline");

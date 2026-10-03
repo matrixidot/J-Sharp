@@ -1,0 +1,19 @@
+import java.util.*;
+
+public record City(String name, int pop);
+
+var byLen = Comparator.comparing(String::length);
+println(byLen.compare("aa", "b"));
+var cities = new ArrayList<City>(List.of(new City("Kiel", 246), new City("Bonn", 330), new City("Lyon", 513)));
+cities.sort(Comparator.comparing(City::name).reversed());
+println(cities.stream().map(c => c.name).toList());
+cities.sort(Comparator.comparing(City::pop, Comparator.reverseOrder()));
+println(cities.stream().map(c => c.name).toList());
+Comparator<City> byNameLen = Comparator.comparingInt(c => c.name.length());
+cities.sort(byNameLen.thenComparing(c => c.name, Comparator.reverseOrder()));
+println(cities.stream().map(c => c.name).toList());
+Comparator<City> none = (a, b) => 0;
+cities.sort(none.thenComparing(City::name));
+println(cities.stream().map(c => c.name).toList());
+cities.sort(none.thenComparing(City::pop).reversed());
+println(cities.stream().map(c => c.name).toList());

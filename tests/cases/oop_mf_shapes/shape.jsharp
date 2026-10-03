@@ -1,0 +1,6 @@
+package geo;
+
+public sealed interface Shape permits Circle, Rect, Square {
+    double area();
+    default String describe() => getClass().getSimpleName() + " " + Fmt.two(area());
+}

@@ -1,0 +1,112 @@
+// try/catch/finally ordering, nested handlers, return values vs finally, exceptions in catch/finally.
+int f1() {
+    try {
+        println("f1 try");
+        return 1;
+    } finally {
+        println("f1 finally");
+    }
+}
+
+int f2() {
+    var x = 10;
+    try {
+        return x;
+    } finally {
+        x = 20;
+        println("f2 finally x=" + x);
+    }
+}
+
+void nested() {
+    try {
+        try {
+            println("inner try");
+            throw new IllegalStateException("inner");
+        } catch (IllegalArgumentException e) {
+            println("wrong catch");
+        } finally {
+            println("inner finally");
+        }
+    } catch (IllegalStateException e) {
+        println("outer catch " + e.getMessage());
+    } finally {
+        println("outer finally");
+    }
+    println("after");
+}
+
+String f4() {
+    var sb = new StringBuilder();
+    try {
+        try {
+            sb.append("T");
+            throw new RuntimeException("a");
+        } catch (RuntimeException e) {
+            sb.append("C");
+            throw new IllegalStateException("b", e);
+        } finally {
+            sb.append("F");
+        }
+    } catch (IllegalStateException e) {
+        sb.append("O:" + e.getMessage() + "<" + e.getCause().getMessage());
+    }
+    return sb.toString();
+}
+
+void level3() {
+    throw new UnsupportedOperationException("deep");
+}
+
+void level2() {
+    try {
+        level3();
+    } finally {
+        println("level2 cleanup");
+    }
+}
+
+println(f1());
+println(f2());
+nested();
+println(f4());
+try {
+    try {
+        throw new RuntimeException("original");
+    } finally {
+        println("finally before replacing");
+        throw new RuntimeException("from finally");
+    }
+} catch (RuntimeException e) {
+    println(e.getMessage());
+}
+try {
+    level2();
+} catch (UnsupportedOperationException e) {
+    println("caught " + e.getMessage());
+}
+try {
+    Integer.parseInt("x1");
+} catch (NumberFormatException e) {
+    println("NFE");
+} catch (IllegalArgumentException e) {
+    println("IAE");
+}
+var counter = 0;
+try {
+    counter++;
+} finally {
+    counter += 10;
+}
+println(counter);
+var caught = 0;
+for (int i = 0; i < 3; i++) {
+    try {
+        if (i != 1) throw new RuntimeException("i=" + i);
+        println("no throw at " + i);
+    } catch (RuntimeException e) {
+        caught++;
+        println("caught " + e.getMessage());
+    }
+}
+println(caught);

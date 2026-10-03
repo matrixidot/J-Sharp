@@ -1,0 +1,68 @@
+// Pre/post increment and decrement on locals, fields, statics, array elements, properties.
+import java.util.Arrays;
+
+class Counter {
+    public int n;
+    public static long total;
+    public int prop { get; set; }
+    public double d;
+}
+
+var c = new Counter();
+println(c.n++);
+println(c.n);
+println(++c.n);
+println(c.n--);
+println(--c.n);
+Counter.total++;
+++Counter.total;
+println(Counter.total);
+println(Counter.total++ + Counter.total++);
+println(Counter.total);
+var arr = new int[] { 5, 5, 5 };
+int i = 0;
+arr[i++]++;
+++arr[i];
+println(arr[i]++ + " " + arr[1]);
+println(Arrays.toString(arr));
+c.prop++;
+c.prop++;
+println(c.prop++);
+println(++c.prop);
+c.d++;
+c.d += 0.5;
+println(c.d);
+long[] la = new long[2];
+la[1]--;
+println(la[1]);
+double[] da = new double[] { 1.5 };
+println(da[0]++);
+println(da[0]);
+char[] cs = new char[] { 'a' };
+cs[0]++;
+println(cs[0]);
+byte[] bs = new byte[] { 127 };
+bs[0]++;
+println(bs[0]);
+Integer boxed = 5;
+boxed++;
+println(boxed);
+int? nb = 9;
+nb = nb + 1;
+println(nb);
+var x = 5;
+var y = x++ + x++ * --x;
+println(y + " " + x);
+var counters = new Counter[] { new Counter() };
+counters[0].n++;
+counters[0].prop++;
+println(counters[0].n + counters[0].prop);
+float fl = 0.5f;
+fl++;
+println(fl);
+long lg = Long.MAX_VALUE;
+lg++;
+println(lg == Long.MIN_VALUE);
+var loops = 0;
+for (int j = 10; j > 0; j -= 3) loops++;
+println(loops);

@@ -1,0 +1,17 @@
+public record Box<T>(T item);
+
+Box<String> b = new Box<>("hi");
+if (b is Box(var s)) println(s.length());
+Result<int, String> r = Result.ok(5);
+var n = r switch {
+    Result.Ok(var v) => v + 1,
+    Result.Err(var e) => e.length(),
+};
+println(n);
+if (r is Result.Ok<int, String> ok) println(ok.value() * 10);
+Result<int, String> bad = Result.err("oops");
+var m = bad switch {
+    Result.Ok(var v) => v,
+    Result.Err(var e) => e.length(),
+};
+println(m);

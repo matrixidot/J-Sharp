@@ -1,0 +1,10 @@
+ok 42
+negative -7
+error: bad number: x1
+40
+-1
+Ok[value=#5]
+Err[message=bad number: q]
+Some(hello) true Some(5)
+None dflt None
+None

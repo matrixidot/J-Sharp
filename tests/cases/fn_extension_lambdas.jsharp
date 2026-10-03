@@ -1,0 +1,28 @@
+import java.util.*;
+import java.util.function.*;
+
+public static List<R> mapEach<T, R>(this List<T> xs, Function<T, R> f) {
+    var out = new ArrayList<R>();
+    foreach (var x in xs) out.add(f.apply(x));
+    return out;
+}
+public static List<T> keep<T>(this List<T> xs, Predicate<T> p) {
+    var out = new ArrayList<T>();
+    foreach (var x in xs) if (p.test(x)) out.add(x);
+    return out;
+}
+public static void times(this int n, IntConsumer action) {
+    for (var i = 0; i < n; i++) action.accept(i);
+}
+public static String shout(this String s) => s.toUpperCase() + "!";
+public static R let<T, R>(this T value, Function<T, R> f) => f.apply(value);
+
+println(List.of(1, 2, 3, 4).keep(x => x % 2 == 0).mapEach(x => "n" + x));
+3.times(i => print(i));
+println();
+println("hey".shout());
+println("abc".let(s => s.length() * 2));
+println(List.of("a", "b").mapEach(s => s.shout()));
+var total = new int[1];
+4.times(i => total[0] += i);
+println(total[0]);

@@ -393,6 +393,11 @@ abstract class ExprParser extends ParserBase {
             e = new Expr.This(qualifiedName(e), spanFrom(start));
             continue;
           }
+          if (at(SUPER)) {
+            advance();
+            e = new Expr.Super(e, spanFrom(start));
+            continue;
+          }
           if (at(CLASS)) {
             Token c = advance();
             errorAt(
@@ -548,6 +553,15 @@ abstract class ExprParser extends ParserBase {
           expect(RPAREN);
           return new Expr.Checked(e, spanFrom(start));
         }
+        int j = scanType(pos, false);
+        if (j > 0 && kind(j) == COLONCOLON && kind(j - 1) == RBRACKET) {
+          // Array constructor reference of a reference type: String[]::new.
+          TypeNode type = parseType(false);
+          advance();
+          Span nameSpan = tok().span();
+          String name = accept(NEW) ? "new" : expectIdent("method name");
+          return new Expr.MethodRef(null, type, name, nameSpan, spanFrom(start));
+        }
         advance();
         List<TypeNode> targs = genericCallArgsAhead() ? parseTypeArgs() : List.of();
         return new Expr.Name(t.text(), targs, spanFrom(start));
@@ -558,7 +572,7 @@ abstract class ExprParser extends ParserBase {
       }
       case SUPER -> {
         advance();
-        return new Expr.Super(t.span());
+        return new Expr.Super(null, t.span());
       }
       case NEW -> {
         return parseNew();

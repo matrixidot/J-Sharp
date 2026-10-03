@@ -1,0 +1,26 @@
+import java.util.*;
+
+var counts = new TreeMap<String, int>();
+var lines = 0;
+var longest = "";
+var numSum = 0;
+while (true) {
+    var line = readLine();
+    if (line == null) break;
+    lines++;
+    if (line.length() > longest.length()) longest = line;
+    foreach (var w in line.toLowerCase().split("\\W+")) {
+        if (w.isEmpty()) continue;
+        counts.merge(w, 1, Integer::sum);
+    }
+    foreach (var tok in line.split("\\s+")) {
+        if (tok.matches("\\d+")) numSum += Integer.parseInt(tok);
+    }
+}
+println("lines: " + lines);
+println("longest: " + longest);
+println(counts);
+var best = counts.entrySet().stream().max(Comparator.comparingInt(e => e.getValue())).get();
+println(best.getKey() + "=" + best.getValue());
+println(numSum);
+println(readLine() ?? "EOF");

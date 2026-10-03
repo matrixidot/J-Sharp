@@ -1,0 +1,12 @@
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
+
+IntFunction<String[]> strs = String[]::new;
+println(strs.apply(2).length);
+var names = Stream.of("x", "y", "z").toArray(String[]::new);
+println(names.length + " " + names[2]);
+Function<int, int[][]> grid = int[][]::new;
+println(grid.apply(4).length);
+var upper = List.of("a", "b").stream().map(String::toUpperCase).toArray(String[]::new);
+println(String.join("-", upper));

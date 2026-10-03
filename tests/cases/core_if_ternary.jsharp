@@ -1,0 +1,55 @@
+// if-expressions, ternaries, numeric promotion and boxing in conditional expressions.
+class Tr {
+    public static String hit(String s) {
+        print("[" + s + "]");
+        return s;
+    }
+}
+
+int checkPositive(int v) => if (v > 0) v else throw new IllegalArgumentException("neg " + v);
+
+int x = 7;
+var kind = if (x % 2 == 0) "even" else "odd";
+println(kind);
+var sign = if (x > 0) 1 else if (x < 0) -1 else 0;
+println(sign);
+var mixed = if (x > 5) 1 else 2.5;
+println(mixed);
+println(if (x > 100) "big" else "small");
+var nested = if (x > 5) (if (x > 6) "gt6" else "6") else "le5";
+println(nested);
+var chain = x < 3 ? "low" : x < 6 ? "mid" : "high";
+println(chain);
+double dd = x > 5 ? 1 : 2.0;
+println(dd);
+println(x > 5 ? 1 : 2.0);
+long lw = x > 5 ? 10 : 20L;
+println(lw);
+Object o = x > 5 ? 1 : "s";
+println(o.getClass().getSimpleName());
+Object o2 = x > 5 ? (Object) 'c' : 1;
+println(o2);
+Integer? boxedNull = null;
+int? r = x > 5 ? boxedNull : 0;
+println(r);
+int? r2 = x > 5 ? 5 : boxedNull;
+println(r2);
+var chosen = if (x > 0) Tr.hit("a") else Tr.hit("b");
+println(chosen);
+var tern = x < 0 ? Tr.hit("c") : Tr.hit("d");
+println(tern);
+println($"x is {(if (x > 0) "positive" else "non-positive")}");
+char grade = x >= 7 ? 'P' : 'F';
+println(grade);
+println(checkPositive(3));
+try {
+    checkPositive(-2);
+} catch (IllegalArgumentException ex) {
+    println(ex.getMessage());
+}
+var bigger = Math.max(x, if (x > 3) 10 else 0);
+println(bigger);
+boolean flag = x > 3;
+println(!flag ? "no" : flag && x < 10 ? "both" : "only");
+String? maybe = x > 100 ? "s" : null;
+println(maybe ?? "fallback");

@@ -1,0 +1,52 @@
+import java.util.*;
+
+public open class Greeter {
+    protected final String greeting;
+    public Greeter(String greeting) { this.greeting = greeting; }
+    public open String greet(String who) => greeting + " " + who;
+}
+
+public class Party {
+    private final String host;
+    public Party(String host) { this.host = host; }
+
+    public List<String> invite(List<String> guests, String mood) {
+        interface Card { String text(); }
+        enum Kind { Vip, Regular }
+        record Invitation(String guest, Kind kind) : Card {
+            public override String text() => (kind == Kind.Vip ? "*" : "") + guest;
+        }
+        class LoudGreeter : Greeter {
+            public LoudGreeter() { super("Hey"); }
+            public override String greet(String who) => super.greet(who).toUpperCase() + " from " + host + " (" + mood + ")";
+        }
+        var g = new LoudGreeter();
+        var out = new ArrayList<String>();
+        foreach (var guest in guests) {
+            var inv = new Invitation(guest, guest.length() <= 3 ? Kind.Vip : Kind.Regular);
+            Card c = inv;
+            out.add(c.text() + ": " + g.greet(guest));
+        }
+        return out;
+    }
+
+    public int countOver(int[] xs, int threshold) {
+        class Acc {
+            int n = 0;
+            void offer(int x) { if (x > threshold) n++; }
+        }
+        var acc = new Acc();
+        foreach (var x in xs) acc.offer(x);
+        return acc.n;
+    }
+}
+
+var p = new Party("Zed");
+foreach (var line in p.invite(List.of("Al", "Beatrice"), "happy")) println(line);
+println(p.countOver(new int[] { 1, 5, 9, 12 }, 4));
+record Pt(int x, int y);
+var pts = new ArrayList<Pt>(List.of(new Pt(3, 1), new Pt(1, 2), new Pt(2, 0)));
+pts.sort(Comparator.comparingInt(pt => pt.x));
+println(pts);
+enum Coin { Heads, Tails }
+println(Coin.values().length + " " + Coin.valueOf("Tails").ordinal());

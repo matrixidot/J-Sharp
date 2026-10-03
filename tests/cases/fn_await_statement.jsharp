@@ -1,0 +1,16 @@
+import java.util.concurrent.atomic.AtomicInteger;
+
+public static async Task<int> bump(AtomicInteger c) {
+    await Task.delay(1);
+    return c.incrementAndGet();
+}
+
+var counter = new AtomicInteger();
+var t = bump(counter);
+await t;
+println(counter.get());
+var v = Task.runVoid(() => counter.addAndGet(10));
+await v;
+println(counter.get());
+await bump(counter);
+println(counter.get());

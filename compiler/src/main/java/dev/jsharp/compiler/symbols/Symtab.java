@@ -50,6 +50,30 @@ public final class Symtab {
     return c;
   }
 
+  /**
+   * The J# module classes (holders of top-level functions) of a package, from source and from
+   * non-JDK class path entries, in a deterministic order.
+   */
+  public List<ClassSymbol> moduleClassesIn(String dottedPkg) {
+    java.util.TreeMap<String, ClassSymbol> out = new java.util.TreeMap<>();
+    for (ClassSymbol c : classes.values()) {
+      if (c != null && c.isSource() && c.packageName().equals(dottedPkg) && c.has(Flags.MODULE)) {
+        out.put(c.binaryName(), c);
+      }
+    }
+    String prefix = dottedPkg.isEmpty() ? "" : dottedPkg.replace('.', '/') + "/";
+    for (String simple : classPath.list(dottedPkg, false)) {
+      if (simple.contains("$") || out.containsKey(prefix + simple)) {
+        continue;
+      }
+      ClassSymbol c = lookup(prefix + simple);
+      if (c != null && c.has(Flags.MODULE)) {
+        out.put(c.binaryName(), c);
+      }
+    }
+    return List.copyOf(out.values());
+  }
+
   /** Registers a class declared in source. */
   public void enterSource(ClassSymbol c) {
     classes.put(c.binaryName(), c);

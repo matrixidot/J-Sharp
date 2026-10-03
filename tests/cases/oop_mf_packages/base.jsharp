@@ -1,0 +1,26 @@
+package lib.core;
+
+import java.util.*;
+
+public abstract class Component {
+    private static int created = 0;
+    protected final String id;
+    private final List<String> events = new ArrayList<>();
+
+    protected Component(String prefix = "c") {
+        created++;
+        id = prefix + created;
+    }
+
+    protected void emit(String e) => events.add(id + ":" + e);
+    protected open String render() => "<" + id + ">";
+    public abstract String kind();
+    public String show(boolean verbose = false, String sep = " ") =>
+        verbose ? kind() + sep + render() + sep + events : render();
+    public static int count => created;
+}
+
+public interface Clickable {
+    void click();
+    default void doubleClick() { click(); click(); }
+}

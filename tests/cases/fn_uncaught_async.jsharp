@@ -1,0 +1,11 @@
+public static async Task<int> loadConfig(String name) {
+    await Task.delay(1);
+    require(name.endsWith(".cfg"), "bad config name: " + name);
+    return name.length();
+}
+
+println(await loadConfig("app.cfg"));
+var pending = loadConfig("app.txt");
+println("started");
+var size = await pending;
+println("unreachable " + size);

@@ -292,6 +292,9 @@ abstract class StmtParser extends ExprParser {
         && peek(2).is(EQ)) {
       return true; // `var if = 1;`: report the keyword as a bad variable name
     }
+    if (t.isContextual("await") && peek(1).is(IDENTIFIER)) {
+      return false; // `await task;` is an await expression, never a variable of type `await`
+    }
     int j = scanType(pos, true);
     if (j < 0) {
       return false;

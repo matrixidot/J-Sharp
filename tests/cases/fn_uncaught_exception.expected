@@ -1,0 +1,4 @@
+before
+caught once: bottom reached
+finally ran
+about to fail

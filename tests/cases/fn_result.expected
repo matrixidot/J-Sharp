@@ -1,0 +1,12 @@
+ok(42)
+err(not a number: 4x)
+ok(7)
+err(not positive: -3)
+ok(50)
+0
+true true
+Result is an error: not a number: bad
+value 1
+value 2
+value 4
+7 [not a number: x]

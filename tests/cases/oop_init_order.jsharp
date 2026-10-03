@@ -1,0 +1,25 @@
+public open class Base {
+    static { println("Base static"); }
+    private String tag = trace("Base field");
+    { println("Base init block"); }
+    public Base() { this("default"); println("Base()"); }
+    public Base(String s) { println("Base(" + s + ") tag=" + tag); }
+    public static String trace(String s) { println(s); return s; }
+}
+
+public class Child : Base {
+    static { println("Child static"); }
+    private int x = initX();
+    { println("Child init block x=" + x); }
+    private int y = 5;
+    public Child() { this(7); println("Child() y=" + y); }
+    public Child(int y) { super("from child"); println("Child(" + y + ") x=" + x); }
+    private int initX() { println("Child field"); return 42; }
+}
+
+println("start");
+new Child();
+println("---");
+new Child(1);
+println("---");
+new Base();

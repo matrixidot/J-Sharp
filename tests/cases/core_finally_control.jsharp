@@ -1,0 +1,114 @@
+// finally interacting with break/continue/return in loops, and finally overriding results.
+class Box {
+    public int v;
+}
+
+int findIndex(int[] xs, int target) {
+    for (int i = 0; i < xs.length; i++) {
+        try {
+            if (xs[i] == target) return i;
+        } finally {
+            print(".");
+        }
+    }
+    return -1;
+}
+
+int getAndBump(Box b) {
+    try {
+        return b.v;
+    } finally {
+        b.v += 100;
+    }
+}
+
+int overrideRet() {
+    try {
+        return 1;
+    } finally {
+        return 2;
+    }
+}
+
+int swallow() {
+    try {
+        throw new RuntimeException("lost");
+    } finally {
+        return 42;
+    }
+}
+
+var sb = new StringBuilder();
+for (int i = 0; i < 4; i++) {
+    try {
+        if (i == 1) continue;
+        if (i == 3) break;
+        sb.append("b" + i);
+    } finally {
+        sb.append("f" + i);
+    }
+}
+println(sb);
+println(findIndex(new int[] { 5, 6, 7 }, 6));
+println(findIndex(new int[] { 5 }, 9));
+var swallowed = 0;
+while (true) {
+    try {
+        throw new RuntimeException("lost");
+    } finally {
+        swallowed++;
+        break;
+    }
+}
+println("swallowed " + swallowed);
+var order = new StringBuilder();
+outer: for (int i = 0; i < 2; i++) {
+    try {
+        for (int j = 0; j < 2; j++) {
+            try {
+                if (j == 1) break outer;
+                order.append("w" + i + j);
+            } finally {
+                order.append("[in" + j + "]");
+            }
+        }
+    } finally {
+        order.append("[out" + i + "]");
+    }
+}
+println(order);
+var bx = new Box();
+bx.v = 1;
+println(getAndBump(bx) + " " + bx.v);
+println(overrideRet());
+println(swallow());
+var log = new StringBuilder();
+foreach (var w in new String[] { "a", "skip", "b", "boom", "c" }) {
+    try {
+        if (w.equals("skip")) continue;
+        if (w.equals("boom")) throw new IllegalStateException(w);
+        log.append(w);
+    } catch (IllegalStateException e) {
+        log.append("!");
+        continue;
+    } finally {
+        log.append(";");
+    }
+    log.append("+");
+}
+println(log);
+var depth = 0;
+try {
+    try {
+        try {
+            depth = 1;
+            throw new RuntimeException("deep");
+        } finally {
+            depth *= 10;
+        }
+    } finally {
+        depth += 5;
+    }
+} catch (RuntimeException e) {
+    println(e.getMessage() + " " + depth);
+}

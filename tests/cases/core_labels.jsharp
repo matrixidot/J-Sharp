@@ -1,0 +1,77 @@
+// Labeled break/continue across while, do-while, for, foreach; break/continue inside switch.
+import java.util.*;
+
+var out = new StringBuilder();
+outer: while (true) {
+    int i = 0;
+    inner: do {
+        i++;
+        if (i == 2) continue inner;
+        if (i == 4) break outer;
+        out.append(i);
+    } while (i < 10);
+}
+println(out);
+int[] nums = new int[] { 4, 7, 1, 9, 3 };
+int target = 10;
+String found = "none";
+search: for (int a = 0; a < nums.length; a++) {
+    for (int b = a + 1; b < nums.length; b++) {
+        if (nums[a] + nums[b] == target) {
+            found = $"{nums[a]}+{nums[b]}";
+            break search;
+        }
+    }
+}
+println(found);
+var primes = new ArrayList<Integer>();
+candidates: for (int n = 2; n < 30; n++) {
+    foreach (var p in primes) {
+        if (p * p > n) break;
+        if (n % p == 0) continue candidates;
+    }
+    primes.add(n);
+}
+println(primes);
+var trace = new StringBuilder();
+for (int i = 0; i < 5; i++) {
+    switch (i) {
+        case 1:
+            continue;
+        case 3:
+            break;
+        default:
+            trace.append("d");
+    }
+    trace.append(i);
+}
+println(trace);
+var count = 0;
+rows: for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+        if (j > i) continue rows;
+        count++;
+    }
+}
+println(count);
+var words = List.of("ok", "fine", "STOP", "never");
+var seen = 0;
+scan: while (true) {
+    foreach (var w in words) {
+        if (w.equals("STOP")) break scan;
+        seen++;
+    }
+}
+println(seen);
+var steps = 0;
+level1: foreach (var x in new int[] { 1, 2, 3 }) {
+    level2: foreach (var y in new int[] { 1, 2, 3 }) {
+        level3: for (int zz = 0; zz < 3; zz++) {
+            steps++;
+            if (zz == 1) continue level2;
+            if (y == 2) continue level1;
+            if (x == 3) break level1;
+        }
+    }
+}
+println(steps);

@@ -1,0 +1,16 @@
+public static int depth(int n) {
+    if (n == 0) throw new IllegalStateException("bottom reached");
+    return depth(n - 1) + 1;
+}
+
+println("before");
+try {
+    depth(3);
+} catch (IllegalStateException e) {
+    println("caught once: " + e.getMessage());
+} finally {
+    println("finally ran");
+}
+println("about to fail");
+depth(2);
+println("never printed");

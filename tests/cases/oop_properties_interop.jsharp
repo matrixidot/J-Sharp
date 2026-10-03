@@ -1,0 +1,44 @@
+import java.util.*;
+
+public open class Entity {
+    public required long id { get; init; }
+    public String createdBy { get; init; } = "system";
+}
+
+public class User : Entity {
+    public required String name { get; set; }
+    public boolean active { get; set; }
+    public int loginCount { get; private set; }
+    public String display => name + "#" + id + (active ? "*" : "");
+    public void login() { loginCount++; active = true; }
+}
+
+var u = new User { id = 7, name = "ann" };
+println(u.display + " by " + u.createdBy);
+u.login();
+u.login();
+println(u.display + " logins=" + u.loginCount);
+u.setName("bob");
+println(u.getName() + " " + u.isActive() + " " + u.getId() + " " + u.getLoginCount());
+u.active = false;
+println(u.display);
+var u2 = new User { id = 8, name = "cy", createdBy = "admin", active = true };
+println(u2.display + " by " + u2.getCreatedBy());
+
+var cls = typeof(User);
+println(cls.getMethod("getName").getReturnType().getSimpleName());
+println(cls.getMethod("isActive").getReturnType());
+println(cls.getMethod("setName", typeof(String)) != null);
+println(typeof(Entity).getMethod("getId").getReturnType());
+println(typeof(Entity).getDeclaredMethod("setId", typeof(long)).isSynthetic());
+
+var t = new Thread(() => { });
+t.name = "worker-1";
+t.daemon = true;
+println(t.name + " " + t.daemon + " " + t.getName() + " " + t.isDaemon());
+var ex = new IllegalStateException("bad", new RuntimeException("root"));
+println(ex.message + " / " + ex.cause!.message);
+var list = new ArrayList<String>();
+println(list.empty);
+list.add("x");
+println(list.empty);

@@ -1,0 +1,61 @@
+// Shifts (with distance masking), unsigned shift, bit ops, non-short-circuit boolean ops.
+class Probe {
+    public static int calls;
+    public static boolean yes() {
+        calls++;
+        return true;
+    }
+    public static boolean no() {
+        calls++;
+        return false;
+    }
+}
+
+int one = 1;
+long oneL = 1;
+int m1 = -1;
+println(one << 33);
+println(oneL << 65);
+println(one << -1);
+println(m1 >>> 28);
+println(-1L >>> 60);
+int m8 = -8;
+println(m8 >> 1);
+byte b = -16;
+println(b >> 2);
+println(b >>> 28);
+println((b & 0xFF) >>> 4);
+int ten = 0b1010;
+println(ten ^ 0b0110);
+println(~ten);
+println(~0L);
+println(Integer.bitCount(0xFF));
+println(Integer.highestOneBit(100));
+println(Long.numberOfTrailingZeros(1L << 40));
+int flags = 0;
+flags |= 1 << 3;
+flags |= 1 << 0;
+println(flags);
+println((flags & (1 << 3)) != 0);
+flags &= ~(1 << 3);
+println(flags);
+println(Probe.no() & Probe.yes());
+println(Probe.yes() | Probe.no());
+println(Probe.yes() ^ Probe.yes());
+println(Probe.no() && Probe.yes());
+println(Probe.yes() || Probe.no());
+println(Probe.calls);
+boolean bf = true;
+bf &= false;
+println(bf);
+bf |= true;
+bf ^= true;
+println(bf);
+println(0x7f_ff_ff_ff == Integer.MAX_VALUE);
+println(Integer.toHexString(0xCAFE << 16 | 0xBABE));
+println(Integer.toBinaryString(5 << 2));
+println(one + 2 << 3);
+println(one | 2 ^ 3 & 4);
+long mask = 0xFFFF_0000_0000_0000L;
+println(Long.toHexString(mask >>> 48));
+println(mask >> 60);

@@ -145,9 +145,12 @@ public final class ClassGen {
       }
       clb.with(SignatureAttribute.of(ClassSignature.parseFrom(sb.toString())));
     }
-    clb.with(
-        RuntimeVisibleAnnotationsAttribute.of(
-            Annotation.of(METADATA, AnnotationElement.ofString("version", LanguageInfo.VERSION))));
+    List<AnnotationElement> meta = new ArrayList<>();
+    meta.add(AnnotationElement.ofString("version", LanguageInfo.VERSION));
+    if (c.has(Flags.MODULE)) {
+      meta.add(AnnotationElement.ofBoolean("module", true));
+    }
+    clb.with(RuntimeVisibleAnnotationsAttribute.of(Annotation.of(METADATA, meta)));
     innerClasses(clb, c);
     nest(clb, c);
     if (c.has(Flags.SEALED) && !c.permitted().isEmpty()) {

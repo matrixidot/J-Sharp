@@ -1,0 +1,58 @@
+public open class Shape {
+    public static int created { get; private set; }
+    public Shape() { created++; }
+    public open String name => "shape";
+    public open double area => 0.0;
+    public String label => name + ":" + area;
+    public open int scale { get; set; } = 1;
+}
+
+public class Square : Shape {
+    public double side { get; set; } = 1;
+    public override String name => "square";
+    public override double area => side * side * scale;
+    public override int scale {
+        get => super.scale;
+        set { println("scale set to " + value); super.scale = value * 2; }
+    }
+}
+
+public interface Named {
+    String title { get; }
+    default String shout() => title.toUpperCase();
+}
+
+public class Book : Named {
+    public override String title { get; }
+    public Book(String t) { title = t; }
+}
+
+public class Temperature {
+    public double celsius {
+        get => field;
+        set {
+            if (value < -273.15) throw new IllegalArgumentException("below absolute zero");
+            field = value;
+        }
+    }
+    public boolean freezing => celsius <= 0;
+}
+
+Shape s = new Square { side = 3 };
+println(s.label);
+s.scale = 2;
+println(s.scale);
+println(s.label);
+println(new Shape().label);
+println(Shape.created);
+Named n = new Book("dune");
+println(n.title + " " + n.shout());
+var t = new Temperature();
+t.celsius = -5;
+println(t.freezing + " " + t.isFreezing() + " " + t.getCelsius());
+try {
+    t.celsius = -300;
+} catch (IllegalArgumentException e) {
+    println("error: " + e.getMessage());
+}
+println(t.celsius);

@@ -101,7 +101,16 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
     for (Annotation a : classAnnotations(m)) {
       String d = a.className().stringValue();
       switch (d) {
-        case JSHARP_METADATA -> flags |= Flags.JSHARP;
+        case JSHARP_METADATA -> {
+          flags |= Flags.JSHARP;
+          for (var e : a.elements()) {
+            if (e.name().stringValue().equals("module")
+                && e.value() instanceof java.lang.classfile.AnnotationValue.OfBoolean b
+                && b.booleanValue()) {
+              flags |= Flags.MODULE;
+            }
+          }
+        }
         case "Ljava/lang/FunctionalInterface;" -> flags |= Flags.FUNCTIONAL;
         case "Ljava/lang/Deprecated;" -> flags |= Flags.DEPRECATED;
         default -> {}

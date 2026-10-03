@@ -1,0 +1,64 @@
+public static async Task<int> failing(String msg) {
+    await Task.delay(1);
+    throw new IllegalStateException(msg);
+}
+
+public static async Task<int> divide(int a, int b) {
+    await Task.delay(1);
+    return a / b;
+}
+
+public static async Task<String> wrapper(int b) {
+    try {
+        var r = await divide(10, b);
+        return "ok " + r;
+    } catch (ArithmeticException e) {
+        return "caught " + e.getMessage();
+    } finally {
+        println("finally " + b);
+    }
+}
+
+public static async Task<int> level3() {
+    await Task.delay(1);
+    throw new UnsupportedOperationException("deep");
+}
+public static async Task<int> level2() => await level3() + 1;
+public static async Task<int> level1() {
+    var v = await level2();
+    return v * 2;
+}
+
+println(await wrapper(2));
+println(await wrapper(0));
+try {
+    await failing("boom");
+} catch (IllegalStateException e) {
+    println("top-level caught " + e.getMessage());
+}
+try {
+    await Task.whenAll(divide(1, 1), failing("in group"), divide(4, 2));
+} catch (IllegalStateException e) {
+    println("group failed: " + e.getMessage());
+}
+Task<int> failed = Task.failed(new RuntimeException("pre-failed"));
+try {
+    var ignored = await failed;
+} catch (RuntimeException e) {
+    println(e.getMessage());
+}
+println(failed.isCompletedExceptionally());
+var recovered = failing("x").exceptionally(e => e.getMessage().length() * 100);
+println(await Task.from(recovered));
+try {
+    println(await level1());
+} catch (UnsupportedOperationException e) {
+    println("propagated: " + e.getMessage());
+}
+var notThrown = divide(9, 0);
+println("not yet awaited");
+try {
+    var ignored = await notThrown;
+} catch (ArithmeticException e) {
+    println("late: " + e.getClass().getName());
+}

@@ -1,0 +1,50 @@
+import java.util.*;
+
+public abstract class Report {
+    private final String title;
+    protected Report(String title) { this.title = title; }
+    public String render() {
+        var sb = new StringBuilder();
+        sb.append(header()).append("\n");
+        foreach (var line in body()) sb.append("  ").append(line).append("\n");
+        sb.append(footer());
+        return sb.toString();
+    }
+    protected open String header() => "== " + title + " ==";
+    protected abstract List<String> body();
+    protected open String footer() => "-- end --";
+}
+
+public open class SalesReport : Report {
+    protected final int[] sales;
+    public SalesReport(params int[] sales) { super("Sales"); this.sales = sales; }
+    protected override List<String> body() {
+        var out = new ArrayList<String>();
+        for (int i = 0; i < sales.length; i++) out.add("Q" + (i + 1) + ": " + sales[i]);
+        return out;
+    }
+    protected override String footer() => "total=" + total();
+    public int total() {
+        int t = 0;
+        foreach (var s in sales) t += s;
+        return t;
+    }
+}
+
+public class DetailedSalesReport : SalesReport {
+    public DetailedSalesReport(params int[] sales) { super(sales); }
+    protected override String header() => super.header().toUpperCase();
+    protected override String footer() => super.footer() + ", avg=" + (total() / sales.length);
+}
+
+Report r1 = new SalesReport(10, 20, 30);
+println(r1.render());
+Report r2 = new DetailedSalesReport(5, 15);
+println(r2.render());
+println(r2 is SalesReport);
+println(r1 is DetailedSalesReport);
+Report anon = new Report("Anon") {
+    protected override List<String> body() => List.of("x");
+};
+println(anon.render());
+println(((SalesReport) r2).total());

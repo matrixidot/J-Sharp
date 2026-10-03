@@ -1,0 +1,20 @@
+strings:2
+objects:2
+strings:0
+strings:3
+1-2-3
+a/b
+dog, animal
+
+pick(Animal)
+pick(Dog)
+pick(Object)
+nul(String)
+nul(String)
+coll(List)
+coll(Collection)
+coll(Collection)
+coll(Iterable)
+17
+x=5
+2

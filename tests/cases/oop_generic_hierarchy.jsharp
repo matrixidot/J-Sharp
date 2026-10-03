@@ -1,0 +1,67 @@
+import java.util.*;
+
+public interface Mapper<T> {
+    T map(T x);
+    default T twice(T x) => map(map(x));
+}
+
+public class Inc : Mapper<Integer> {
+    public override Integer map(Integer x) => x + 1;
+}
+
+public class Exclaim : Mapper<String> {
+    public override String map(String s) => s + "!";
+    public override String twice(String s) => "<" + map(map(s)) + ">";
+}
+
+public open class Holder<T> {
+    protected T value;
+    public Holder(T value) { this.value = value; }
+    public T get() => value;
+    public open void set(T v) { value = v; }
+    public override String toString() => "Holder(" + value + ")";
+}
+
+public class PositiveHolder : Holder<Integer> {
+    public PositiveHolder(Integer v) { super(v); }
+    public override void set(Integer v) {
+        if (v <= 0) { println("rejected " + v); return; }
+        super.set(v);
+    }
+}
+
+public class ListHolder<E> : Holder<List<E>> {
+    public ListHolder() { super(new ArrayList<E>()); }
+    public void add(E e) => value.add(e);
+    public E first() => value.get(0);
+}
+
+public abstract class Builder<SELF : Builder<SELF>> {
+    protected final StringBuilder sb = new StringBuilder();
+    protected abstract SELF self();
+    public SELF add(String s) { sb.append(s).append(";"); return self(); }
+    public String build() => sb.toString();
+}
+
+public class HtmlBuilder : Builder<HtmlBuilder> {
+    protected override HtmlBuilder self() => this;
+    public HtmlBuilder tag(String t) { sb.append("<" + t + ">"); return this; }
+}
+
+Mapper<Integer> inc = new Inc();
+println(inc.twice(5));
+Mapper<String> ex = new Exclaim();
+println(ex.twice("hi"));
+Holder<Integer> h = new PositiveHolder(3);
+h.set(-1);
+h.set(10);
+println(h);
+println(h.get() + 1);
+var lh = new ListHolder<String>();
+lh.add("x");
+lh.add("y");
+println(lh.first() + " " + lh.get().size() + " " + lh);
+Holder<List<String>> asBase = lh;
+asBase.set(List.of("z"));
+println(lh.first());
+println(new HtmlBuilder().add("a").tag("b").add("c").build());

@@ -186,30 +186,46 @@ final class Infer {
    */
   Map<TypeVarSymbol, Type> solve(boolean defaultUnconstrained) {
     Map<TypeVarSymbol, Type> sol = new IdentityHashMap<>();
-    boolean progress = true;
-    while (progress) {
-      progress = false;
-      for (TypeVarSymbol v : vars) {
-        if (sol.containsKey(v)) {
-          continue;
-        }
-        Bounds b = bounds.get(v);
-        Type t = pick(b, sol);
-        if (t != null) {
-          sol.put(v, t);
-          progress = true;
+    while (true) {
+      boolean progress = true;
+      while (progress) {
+        progress = false;
+        for (TypeVarSymbol v : vars) {
+          if (sol.containsKey(v)) {
+            continue;
+          }
+          Bounds b = bounds.get(v);
+          Type t = pick(b, sol);
+          if (t != null) {
+            sol.put(v, t);
+            progress = true;
+          }
         }
       }
-    }
-    if (defaultUnconstrained) {
+      if (!defaultUnconstrained) {
+        return sol;
+      }
+      // Default one variable (preferring one without any bounds), then propagate again: with
+      // C = TreeSet<T> and T unconstrained, T defaults first and C follows from it.
+      TypeVarSymbol pickVar = null;
       for (TypeVarSymbol v : vars) {
         if (!sol.containsKey(v)) {
-          Type bound = Types.subst(v.bounds().getFirst(), sol);
-          sol.put(v, mentionsVars(bound) ? types.syms().objectType() : bound);
+          Bounds b = bounds.get(v);
+          if (b.eq.isEmpty() && b.lower.isEmpty() && b.upper.isEmpty()) {
+            pickVar = v;
+            break;
+          }
+          if (pickVar == null) {
+            pickVar = v;
+          }
         }
       }
+      if (pickVar == null) {
+        return sol;
+      }
+      Type bound = Types.subst(pickVar.bounds().getFirst(), sol);
+      sol.put(pickVar, mentionsVars(bound) ? types.syms().objectType() : bound);
     }
-    return sol;
   }
 
   private Type pick(Bounds b, Map<TypeVarSymbol, Type> sol) {

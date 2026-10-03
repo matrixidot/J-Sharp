@@ -1,0 +1,91 @@
+// Exhaustive switches over sealed hierarchies (interfaces and classes) with nested patterns.
+public sealed interface Expr;
+public record Num(int v) : Expr;
+public record Add(Expr l, Expr r) : Expr;
+public record Mul(Expr l, Expr r) : Expr;
+public record Neg(Expr e) : Expr;
+
+public sealed interface Shape permits Circle, Square, Rect;
+public record Circle(double r) : Shape;
+public record Square(double side) : Shape;
+public record Rect(double w, double h) : Shape;
+
+public sealed class Vehicle {
+    public final int wheels;
+    protected Vehicle(int wheels) { this.wheels = wheels; }
+}
+public class Car : Vehicle {
+    public Car() { super(4); }
+}
+public class Bike : Vehicle {
+    public Bike() { super(2); }
+}
+
+Expr simplify(Expr e) => e switch {
+    Add(Num(0), var r) => simplify(r),
+    Add(var l, Num(0)) => simplify(l),
+    Mul(Num(1), var r) => simplify(r),
+    Mul(var l, Num(1)) => simplify(l),
+    Mul(Num(0), _) or Mul(_, Num(0)) => new Num(0),
+    Neg(Neg(var inner)) => simplify(inner),
+    Add(var l, var r) => new Add(simplify(l), simplify(r)),
+    Mul(var l, var r) => new Mul(simplify(l), simplify(r)),
+    Neg(var inner) => new Neg(simplify(inner)),
+    Num n => n,
+};
+
+String show(Expr e) => e switch {
+    Num(var v) => String.valueOf(v),
+    Add(var l, var r) => $"({show(l)} + {show(r)})",
+    Mul(var l, var r) => $"{show(l)}*{show(r)}",
+    Neg(var x) => "-" + show(x),
+};
+
+int eval(Expr e) => e switch {
+    Num n => n.v,
+    Add a => eval(a.l) + eval(a.r),
+    Mul m => eval(m.l) * eval(m.r),
+    Neg(var x) => -eval(x),
+};
+
+double area(Shape s) => s switch {
+    Circle c => Math.PI * c.r * c.r,
+    Square(var side) => side * side,
+    Rect { w: var w, h: var h } when w == h => w * w,
+    Rect(var w, var h) => w * h,
+};
+
+String wheelsOf(Vehicle v) => v switch {
+    Car c => "car with " + c.wheels,
+    Bike b => "bike with " + b.wheels,
+};
+
+var x = new Num(7);
+Expr e = new Add(new Mul(new Num(1), new Neg(new Neg(x))), new Mul(new Num(3), new Add(new Num(0), new Num(2))));
+println(show(e));
+println(show(simplify(e)));
+println(eval(e) + " " + eval(simplify(e)));
+println(show(simplify(new Mul(new Add(new Num(1), new Num(1)), new Num(0)))));
+println(simplify(new Add(new Num(0), new Num(5))));
+foreach (var s in new Shape[] { new Circle(1), new Square(2), new Rect(3, 3), new Rect(2, 5) }) {
+    print($"{area(s):F2} ");
+}
+println();
+println(wheelsOf(new Car()) + ", " + wheelsOf(new Bike()));
+var count = 0;
+foreach (var s in new Shape[] { new Circle(1), new Square(2), new Circle(3) }) {
+    switch (s) {
+        case Circle c when c.r > 2:
+            count += 100;
+            break;
+        case Circle c:
+            count += 1;
+            break;
+        case Square sq:
+            count += 10;
+            break;
+        case Rect r:
+            break;
+    }
+}
+println(count);

@@ -1,0 +1,51 @@
+import java.util.*;
+
+public interface Validator<T> {
+    boolean validate(T value);
+    default Validator<T> and(Validator<T> other) => v => validate(v) && other.validate(v);
+    default Validator<T> negate() => v => !validate(v);
+    static Validator<T> all<T>(params Validator<T>[] vs) => v => {
+        foreach (var x in vs) if (!x.validate(v)) return false;
+        return true;
+    };
+}
+
+public interface Transformer {
+    String apply(String s);
+    default Transformer then(Transformer next) => s => next.apply(apply(s));
+}
+
+public class Upper : Transformer {
+    public override String apply(String s) => s.toUpperCase();
+}
+
+public static String runAll(String input, List<Transformer> ts) {
+    var cur = input;
+    foreach (var t in ts) cur = t.apply(cur);
+    return cur;
+}
+
+public static String reverse(String s) => new StringBuilder(s).reverse().toString();
+
+Validator<String> nonEmpty = s => !s.isEmpty();
+Validator<String> shortStr = s => s.length() < 5;
+var both = nonEmpty.and(shortStr);
+println(both.validate("abc") + " " + both.validate("") + " " + both.validate("abcdef"));
+println(both.negate().validate(""));
+Validator<Integer> pos = x => x > 0;
+Validator<Integer> even = x => x % 2 == 0;
+var posEven = Validator.all(pos, even);
+println(posEven.validate(4) + " " + posEven.validate(3) + " " + posEven.validate(-2));
+Transformer trim = String::trim;
+Transformer pipeline = trim.then(new Upper()).then(s => s + "!").then(MainHelpers.rev);
+println(pipeline.apply("  hello "));
+println(runAll("ab", List.of(new Upper(), s => s + s, s => reverse(s))));
+int calls = 0;
+var counter = new int[1];
+Transformer counting = s => { counter[0]++; return s; };
+counting.then(counting).then(counting).apply("x");
+println(counter[0] + calls);
+
+public class MainHelpers {
+    public static final Transformer rev = s => new StringBuilder(s).reverse().toString();
+}

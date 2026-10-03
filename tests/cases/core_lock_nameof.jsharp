@@ -1,0 +1,53 @@
+// lock statement (monitor released on all exits), typeof and nameof.
+import java.util.*;
+
+public record Item(String label, int qty);
+
+var mon = new Object();
+lock (mon) {
+    println(Thread.holdsLock(mon));
+}
+println(Thread.holdsLock(mon));
+try {
+    lock (mon) {
+        throw new RuntimeException("in lock");
+    }
+} catch (RuntimeException e) {
+    println(e.getMessage() + " held=" + Thread.holdsLock(mon));
+}
+int lockedReturn(Object m) {
+    lock (m) {
+        return 7;
+    }
+}
+println(lockedReturn(mon) + " held=" + Thread.holdsLock(mon));
+lock (mon) {
+    lock (mon) {
+        println("reentrant " + Thread.holdsLock(mon));
+    }
+}
+var counter = new int[1];
+var threads = new ArrayList<Thread>();
+for (int t = 0; t < 4; t++) {
+    var th = new Thread(() => {
+        for (int i = 0; i < 1000; i++) {
+            lock (counter) {
+                counter[0]++;
+            }
+        }
+    });
+    threads.add(th);
+    th.start();
+}
+foreach (var th in threads) th.join();
+println(counter[0]);
+println(typeof(String).getName());
+println(typeof(Item).getSimpleName());
+println(typeof(Item).isRecord());
+println(typeof(int).getName());
+var qty = 3;
+println(nameof(qty));
+println(nameof(Item));
+var item = new Item("pen", 2);
+println(nameof(item.label));
+println($"{nameof(qty)}={qty}");

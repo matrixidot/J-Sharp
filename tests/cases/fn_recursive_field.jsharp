@@ -1,0 +1,27 @@
+import java.util.function.*;
+
+public class Recur {
+    public Function<int, long> fact;
+    public BiFunction<int, int, int> gcd;
+    public Recur() {
+        fact = n => n <= 1 ? 1L : n * fact.apply(n - 1);
+        gcd = (a, b) => b == 0 ? a : gcd.apply(b, a % b);
+    }
+}
+
+public interface SelfApply {
+    int apply(SelfApply self, int n);
+}
+
+public static Function<int, int>? fibF = null;
+
+var r = new Recur();
+println(r.fact.apply(10));
+println(r.fact.apply(20));
+println(r.gcd.apply(84, 36));
+
+fibF = n => n < 2 ? n : fibF!.apply(n - 1) + fibF!.apply(n - 2);
+println(fibF!.apply(15));
+
+SelfApply tri = (self, n) => n == 0 ? 0 : n + self.apply(self, n - 1);
+println(tri.apply(tri, 100));

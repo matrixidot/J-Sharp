@@ -1,0 +1,62 @@
+import java.util.*;
+
+public sealed interface Expr;
+public record Num(int value) : Expr;
+public record Neg(Expr inner) : Expr;
+public record Bin(char op, Expr left, Expr right) : Expr;
+public record Var(String name) : Expr;
+
+public static int eval(Expr e, Map<String, Integer> env) => e switch {
+    Num n => n.value,
+    Neg(var inner) => -eval(inner, env),
+    Bin(var op, var l, var r) when op == '+' => eval(l, env) + eval(r, env),
+    Bin(var op, var l, var r) when op == '*' => eval(l, env) * eval(r, env),
+    Bin b => throw new UnsupportedOperationException("op " + b.op),
+    Var v => env.getOrDefault(v.name, 0),
+};
+
+public static String show(Expr e) => e switch {
+    Num(var v) => "" + v,
+    Neg(Num(var v)) => "-" + v,
+    Neg(var x) => "-(" + show(x) + ")",
+    Bin(var op, var l, var r) => "(" + show(l) + " " + op + " " + show(r) + ")",
+    Var(var name) => name,
+};
+
+public static Expr simplify(Expr e) => e switch {
+    Bin(var op, Num(var a), Num(var b)) when op == '+' => new Num(a + b),
+    Bin(var op, var l, Num(var b)) when op == '*' && b == 1 => simplify(l),
+    Neg(Neg(var x)) => simplify(x),
+    Bin(var op, var l, var r) => new Bin(op, simplify(l), simplify(r)),
+    _ => e,
+};
+
+public sealed abstract class Vehicle permits Car, Truck {
+    public abstract int wheels();
+}
+public final class Car : Vehicle { public override int wheels() => 4; }
+public final class Truck : Vehicle {
+    public final int axles;
+    public Truck(int axles) { this.axles = axles; }
+    public override int wheels() => axles * 4;
+}
+
+String toll(Vehicle v) => v switch {
+    Car _ => "car $2",
+    Truck t when t.axles > 2 => "big truck $" + (t.axles * 3),
+    Truck t => "truck $5",
+};
+
+var env = Map.of("x", 5);
+Expr e = new Bin('+', new Num(2), new Bin('*', new Var("x"), new Neg(new Num(3))));
+println(show(e));
+println(eval(e, env));
+try {
+    eval(new Bin('/', new Num(1), new Num(1)), env);
+} catch (UnsupportedOperationException ex) {
+    println(ex.getMessage());
+}
+println(show(simplify(new Neg(new Neg(new Bin('*', new Bin('+', new Num(1), new Num(2)), new Num(1)))))));
+println(show(new Neg(new Var("y"))));
+println(toll(new Car()) + "; " + toll(new Truck(2)) + "; " + toll(new Truck(4)));
+println(new Truck(3).wheels());

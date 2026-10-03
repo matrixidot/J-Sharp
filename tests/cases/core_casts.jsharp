@@ -1,0 +1,50 @@
+// Numeric narrowing/widening casts and reference casts.
+println((int) 3.7);
+println((int) -3.7);
+println((int) 1e10);
+println((long) -1e30);
+println((byte) 128);
+println((byte) -129);
+println((short) 32768);
+println((char) 97);
+println((int) 'z');
+println((byte) 'A');
+int big = 16777217;
+float f = big;
+println(f);
+println((int) f);
+long lbig = 9007199254740993L;
+double d = lbig;
+println((long) d);
+println((float) 0.1);
+println((double) 0.1f);
+println((int) (char) -1);
+println((short) (char) 65535);
+println((byte) 0x1FF);
+long l = 0x1_0000_0001L;
+println((int) l);
+long w = 'a' + 1;
+println(w);
+double dd = 7 / 2;
+println(dd);
+Object o = 42;
+println(o is Integer);
+int back = (int) o;
+println(back + 1);
+Object str = "hello";
+var s = (String) str;
+println(s.length());
+try {
+    var bad = (Integer) str;
+    println(bad);
+} catch (ClassCastException e) {
+    println("CCE");
+}
+Integer? none = str as Integer;
+println(none == null);
+println((str as String)?.toUpperCase());
+double third = 1.0 / 3;
+println((float) third);
+println((long) 2.9999999999999999);
+println((char) ('a' + 25));
+println((int) 'a' + (int) 'b');

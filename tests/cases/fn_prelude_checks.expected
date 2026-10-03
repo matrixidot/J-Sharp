@@ -1,0 +1,13 @@
+ok
+IllegalArgumentException: Failed requirement.
+IllegalStateException: Check failed.
+IllegalArgumentException: n must be non-negative, was -4
+7
+IllegalStateException: door is closed
+entered
+ok
+APF
+IllegalStateException: bad score -1
+UnsupportedOperationException: Not implemented.
+IllegalStateException: direct
+big

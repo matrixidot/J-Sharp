@@ -1,0 +1,55 @@
+import java.util.*;
+import java.util.function.Function;
+
+public class Version : Comparable<Version> {
+    public final int major;
+    public final int minor;
+    public Version(int major, int minor) { this.major = major; this.minor = minor; }
+    public override int compareTo(Version o) =>
+        major != o.major ? Integer.compare(major, o.major) : Integer.compare(minor, o.minor);
+    public override String toString() => major + "." + minor;
+}
+
+public abstract class Transformer<A, B> {
+    public abstract B apply(A a);
+    public List<B> applyAll(List<A> xs) {
+        var out = new ArrayList<B>();
+        foreach (var x in xs) out.add(apply(x));
+        return out;
+    }
+}
+
+public class Lengther : Transformer<String, Integer> {
+    public override Integer apply(String s) => s.length();
+}
+
+public class Shouter : Function<String, String> {
+    public override String apply(String s) => s.toUpperCase() + "!";
+}
+
+public class ByLength : Comparator<String> {
+    public override int compare(String a, String b) => Integer.compare(a.length(), b.length());
+}
+
+var vs = new ArrayList<Version>(List.of(new Version(1, 10), new Version(1, 2), new Version(0, 9)));
+Collections.sort(vs);
+println(vs);
+println(Collections.max(vs));
+var tree = new TreeSet<Version>(vs);
+tree.add(new Version(1, 2));
+println(tree.size() + " " + tree.first() + " " + tree.last());
+Comparable<Version> cv = new Version(2, 0);
+println(cv.compareTo(new Version(1, 0)) > 0);
+vs.sort(Comparator.reverseOrder());
+println(vs);
+println(new Lengther().applyAll(List.of("a", "abc", "")));
+Transformer<String, Integer> t = new Lengther();
+println(t.apply("hello"));
+println(List.of("x", "yz").stream().map(new Shouter()).toList());
+Function<String, String> f = new Shouter();
+println(f.andThen(s => s + "?").apply("hi"));
+var words = new ArrayList<String>(List.of("ccc", "a", "bb"));
+words.sort(new ByLength());
+println(words);
+words.sort(new ByLength().reversed());
+println(words);

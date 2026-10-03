@@ -1,0 +1,22 @@
+[12, 20, 8]
+[3, 5, 2]
+[9, 3, 5, 2]
+[9, 3, 2]
+[3, 2]
+[1, 2, 3, 4, 6]
+3
+[6, 4, 3, 2, 1]
+[4, 3]
+2 false
+{apple=80, pear=102, plum=4}
+-1
+apple 4
+{apple=80}
+{plum=4, pear=102, apple=80}
+{plum=4}
+[ann, cat, dan]
+{z=1, a=2}
+3
+[ab, ab, ab]
+immutable
+apple fig [apple, fig]

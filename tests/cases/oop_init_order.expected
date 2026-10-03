@@ -1,0 +1,22 @@
+start
+Base static
+Child static
+Base field
+Base init block
+Base(from child) tag=Base field
+Child field
+Child init block x=42
+Child(7) x=42
+Child() y=5
+---
+Base field
+Base init block
+Base(from child) tag=Base field
+Child field
+Child init block x=42
+Child(1) x=42
+---
+Base field
+Base init block
+Base(default) tag=Base field
+Base()

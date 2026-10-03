@@ -1,0 +1,14 @@
+// I.super.m() calls a direct superinterface's default method.
+interface L { default String hi() => "l"; }
+interface R { default String hi() => "r"; }
+interface Other { default String hi() => "o"; }
+class Both : L, R {
+    public override String hi() => L.super.hi() + R.super.hi();
+}
+class Wrong : L, R {
+    public override String hi() => Other.super.hi();     //~ JS0635
+}
+class Base { }
+class NotIface : L {
+    public override String hi() => Base.super.hi();      //~ JS0635
+}

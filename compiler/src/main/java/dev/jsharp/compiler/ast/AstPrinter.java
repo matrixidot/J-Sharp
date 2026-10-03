@@ -451,7 +451,7 @@ public final class AstPrinter {
       case Expr.MethodRef m ->
           s("::", m.target() != null ? toS(m.target()) : typeStr(m.typeTarget()), m.name());
       case Expr.This t -> t.qualifier() == null ? "this" : t.qualifier() + ".this";
-      case Expr.Super sp -> "super";
+      case Expr.Super sp -> sp.qualifier() == null ? "super" : s("super", toS(sp.qualifier()));
       case Expr.TypeOf t -> s("typeof", typeStr(t.type()));
       case Expr.NameOf n -> s("nameof", toS(n.expr()));
       case Expr.Tuple t -> list("tuple", t.elements());

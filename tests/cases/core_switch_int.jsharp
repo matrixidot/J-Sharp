@@ -1,0 +1,86 @@
+// switch statements and expressions on int/char/long with constant, relational, and/or/not patterns.
+String name(int n) {
+    switch (n) {
+        case 0:
+            return "zero";
+        case 1 or 2 or 3:
+            return "small";
+        case > 100:
+            return "huge";
+        case < 0 and > -10:
+            return "slightly negative";
+        default:
+            return "other";
+    }
+}
+foreach (var v in new int[] { 0, 2, 3, 150, -5, -50, 50 }) println(name(v));
+
+String bucket(int n) => n switch {
+    < 0 => "neg",
+    0 => "zero",
+    >= 1 and <= 9 => "digit",
+    not (10 or 20) => "other",
+    _ => "ten-or-twenty",
+};
+foreach (var v in new int[] { -1, 0, 5, 10, 15, 20 }) print(bucket(v) + " ");
+println();
+
+String kindOf(char c) => c switch {
+    >= 'a' and <= 'z' => "lower",
+    >= 'A' and <= 'Z' => "upper",
+    ' ' or '\t' => "space",
+    _ => "other",
+};
+foreach (var c in "aZ \t7".toCharArray()) print(kindOf(c) + " ");
+println();
+
+long big = 5_000_000_000L;
+var size = big switch {
+    < 1000L => "small",
+    < 10_000_000_000L => "medium",
+    _ => "large",
+};
+println(size);
+
+int days(int month, boolean leap) {
+    switch (month) {
+        case 2:
+            return leap ? 29 : 28;
+        case 4 or 6 or 9 or 11:
+            return 30;
+        default:
+            return 31;
+    }
+}
+var total = 0;
+for (int mo = 1; mo <= 12; mo++) total += days(mo, false);
+println(total);
+println(days(2, true));
+
+var x = 3;
+var sideEffects = 0;
+switch (x) {
+    case 1:
+        sideEffects += 1;
+        break;
+    case 3:
+        sideEffects += 3;
+        if (sideEffects > 0) break;
+        sideEffects += 100;
+        break;
+    default:
+        sideEffects = -1;
+}
+println(sideEffects);
+var word = (x * 2) switch { 6 => "six", _ => "?" };
+println(word);
+try {
+    var result = x switch {
+        1 => 10,
+        2 => 20,
+        _ => throw new IllegalStateException("bad " + x),
+    };
+    println(result);
+} catch (IllegalStateException e) {
+    println(e.getMessage());
+}

@@ -1,0 +1,52 @@
+import java.util.*;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.atomic.AtomicInteger;
+
+public class Fetcher {
+    private final Map<String, String> data = new HashMap<>();
+    public final AtomicInteger calls = new AtomicInteger();
+    public Fetcher() {
+        data.put("u1", "alice");
+        data.put("u2", "bob");
+    }
+    public async Task<String?> fetchUser(String id) {
+        await Task.delay(1);
+        calls.incrementAndGet();
+        return data.get(id);
+    }
+    public async Task<String> describe(String id) {
+        var u = await fetchUser(id);
+        return u?.toUpperCase() ?? "<missing " + id + ">";
+    }
+    public async Task<int> totalLength(List<String> ids) {
+        var sum = 0;
+        foreach (var id in ids) {
+            var u = await fetchUser(id);
+            if (u == null) continue;
+            sum += u.length();
+        }
+        return sum;
+    }
+}
+
+var f = new Fetcher();
+println(await f.describe("u1"));
+println(await f.describe("u9"));
+var all = await Task.whenAll(f.describe("u2"), f.describe("u1"), f.describe("u3"));
+println(all);
+println(f.calls.get());
+println(await f.totalLength(List.of("u1", "nope", "u2")));
+println(f.calls.get());
+var computed = Task.run(() => {
+    var acc = 0;
+    for (var i = 0; i < 10; i++) acc += i;
+    return acc;
+});
+println(await computed);
+var counter = new AtomicInteger();
+var vt = Task.runVoid(() => counter.addAndGet(5));
+await (vt);
+println(counter.get());
+CompletableFuture<String> cf = f.describe("u2");
+println(cf.join());
+println(cf.thenCombine(f.describe("u1"), (a, b) => a + "&" + b).join());

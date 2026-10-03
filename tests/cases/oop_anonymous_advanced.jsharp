@@ -1,0 +1,68 @@
+import java.util.*;
+
+public abstract class Task<T> {
+    protected final String name;
+    protected Task(String name) { this.name = name; println("Task(" + name + ")"); }
+    public abstract T compute();
+    public String run() => name + " -> " + compute();
+}
+
+public class Scheduler {
+    private final String owner;
+    private final List<String> log = new ArrayList<>();
+    public Scheduler(String owner) { this.owner = owner; }
+    private void record(String s) => log.add(owner + ":" + s);
+
+    public Task<Integer> squareTask(int n) {
+        return new Task<Integer>("square" + n) {
+            private int computed;
+            {
+                computed = n * n;
+                record("init " + name);
+            }
+            public override Integer compute() {
+                record("compute " + name);
+                return computed;
+            }
+        };
+    }
+
+    public Iterator<String> countdown(int from) {
+        return new Iterator<String>() {
+            private int cur = from;
+            public override boolean hasNext() => cur > 0;
+            public override String next() {
+                val label = new Object() {
+                    public override String toString() => owner + "#" + cur;
+                };
+                cur--;
+                return label.toString();
+            }
+        };
+    }
+
+    public List<String> getLog() => log;
+}
+
+var s = new Scheduler("ops");
+var t = s.squareTask(7);
+println(t.run());
+println(t.compute() + 1);
+println(s.getLog());
+var it = s.countdown(3);
+while (it.hasNext()) print(it.next() + " ");
+println();
+String prefix = "v";
+Task<String> anon = new Task<String>("inline") {
+    public override String compute() => prefix + name.length();
+    public override String toString() => "anon " + name;
+};
+println(anon.run());
+println(anon);
+Comparator<String> byLast = new Comparator<String>() {
+    public override int compare(String a, String b) => Character.compare(a.charAt(a.length() - 1), b.charAt(b.length() - 1));
+};
+var words = new ArrayList<String>(List.of("abc", "xya", "mnb"));
+words.sort(byLast.thenComparing(Comparator.naturalOrder()));
+println(words);
+println(anon.getClass().getSuperclass().getSimpleName());

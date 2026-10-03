@@ -1,0 +1,40 @@
+import java.util.*;
+import java.util.function.*;
+import java.util.stream.*;
+
+public record Point(int x, int y) {
+    public override String toString() => $"({x},{y})";
+}
+
+public class Tag {
+    private final String name;
+    public Tag(String name) { this.name = name; }
+    public Tag() { this("untitled"); }
+    public override String toString() => "#" + name;
+}
+
+BiFunction<int, int, Point> mk = Point::new;
+println(mk.apply(1, 2));
+Function<String, Tag> tagOf = Tag::new;
+Supplier<Tag> blank = Tag::new;
+println(tagOf.apply("fp"));
+println(blank.get());
+Supplier<ArrayList<String>> listMaker = ArrayList::new;
+var l = listMaker.get();
+l.add("a");
+println(l);
+Function<int, int[]> ints = int[]::new;
+var arr = ints.apply(3);
+arr[1] = 7;
+println(Arrays.toString(arr));
+var tags = Stream.of("a", "b").map(Tag::new).toList();
+println(tags);
+var pts = IntStream.range(0, 3).mapToObj(i => new Point(i, i * i)).toList();
+println(pts);
+Supplier<Map<String, int>> mapMaker = TreeMap::new;
+var m = mapMaker.get();
+m.put("b", 2);
+m.put("a", 1);
+println(m);
+Function<String, StringBuilder> sbOf = StringBuilder::new;
+println(sbOf.apply("abc").reverse());

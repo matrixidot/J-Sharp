@@ -1,0 +1,45 @@
+import java.util.*;
+
+public open class Shape { public open String name() => "shape"; }
+public open class Polygon : Shape { public override String name() => "polygon"; }
+public class Triangle : Polygon { public override String name() => "triangle"; public int sides => 3; }
+public class Circle : Shape { public override String name() => "circle"; }
+
+public interface Marker { }
+public class MarkedCircle : Shape, Marker { }
+
+String inspect(Object o) {
+    if (o is Triangle t && t.sides == 3) return "triangle with " + t.sides;
+    if (o is Polygon p) return "polygon " + p.name();
+    if (o is Marker) return "marked " + ((Shape) o).name();
+    if (o is Shape s) return "shape " + s.name();
+    if (o is List<?> l) return "list of " + l.size();
+    if (o is String str && !str.isEmpty()) return "string " + str.length();
+    return "other " + o.getClass().getSimpleName();
+}
+
+Object[] things = { new Triangle(), new Polygon(), new Circle(), new MarkedCircle(), List.of(1, 2), "hey", "", 42 };
+foreach (var t in things) println(inspect(t));
+Shape s = new Circle();
+try {
+    var p = (Polygon) s;
+    println("no " + p);
+} catch (ClassCastException e) {
+    println("ClassCastException");
+}
+Polygon? maybe = s as Polygon;
+println(maybe == null);
+println((s as Circle)?.name());
+Shape tri = new Triangle();
+println(((Triangle) tri).sides);
+println(typeof(Triangle).getSuperclass().getSimpleName());
+println(typeof(Polygon).isAssignableFrom(typeof(Triangle)));
+println(typeof(Shape).isInstance(new Circle()));
+println(nameof(tri) + " " + nameof(Triangle));
+println(!(s is Polygon));
+println(s is not Polygon);
+Object n = 5;
+int doubled = n is Integer i ? i * 2 : -1;
+println(doubled);
+long big = (long) (Integer) n;
+println(big + 1);

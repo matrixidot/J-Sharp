@@ -1,0 +1,41 @@
+import java.util.*;
+
+public static Result<int, String> parse(String s) {
+    try {
+        return Result.ok(Integer.parseInt(s));
+    } catch (NumberFormatException e) {
+        return Result.err("not a number: " + s);
+    }
+}
+
+public static Result<int, String> positive(int n) => n > 0 ? Result.ok(n) : Result.err("not positive: " + n);
+
+public static String show(Result<int, String> r) => r switch {
+    Result.Ok(var v) => "ok(" + v + ")",
+    Result.Err(var e) => "err(" + e + ")",
+};
+
+println(show(parse("42")));
+println(show(parse("4x")));
+println(show(parse("7").flatMap(n => positive(n))));
+println(show(parse("-3").flatMap(n => positive(n))));
+println(show(parse("5").map(n => n * 10)));
+println(parse("zz").getOrElse(0));
+println(parse("8").isOk() + " " + parse("q").isErr());
+try {
+    parse("bad").getOrThrow();
+} catch (IllegalStateException e) {
+    println(e.getMessage());
+}
+var total = 0;
+var errors = new ArrayList<String>();
+foreach (var s in List.of("1", "2", "x", "4")) {
+    var r = parse(s);
+    if (r.isOk()) {
+        total += r.getOrThrow();
+    } else if (r is Result.Err<?, ?> err) {
+        errors.add((String) err.error());
+    }
+    if (r is Result.Ok<?, ?> ok) println("value " + ok.value());
+}
+println(total + " " + errors);

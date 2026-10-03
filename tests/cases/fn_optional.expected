@@ -1,0 +1,19 @@
+Optional[42]
+Optional.empty
+42
+0
+true
+false
+6
+8
+/bin/sh
+home is /usr/ann
+absent
+/usr/ann
+fallback
+caught: missing zzz
+No value present
+bbb
+4.5
+1
+was null

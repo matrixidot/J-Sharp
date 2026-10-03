@@ -1,0 +1,67 @@
+import java.util.*;
+
+public interface Identified { long id(); }
+
+public abstract class Repository<T : Identified> {
+    protected final TreeMap<Long, T> store = new TreeMap<>();
+    public void save(T item) { store.put(item.id(), item); onSave(item); }
+    protected open void onSave(T item) { }
+    public T? find(long id) => store.get(id);
+    public abstract String describe(T item);
+    public List<String> all() {
+        var out = new ArrayList<String>();
+        foreach (var v in store.values()) out.add(describe(v));
+        return out;
+    }
+    public open Repository<T> self() => this;
+}
+
+public record User(long id, String name) : Identified;
+
+public class UserRepo : Repository<User> {
+    public int saves = 0;
+    protected override void onSave(User u) { saves++; }
+    public override String describe(User u) => u.name + "#" + u.id;
+    public override UserRepo self() => this;
+    public String names() => String.join(",", store.values().stream().map(u => u.name).toList());
+}
+
+public abstract class Shape {
+    public abstract double area();
+    public abstract Shape scaled(double k);
+    public final override String toString() => getClass().getSimpleName() + "(" + area() + ")";
+}
+
+public open class Rect : Shape {
+    protected final double w;
+    protected final double h;
+    public Rect(double w, double h) { this.w = w; this.h = h; }
+    public override double area() => w * h;
+    public override Rect scaled(double k) => new Rect(w * k, h * k);
+}
+
+public class Square : Rect {
+    public Square(double s) { super(s, s); }
+    public override Square scaled(double k) => new Square(w * k);
+}
+
+var repo = new UserRepo();
+repo.save(new User(2, "bob"));
+repo.save(new User(1, "ann"));
+repo.save(new User(2, "bobby"));
+println(repo.all());
+println(repo.saves);
+println(repo.find(1)?.name ?? "missing");
+println(repo.find(9)?.name ?? "missing");
+println(repo.self().names());
+Repository<User> base = repo;
+println(base.self().describe(new User(5, "eve")));
+println(base.self() === repo);
+Shape s = new Square(2);
+println(s.scaled(1.5));
+Rect r = new Square(1);
+Rect r2 = r.scaled(3);
+println(r2 + " " + (r2 is Square));
+Square sq = new Square(1).scaled(4);
+println(sq.area());
+println(new Rect(1, 2).scaled(2));

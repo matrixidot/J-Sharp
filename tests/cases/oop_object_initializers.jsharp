@@ -1,0 +1,50 @@
+import java.util.*;
+
+public class Config {
+    public required String host { get; init; }
+    public int port { get; init; } = 80;
+    public boolean tls { get; set; }
+    public List<String> tags { get; set; } = new ArrayList<>();
+    public String url => (tls ? "https" : "http") + "://" + host + ":" + port;
+    public Config() { println("Config() port=" + port); }
+}
+
+public open class Widget {
+    public String id { get; set; } = "w";
+    public int width { get; set; }
+    public Widget() { }
+    public Widget(String id) { this.id = id; }
+    public override String toString() => id + "[" + width + "]";
+}
+
+public class Button : Widget {
+    public String text { get; set; } = "";
+    public Button(String id) { super(id); }
+    public override String toString() => super.toString() + "'" + text + "'";
+}
+
+public class Point {
+    public int x;
+    public int y;
+    public override String toString() => "(" + x + "," + y + ")";
+}
+
+var c = new Config { host = "example.com", tls = true };
+println(c.url);
+var c2 = new Config { port = 8080, host = "localhost" };
+println(c2.url + " " + c2.tls);
+c2.tls = true;
+println(c2.url);
+println(c2.tags.size());
+var b = new Button("ok") { text = "OK", width = 40 };
+println(b);
+Widget w = new() { width = 3 };
+println(w);
+var points = new ArrayList<Point>();
+for (int i = 0; i < 3; i++) points.add(new Point { x = i, y = i * i });
+println(points);
+int counter = 0;
+var p = new Point { x = ++counter, y = ++counter };
+println(p + " " + counter);
+var nested = new Button("outer") { text = new Button("inner") { text = "in" }.toString() };
+println(nested);

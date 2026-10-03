@@ -1,0 +1,10 @@
+Task(square7)
+square7 -> 49
+50
+[ops:init square7, ops:compute square7, ops:compute square7]
+ops#2 ops#1 ops#0 
+Task(inline)
+inline -> v6
+anon inline
+[xya, mnb, abc]
+Task

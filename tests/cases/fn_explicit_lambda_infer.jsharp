@@ -1,0 +1,8 @@
+import java.util.function.*;
+
+public static Function<A, Function<B, C>> curry<A, B, C>(BiFunction<A, B, C> f) => a => b => f.apply(a, b);
+
+Function<String, String> trim = s => s.trim();
+println(trim.andThen(String::length).compose((String s) => "  " + s + "  ").apply("abc"));
+var add10 = curry((Integer a, Integer b) => a + b).apply(10);
+println(add10.apply(5));

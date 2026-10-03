@@ -1,0 +1,31 @@
+public interface Top { default String who() => "top"; default String tag() => "T"; }
+public interface Left : Top { default override String who() => "left"; }
+public interface Right : Top { default override String tag() => "R"; }
+public interface Other { default String who() => "other"; }
+
+// Diamond: Left overrides who(), Right overrides tag(); no conflict, most specific defaults win.
+public class Diamond : Left, Right { }
+
+// Conflict between unrelated defaults must be resolved explicitly, delegating via X.super.
+public class Picky : Left, Other {
+    public override String who() => Left.super.who() + "&" + Other.super.who();
+}
+
+// A class method always wins over an interface default.
+public open class Named { public String who() => "class"; }
+public class Mixed : Named, Other { }
+
+public abstract class Partial : Top {
+    public override String tag() => "P:" + Top.super.tag();
+}
+public class Concrete : Partial { }
+
+var d = new Diamond();
+println(d.who() + " " + d.tag());
+Top t = d;
+println(t.who() + " " + t.tag());
+println(new Picky().who());
+println(new Mixed().who());
+Other o = new Mixed();
+println(o.who());
+println(new Concrete().tag() + " " + new Concrete().who());

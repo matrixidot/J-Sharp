@@ -1,0 +1,67 @@
+import java.util.*;
+import java.util.function.*;
+
+public interface Counter {
+    int next();
+    default int skip(int n) {
+        var last = 0;
+        for (var i = 0; i < n; i++) last = next();
+        return last;
+    }
+}
+
+public abstract class Greeter {
+    protected final String name;
+    public Greeter(String name) { this.name = name; }
+    public abstract String greet();
+    public String twice() => greet() + " " + greet();
+}
+
+public static Counter countFrom(int start) {
+    return new Counter() {
+        private int cur = start;
+        public override int next() => cur++;
+    };
+}
+
+var c = countFrom(10);
+println(c.next());
+println(c.next());
+println(c.skip(3));
+println(c.next());
+
+var prefix = "item-";
+Comparator<String> cmp = new Comparator<String>() {
+    public override int compare(String a, String b) {
+        var byLen = Integer.compare(a.length(), b.length());
+        return byLen != 0 ? byLen : b.compareTo(a);
+    }
+};
+var xs = new ArrayList<String>(List.of("bb", "a", "ccc", "aa", "c"));
+xs.sort(cmp);
+println(xs);
+Function<Integer, String> namer = new Function<Integer, String>() {
+    public override String apply(Integer n) => prefix + n;
+};
+println(namer.apply(7));
+println(namer.andThen(String::length).apply(100));
+Runnable r = new Runnable() {
+    private int runs = 0;
+    public override void run() {
+        runs++;
+        println("run #" + runs + " " + prefix);
+    }
+};
+r.run();
+r.run();
+var g = new Greeter("Ann") {
+    public override String greet() => "Hi " + name;
+};
+println(g.twice());
+Iterator<int> countdown = new Iterator<int>() {
+    private int n = 3;
+    public override boolean hasNext() => n > 0;
+    public override Integer next() => n--;
+};
+while (countdown.hasNext()) print(countdown.next());
+println();

@@ -1,0 +1,12 @@
+Base ctor sees: middle name=null n=0
+Middle ctor sees: middle name=middle n=5
+hello from A via B | level 2
+--
+Base ctor sees: leaf/middle name=null n=0
+Middle ctor sees: leaf/middle name=middle n=5
+[hello from A via B] | level 20
+leaf/middle name=middle n=5
+[hello from A via B]
+true
+[hello from A via B]
+not a string

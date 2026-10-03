@@ -1,0 +1,6 @@
+lines: 5
+longest: The dog sleeps; the fox runs!
+{3=1, 4=1, 5=1, brown=1, dog=2, fox=2, jumps=1, lazy=1, numbers=1, over=1, quick=1, runs=1, sleeps=1, the=4}
+the=4
+12
+EOF

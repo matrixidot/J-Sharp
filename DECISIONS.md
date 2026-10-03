@@ -161,8 +161,11 @@ Format: **decision** — reason. *Rejected:* alternatives.
   starting with `%`; formatting uses `Locale.ROOT` for reproducible output.
 - **D049: Tuples** compile to `jsharp.core.Tuple2..Tuple8` records with boxed elements; element
   names exist only at compile time.
-- **D050: Exception filters** `catch (E e) when (c)` are compiled as a rethrow when `c` is false
-  (the JVM has no filters); observable only through `finally` ordering in nested handlers.
+- **D050: Exception filters** `catch (E e) when (c)`: a `try` with any filtered clause compiles
+  to one JVM handler for all its clause types that tests the clauses in source order (type, then
+  filter) and rethrows the original exception when none matches, so a false filter falls through
+  to the later clauses (C# semantics). Unlike the CLR's two-pass model, filters run after inner
+  `finally` blocks have executed (the JVM has no filter phase).
 - **D051: Constant narrowing in calls.** `f(byte)` accepts `f(10)` (C#-like, unlike Java), but
   the conversion ranks with boxing (applicable only in the loose phase), so an identity or
   widening overload always wins: `println(3)` calls `println(int)`, not `println(char)`.
@@ -175,3 +178,30 @@ Format: **decision** — reason. *Rejected:* alternatives.
   loader (fast startup); `jsharp build` writes class files (`-d`, default `./out`) or a jar
   (`--jar`) with a `Main-Class` manifest entry. Jar entries are sorted with zero timestamps so
   builds are reproducible.
+- **D054: Common type of records/enums.** When the only shared superclass is `Record` or `Enum`
+  and exactly one shared interface exists that the base does not provide, the common type (lub)
+  is that interface: `cond ? new Circle() : new Square()` is a `Shape`. Java would infer
+  `Record & Shape`; J# has no intersection types and the interface is the useful half.
+- **D055: `import p.*` imports top-level functions, values and extensions** of package `p` (its
+  module classes; compiled module classes are marked `@Metadata(module = true)`), like Kotlin.
+  Users never need to name a synthetic `XModule` class; `import static p.XModule.*` still works.
+- **D056: Inside a record, reading a component on `this` reads its field** (Java rule), not the
+  accessor; this lets an explicit accessor (`double c() => round(c)`) use the stored value.
+- **D057: Arguments are evaluated in source order.** When named arguments reorder parameters,
+  impure arguments are spilled into temporaries in the order written (C#/Kotlin rule).
+- **D058: `I.super.m()`** calls the default method of a direct superinterface `I` (Java syntax and
+  rule); it is the way to resolve conflicting defaults that a class must override.
+- **D059: Overriding a get-only property may add a setter** (C# rule); the new setter is a new
+  member, not an override.
+- **D060: Inference additions** (all following javac): explicitly typed lambda parameters fix the
+  function type's parameters; an *exact* method reference (one non-generic, non-varargs method by
+  that name) constrains parameter and return types before its target is known, and method
+  references are only potentially compatible with function types of a fitting arity; lambdas and
+  method references are potentially compatible with a parameter typed by the candidate's own type
+  variable; diamond-style constructor references (`TreeSet::new`) take their type arguments from
+  the bound of the inference variable they produce (`C extends Collection<T>` gives
+  `C = TreeSet<T>`); generic poly-call arguments wait until other arguments resolve their target;
+  unconstrained variables are defaulted one at a time so dependent variables follow.
+- **D061: Patterns on generic types** use the parameterization implied by the input's static type:
+  `Res<Integer> r` matched by `Ok(var v)` infers `Ok<Integer>` (JLS 18.5.5), and testing
+  `Ok<Integer>` is allowed because it is fully determined (a checked narrowing, JLS 5.1.6.1).

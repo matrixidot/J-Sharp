@@ -1,0 +1,15 @@
+== Sales ==
+  Q1: 10
+  Q2: 20
+  Q3: 30
+total=60
+== SALES ==
+  Q1: 5
+  Q2: 15
+total=20, avg=10
+true
+false
+== Anon ==
+  x
+-- end --
+20

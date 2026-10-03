@@ -1,0 +1,12 @@
+[Acme] sale #1 total=10
+[Acme] sale #2 total=20
+[Acme] sale #1 total=25
+25
+1. pen $6 @Acme
+2. book $8 @Acme
+Hello, Ann!
+Greeter(Hello)
+105
+202
+2 3
+Point[x=101, y=102]

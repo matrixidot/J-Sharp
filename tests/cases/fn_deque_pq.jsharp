@@ -1,0 +1,60 @@
+import java.util.*;
+
+public record Job(String name, int priority);
+
+var stack = new ArrayDeque<int>();
+stack.push(1);
+stack.push(2);
+stack.push(3);
+println(stack.peek());
+println(stack.pop() + stack.pop());
+println(stack);
+var queue = new ArrayDeque<String>();
+queue.offer("a");
+queue.offer("b");
+queue.addFirst("z");
+println(queue);
+println(queue.pollLast());
+println(queue.poll());
+println(queue.poll());
+println(queue.poll());
+
+Comparator<Job> byPriority = Comparator.comparingInt(j => j.priority);
+var pq = new PriorityQueue<Job>(byPriority.reversed());
+pq.add(new Job("low", 1));
+pq.add(new Job("high", 9));
+pq.add(new Job("mid", 5));
+pq.add(new Job("urgent", 10));
+var order = new StringBuilder();
+while (!pq.isEmpty()) order.append(pq.poll().name).append(' ');
+println(order.toString().trim());
+
+var heap = new PriorityQueue<int>(List.of(7, 2, 9, 4));
+var drained = new ArrayList<int>();
+while (heap.size() > 0) drained.add(heap.poll());
+println(drained);
+var maxHeap = new PriorityQueue<int>(Collections.reverseOrder());
+maxHeap.addAll(List.of(3, 1, 4, 1, 5, 9, 2, 6));
+println(maxHeap.poll() + " " + maxHeap.poll() + " " + maxHeap.poll());
+
+var graph = new TreeMap<String, List<String>>();
+graph.put("A", List.of("B", "C"));
+graph.put("B", List.of("D"));
+graph.put("C", List.of("D", "E"));
+graph.put("D", List.of("F"));
+graph.put("E", List.of("F"));
+graph.put("F", List.of());
+var dist = new TreeMap<String, int>();
+var q = new ArrayDeque<String>();
+dist.put("A", 0);
+q.add("A");
+while (!q.isEmpty()) {
+    var cur = q.poll();
+    foreach (var nb in graph.get(cur)) {
+        if (!dist.containsKey(nb)) {
+            dist.put(nb, dist.get(cur) + 1);
+            q.add(nb);
+        }
+    }
+}
+println(dist);

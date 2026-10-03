@@ -1,0 +1,20 @@
+import lib.core.Component;
+import lib.core.Clickable;
+import lib.ui.*;
+import static lib.text.ExtModule.*;
+
+var b = new Button("ok");
+b.click();
+println(b.show());
+println(b.show(true));
+var ib = new IconButton("go");
+Clickable c = ib;
+c.doubleClick();
+println(ib.show(verbose: true, sep: " | "));
+println(Component.count);
+println("queue".vowels() + " " + "x".bracket(close: ">"));
+Component anon = new Component() {
+    public override String kind() => "anon";
+};
+println(anon.show(true));
+println(Component.count);

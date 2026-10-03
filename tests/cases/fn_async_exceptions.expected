@@ -1,0 +1,12 @@
+finally 2
+ok 5
+finally 0
+caught / by zero
+top-level caught boom
+group failed: in group
+pre-failed
+true
+100
+propagated: deep
+not yet awaited
+late: java.lang.ArithmeticException

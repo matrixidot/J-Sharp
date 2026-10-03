@@ -1,0 +1,48 @@
+import java.util.*;
+
+public abstract class Employee {
+    public abstract String title { get; }
+    public abstract double baseSalary { get; }
+    public required String name { get; init; }
+    public open double bonusRate => 0.1;
+    public double total => baseSalary * (1 + bonusRate);
+    public override String toString() => $"{name} ({title}): {total:F1}";
+}
+
+public class Engineer : Employee {
+    public override String title => "Engineer";
+    public override double baseSalary { get; } = 100;
+    public int level { get; init; } = 1;
+    public override double bonusRate => 0.1 * level;
+}
+
+public class Manager : Employee {
+    private final List<Employee> reports = new ArrayList<>();
+    public override String title { get; } = "Manager";
+    public override double baseSalary => 120 + 10 * reports.size();
+    public Manager add(Employee e) { reports.add(e); return this; }
+}
+
+public interface HasLabel {
+    String label { get; }
+    String shortLabel => label.substring(0, 1);
+}
+
+public class Tag : HasLabel {
+    public override String label { get; set; } = "untitled";
+}
+
+var e1 = new Engineer { name = "Ann", level = 3 };
+var e2 = new Engineer { name = "Bob" };
+var m = new Manager { name = "Cat" }.add(e1).add(e2);
+List<Employee> staff = List.of(e1, e2, m);
+foreach (var e in staff) println(e);
+double sum = 0;
+foreach (var e in staff) sum += e.total;
+println($"{sum:F2}");
+println(e1.getTitle() + " " + m.getBaseSalary());
+var t = new Tag();
+println(t.label + " " + t.shortLabel);
+t.label = "Important";
+HasLabel h = t;
+println(h.label + " " + h.shortLabel);
