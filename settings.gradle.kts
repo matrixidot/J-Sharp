@@ -1,3 +1,3 @@
 rootProject.name = "jsharp"
 
-include("compiler", "runtime", "lsp", "cli", "tests", "bench")
+include("compiler", "runtime", "lsp", "cli", "gradle-plugin", "tests", "bench")

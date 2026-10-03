@@ -97,3 +97,7 @@
 - Compiler support: `SourceIndex` (positions to symbols, types and declarations), plus `Compilation.recordExpressionTypes()` so the receivers of unfinished `x.` expressions keep their types.
 - Tests: an LSP session test (initialize, open, diagnostics, hover, definition, symbols, completion, an edit that fixes an error, shutdown), workspace unit tests, index tests. Smoke-tested over real stdio on `examples/ledger`: 0.2 s per analysis, completion in 0.09 s.
 - Not yet: rename, find references, signature help, formatting, incremental analysis, and a published `.vsix` (needs npm/vsce on the release machine).
+
+## Post-v0.1: Gradle plugin
+- Works: `plugins { id("io.github.matrixidot.jsharp") }` compiles `src/main/jsharp` and `src/test/jsharp` with the project's dependencies (D073). A TestKit functional test builds and runs a two-module project (J# using a Java library module, Java calling J# in the same module), checks the second compile is up to date, and checks that J# errors fail the build with full diagnostics. `compiler`, `runtime` and the plugin publish as Maven artifacts (verified into `build/repo`).
+- Not yet: joint compilation with same-module Java sources, incremental compilation, publication to Maven Central and the Gradle plugin portal.

@@ -46,3 +46,17 @@ configurations.named("apiElements") {
         }
     }
 }
+
+// Maven publication (`./gradlew publishToMavenLocal`), used by the Gradle plugin.
+apply(plugin = "maven-publish")
+configure<PublishingExtension> {
+    publications {
+        create<MavenPublication>("maven") {
+            from(components["java"])
+        }
+    }
+    repositories {
+        // A local repository in the build directory, for checking publications.
+        maven { name = "buildRepo"; url = uri(rootProject.layout.buildDirectory.dir("repo")) }
+    }
+}

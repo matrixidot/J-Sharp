@@ -55,6 +55,30 @@ live errors, hover, go to definition, outline and completion. Other editors can 
 `JSHARP_REBUILD=1` after changing the compiler. On first use the launcher records a class-data
 sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=1` disables it).
 
+## Using J# in a Gradle project
+
+The Gradle plugin compiles `src/main/jsharp` and `src/test/jsharp` with the project's
+dependencies, before Java, and adds the J# runtime. Java code in the same module can call the
+J# code, and the J# classes go into tests, jars and `run`.
+
+```kotlin
+// settings.gradle.kts: use the plugin from a J-Sharp checkout...
+pluginManagement { includeBuild("../J-Sharp") }
+// ...or after `./gradlew publishToMavenLocal` in the checkout:
+// pluginManagement { repositories { mavenLocal(); gradlePluginPortal() } }
+
+// build.gradle.kts
+plugins {
+    id("io.github.matrixidot.jsharp")
+    application
+}
+dependencies { implementation("com.example:some-java-library:1.0") }
+application { mainClass.set("app.MainModule") }
+```
+
+J# compiles first, so J# code can use Java from libraries and other modules, but not Java
+sources of its own module.
+
 ## Documentation
 
 - [docs/TOUR.md](docs/TOUR.md): the language by example (every example is tested)
@@ -78,6 +102,7 @@ sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=
 | `runtime/` | the `jsharp.*` library: `jsharp.core` (Prelude, `Task`, tuples, `Result`) in Java, `jsharp.collections` and `jsharp.text` written in J# |
 | `lsp/` | the language server (`jsharp lsp`): JSON-RPC, diagnostics, hover, definition, symbols, completion |
 | `cli/` | the `jsharp` command |
+| `gradle-plugin/` | the Gradle plugin `io.github.matrixidot.jsharp` |
 | `editors/vscode/` | the VS Code extension (grammar, language configuration, LSP client) |
 | `tests/` | end-to-end programs (`tests/cases`), Java interop cases (`tests/interop`), example and documentation tests, the compiler-speed test |
 | `bench/` | JMH benchmarks: J# kernels against equivalent Java |
@@ -88,6 +113,6 @@ sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=
 Version 0.1 (milestones M0–M7 of the roadmap). The compiler implements the full v0.1 language
 and is covered by 402 automated tests, including 129 programs run under `-Xverify:all`.
 Editor support is new (language server and VS Code extension). Not yet available: a
-build-tool plugin, incremental compilation, rename/refactoring in the editor, and the
+Maven Central release, incremental compilation, rename/refactoring in the editor, and the
 v0.2+ features (list patterns, collection literals, query syntax). See
 [PROGRESS.md](PROGRESS.md).

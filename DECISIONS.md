@@ -279,3 +279,11 @@ Format: **decision** — reason. *Rejected:* alternatives.
   has no top-level statements, so folders of scripts and multi-file programs both work without
   a project file. Re-analysis is not incremental; it is fast enough for small and medium
   projects (~0.4 s per 10k lines warm).
+- **D073: Gradle plugin** `io.github.matrixidot.jsharp` (module `gradle-plugin/`). It compiles each
+  source set's `src/<name>/jsharp` in the Gradle process before `compileJava`, adds the output to
+  the source set's classes (tests, jars and `run` see it) and to `compileJava`'s classpath, and
+  adds the J# runtime to `implementation`. No joint compilation: J# cannot reference Java sources
+  of the same module (Java in the module can call J#). The task is cacheable but not incremental.
+  `compiler`, `runtime` and the plugin publish as Maven artifacts under group
+  `io.github.matrixidot.jsharp` (`publishToMavenLocal` today; Maven Central and the plugin portal
+  need the owner's accounts).
