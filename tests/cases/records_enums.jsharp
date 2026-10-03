@@ -1,0 +1,39 @@
+public record Point(int x, int y) {
+    public Point { require(x >= 0, "x must be >= 0"); }
+    public double distance() => Math.sqrt(x * x + y * y);
+    public static Point origin() => new Point(0, 0);
+}
+
+public enum Color { Red, Green, Blue }
+
+public enum Planet(double mass, double radius) {
+    Mercury(3.303e23, 2.4397e6), Earth(5.976e24, 6.37814e6);
+    public double surfaceGravity() => 6.67300e-11 * mass / (radius * radius);
+}
+
+var p = new Point(3, 4);
+println(p);
+println(p.x + p.y);
+println(p.distance());
+println(p == new Point(3, 4));
+println(p.hashCode() == new Point(3, 4).hashCode());
+println(Point.origin());
+var moved = p with { x = 10 };
+println(moved);
+var (px, py) = p;
+println(px * py);
+try {
+    new Point(-1, 0);
+} catch (IllegalArgumentException e) {
+    println("rejected: " + e.getMessage());
+}
+println(Color.Green);
+println(Color.Green.ordinal());
+println(Color.values().length);
+println(Color.valueOf("Blue"));
+foreach (var c in Color.values()) print(c.name().toLowerCase() + " ");
+println();
+foreach (var pl in Planet.values()) println($"{pl}: {pl.surfaceGravity():F2}");
+println(Planet.Earth.mass > Planet.Mercury.mass);
+var c = Color.Red;
+println(c == Color.Red);

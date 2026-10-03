@@ -1,0 +1,38 @@
+var name = "J#";
+var n = 42;
+println("Hello " + name);
+println("n=" + n + ", half=" + n / 2.0);
+println(1 + 2 + "3" + 4 + 5);
+println($"name={name}, n+1={n + 1}");
+println($"{n:D5} {n:X} {n:x4} {3.14159:F2} {1234567.891:N2} {0.256:P1}");
+println($"{{literal braces}} and {name.length()}");
+println($"nested {$"inner {n}"}");
+var raw = """
+    line one
+      indented
+    """;
+print(raw);
+println("tab\tquote\" backslash\\ unicodeA");
+println("abc".toUpperCase());
+println("  trim me  ".trim());
+println("a,b,c".split(",").length);
+println(String.join("-", "x", "y", "z"));
+println("hello".charAt(1));
+println("hello"[1]);
+println("hello".substring(1, 3));
+println("a" == "a");
+var s1 = new String("x");
+var s2 = new String("x");
+println(s1 == s2);
+println(s1 === s2);
+println("hello".contains("ell"));
+var sb = new StringBuilder();
+for (int i = 0; i < 3; i++) { sb.append(i).append(','); }
+println(sb.toString());
+String? nothing = null;
+println("value: " + nothing);
+println($"interp null: {nothing}");
+char ch = 'z';
+println("char: " + ch);
+println(String.valueOf(3.0f));
+println("%d items".formatted(3));

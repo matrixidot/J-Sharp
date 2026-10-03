@@ -1,0 +1,39 @@
+public class Person {
+    public String name { get; set; } = "anonymous";
+    public int age { get; init; }
+    public required String id { get; init; }
+    public String upper => name.toUpperCase();
+    private int _visits;
+    public int visits { get => _visits; private set { _visits = value; } }
+    public String nick { get => field; set { field = value.trim(); } } = "";
+    public boolean active { get; set; }
+    public void visit() { visits = visits + 1; }
+}
+
+public class Temperature {
+    public double celsius { get; set; }
+    public double fahrenheit { get => celsius * 9 / 5 + 32; set { celsius = (value - 32) * 5 / 9; } }
+    public static int instances { get; set; }
+}
+
+var p = new Person { id = "p1", age = 30 };
+println(p.name + " " + p.age + " " + p.id);
+p.name = "ann";
+println(p.upper);
+p.visit();
+p.visit();
+println(p.visits);
+p.nick = "  annie  ";
+println("[" + p.nick + "]");
+p.active = true;
+println(p.active);
+println(p.isActive());
+println(p.getName());
+var t = new Temperature();
+t.fahrenheit = 212;
+println(t.celsius);
+t.celsius += 10;
+println(t.fahrenheit);
+Temperature.instances++;
+Temperature.instances += 2;
+println(Temperature.instances);

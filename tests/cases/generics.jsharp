@@ -1,0 +1,52 @@
+import java.util.*;
+
+public class Stack<T> {
+    private final ArrayList<T> items = new ArrayList<>();
+    public void push(T item) { items.add(item); }
+    public T pop() => items.remove(items.size() - 1);
+    public T? peek() => items.isEmpty() ? null : items.get(items.size() - 1);
+    public boolean isEmpty => items.isEmpty();
+    public int size => items.size();
+}
+
+public class Pair<A, B> {
+    public final A first;
+    public final B second;
+    public Pair(A first, B second) { this.first = first; this.second = second; }
+    public Pair<B, A> swap() => new Pair<>(second, first);
+    public override String toString() => "(" + first + ", " + second + ")";
+}
+
+public static T maxOf<T : Comparable<T>>(List<T> xs) {
+    T best = xs.get(0);
+    foreach (var x in xs) if (x.compareTo(best) > 0) best = x;
+    return best;
+}
+
+public static List<R> mapAll<T, R>(List<T> xs, java.util.function.Function<T, R> f) {
+    var out = new ArrayList<R>();
+    foreach (var x in xs) out.add(f.apply(x));
+    return out;
+}
+
+var s = new Stack<String>();
+s.push("a");
+s.push("b");
+println(s.peek());
+println(s.pop() + s.pop());
+println(s.isEmpty);
+println(s.peek());
+var p = new Pair<String, Integer>("x", 1);
+println(p.swap());
+println(maxOf(List.of(3, 9, 2)));
+println(maxOf(List.of("pear", "apple")));
+println(mapAll(List.of(1, 2, 3), x => x * 10));
+List<int> nums = new ArrayList<>();
+nums.add(5);
+nums.add(7);
+int total = 0;
+foreach (int n in nums) total += n;
+println(total);
+Map<String, List<int>> index = new HashMap<>();
+index.computeIfAbsent("k", k => new ArrayList<>()).add(1);
+println(index);

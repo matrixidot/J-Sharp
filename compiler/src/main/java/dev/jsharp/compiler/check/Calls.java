@@ -889,8 +889,24 @@ final class Calls {
                 + " is "
                 + Flags.access(inaccessible.flags()));
       } else {
+        int before = a.reported;
         reportNotApplicable(
             accessible, site, args, explicit, expected, span, what, extReceiver != null);
+        boolean argErrors =
+            args.stream().anyMatch(x -> !x.deferred && x.type != null && x.type.isError());
+        if (a.reported == before && !argErrors) {
+          // Every rejection must be explained; fall back to a generic message.
+          a.report(
+              a.err(
+                  Code.NO_APPLICABLE_METHOD,
+                  span,
+                  "no applicable overload of '"
+                      + what
+                      + "' for these arguments"
+                      + (expected != null && expected.isReference()
+                          ? " and expected type " + expected.display()
+                          : "")));
+        }
       }
     }
     return null;
@@ -1195,7 +1211,9 @@ final class Calls {
     boolean ok =
         switch (c) {
           case NONE -> false;
-          case BOX, UNBOX -> phase != Phase.STRICT;
+          // Constant narrowing (f(byte) with f(10)) ranks with boxing so that an exact or widening
+          // match always wins: println(3) must not pick println(char).
+          case BOX, UNBOX, NARROW_CONSTANT -> phase != Phase.STRICT;
           default -> true;
         };
     if (!ok
@@ -1205,7 +1223,7 @@ final class Calls {
         && !(pt instanceof Type.TypeVar)) {
       final Type target = pt;
       Attr.Speculation<BExpr> s = a.speculate(() -> a.exprCoerced(arg.expr, target));
-      return !s.hasErrors();
+      return !s.hasErrors() && s.result() != null && !s.result().type().isError();
     }
     return ok;
   }

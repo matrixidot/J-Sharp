@@ -1,0 +1,38 @@
+import java.util.*;
+
+String? find(Map<String, String> m, String k) => m.get(k);
+
+var m = new HashMap<String, String>();
+m.put("a", "apple");
+String? a = find(m, "a");
+String? z = find(m, "z");
+println(a?.length());
+println(z?.length());
+println(z ?? "default");
+println((z ?? "x").length());
+int len = a?.length() ?? -1;
+println(len);
+if (a != null) println(a.toUpperCase());
+if (z == null) println("z missing");
+String? q = null;
+q ??= "filled";
+println(q);
+q ??= "ignored";
+println(q);
+println(a!.length());
+try {
+    println(z!.length());
+} catch (NullPointerException e) {
+    println("NPE as expected");
+}
+int? boxed = null;
+println(boxed ?? 7);
+boxed = 3;
+println(boxed + 1);
+var list = new ArrayList<String?>();
+list.add(null);
+list.add("x");
+foreach (var s in list) println(s?.toUpperCase() ?? "<null>");
+String describe(String? s) => s switch { null => "nothing", String t => "text " + t };
+println(describe(null));
+println(describe("hi"));

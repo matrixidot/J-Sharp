@@ -1,0 +1,18 @@
+Point[x=3, y=4]
+7
+5.0
+true
+true
+Point[x=0, y=0]
+Point[x=10, y=4]
+12
+rejected: x must be >= 0
+Green
+1
+3
+Blue
+red green blue 
+Mercury: 3.70
+Earth: 9.80
+true
+true

@@ -51,6 +51,32 @@ final class CodeGen {
   private int nextSlot;
   private int lastLine = -1;
 
+  /** Whether the next emitted instruction can be reached. */
+  private boolean reachable = true;
+
+  /** Labels some emitted branch targets (binding one makes the code after it reachable). */
+  private final java.util.Set<Label> targeted =
+      java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+
+  private void jump(Label l) {
+    if (reachable) {
+      targeted.add(l);
+      cb.goto_(l);
+    }
+    reachable = false;
+  }
+
+  private void bind(Label l) {
+    cb.labelBinding(l);
+    reachable |= targeted.contains(l);
+  }
+
+  /** Marks the current position as an exception handler entry. */
+  private void handlerEntry(Label l) {
+    cb.labelBinding(l);
+    reachable = true;
+  }
+
   /** Break/continue labels per loop/labeled statement. */
   private record Target(Label breakLabel, Label continueLabel, int finallyDepth) {}
 
@@ -93,8 +119,14 @@ final class CodeGen {
   /** Emits the body; adds a trailing return for void methods that fall off the end. */
   void body(BStmt body, Span methodSpan) {
     stmt(body);
-    if (returnType == PrimType.VOID) {
-      cb.return_();
+    if (reachable) {
+      if (returnType == PrimType.VOID) {
+        cb.return_();
+      } else {
+        // The checker guarantees non-void bodies cannot complete normally.
+        cb.aconst_null();
+        cb.athrow();
+      }
     }
   }
 
@@ -158,6 +190,9 @@ final class CodeGen {
   // ------------------------------------------------------------------ statements
 
   void stmt(BStmt s) {
+    if (!reachable) {
+      return; // statically dead: structured code cannot jump into it
+    }
     switch (s) {
       case BStmt.Block b -> {
         for (BStmt x : b.stmts()) {
@@ -182,12 +217,12 @@ final class CodeGen {
         cond(i.cond(), otherwise, false);
         stmt(i.then());
         if (i.otherwise() != null) {
-          cb.goto_(end);
-          cb.labelBinding(otherwise);
+          jump(end);
+          bind(otherwise);
           stmt(i.otherwise());
-          cb.labelBinding(end);
+          bind(end);
         } else {
-          cb.labelBinding(otherwise);
+          bind(otherwise);
         }
       }
       case BStmt.While w -> {
@@ -195,23 +230,23 @@ final class CodeGen {
         Label top = cb.newLabel();
         Label end = cb.newLabel();
         targets.put(w.label(), new Target(end, top, cleanups.size()));
-        cb.labelBinding(top);
+        bind(top);
         cond(w.cond(), end, false);
         stmt(w.body());
-        cb.goto_(top);
-        cb.labelBinding(end);
+        jump(top);
+        bind(end);
       }
       case BStmt.DoWhile d -> {
         Label top = cb.newLabel();
         Label cont = cb.newLabel();
         Label end = cb.newLabel();
         targets.put(d.label(), new Target(end, cont, cleanups.size()));
-        cb.labelBinding(top);
+        bind(top);
         stmt(d.body());
-        cb.labelBinding(cont);
+        bind(cont);
         line(d.cond().span());
         cond(d.cond(), top, true);
-        cb.labelBinding(end);
+        bind(end);
       }
       case BStmt.For f -> {
         line(f.span());
@@ -222,42 +257,44 @@ final class CodeGen {
         Label cont = cb.newLabel();
         Label end = cb.newLabel();
         targets.put(f.label(), new Target(end, cont, cleanups.size()));
-        cb.labelBinding(top);
+        bind(top);
         if (f.cond() != null) {
           cond(f.cond(), end, false);
         }
         stmt(f.body());
-        cb.labelBinding(cont);
+        bind(cont);
         for (BExpr u : f.update()) {
           effect(u);
         }
-        cb.goto_(top);
-        cb.labelBinding(end);
+        jump(top);
+        bind(end);
       }
       case BStmt.Labeled l -> {
         Label end = cb.newLabel();
         targets.put(l.label(), new Target(end, null, cleanups.size()));
         stmt(l.body());
-        cb.labelBinding(end);
+        bind(end);
       }
       case BStmt.Break b -> {
         Target t = targets.get(b.target());
         runCleanups(t.finallyDepth());
-        cb.goto_(t.breakLabel());
+        jump(t.breakLabel());
       }
       case BStmt.Continue c -> {
         Target t = targets.get(c.target());
         runCleanups(t.finallyDepth());
-        cb.goto_(t.continueLabel());
+        jump(t.continueLabel());
       }
       case BStmt.Return r -> {
         line(r.span());
         if (r.value() == null) {
           runCleanups(0);
           cb.return_();
+          reachable = false;
         } else if (cleanups.isEmpty()) {
           expr(r.value());
           cb.return_(Descs.kind(returnType));
+          reachable = false;
         } else {
           expr(r.value());
           int tmp = nextSlot;
@@ -267,12 +304,14 @@ final class CodeGen {
           runCleanups(0);
           cb.loadLocal(k, tmp);
           cb.return_(k);
+          reachable = false;
         }
       }
       case BStmt.Throw t -> {
         line(t.span());
         expr(t.exception());
         cb.athrow();
+        reachable = false;
       }
       case BStmt.Try t -> tryStmt(t);
       case BStmt.Sync sy -> sync(sy);
@@ -315,30 +354,29 @@ final class CodeGen {
     if (t.finallyBody() != null) {
       cleanups.push(new FinallyCleanup(t.finallyBody()));
     }
-    cb.labelBinding(start);
+    bind(start);
     stmt(t.body());
-    cb.labelBinding(end);
-    boolean bodyEmpty = false;
+    bind(end);
     if (t.finallyBody() != null) {
       cleanups.pop();
       stmt(t.finallyBody());
       cleanups.push(new FinallyCleanup(t.finallyBody()));
     }
-    cb.goto_(after);
+    jump(after);
     List<Label[]> handlerRanges = new ArrayList<>();
     for (BStmt.Catch c : t.catches()) {
       Label handler = cb.newLabel();
       Label hEnd = cb.newLabel();
-      cb.labelBinding(handler);
+      handlerEntry(handler);
       store(c.var());
       stmt(c.body());
-      cb.labelBinding(hEnd);
+      bind(hEnd);
       if (t.finallyBody() != null) {
         cleanups.pop();
         stmt(t.finallyBody());
         cleanups.push(new FinallyCleanup(t.finallyBody()));
       }
-      cb.goto_(after);
+      jump(after);
       for (ClassType ct : c.types()) {
         cb.exceptionCatch(start, end, handler, Descs.of(ct.sym()));
       }
@@ -347,21 +385,19 @@ final class CodeGen {
     if (t.finallyBody() != null) {
       cleanups.pop();
       Label catchAll = cb.newLabel();
-      cb.labelBinding(catchAll);
+      handlerEntry(catchAll);
       int tmp = nextSlot++;
       cb.astore(tmp);
       stmt(t.finallyBody());
       cb.aload(tmp);
       cb.athrow();
+      reachable = false;
       cb.exceptionCatchAll(start, end, catchAll);
       for (Label[] r : handlerRanges) {
         cb.exceptionCatchAll(r[0], r[1], catchAll);
       }
     }
-    cb.labelBinding(after);
-    if (bodyEmpty) {
-      cb.nop();
-    }
+    bind(after);
   }
 
   private void sync(BStmt.Sync sy) {
@@ -376,22 +412,23 @@ final class CodeGen {
     Label after = cb.newLabel();
     Label handler = cb.newLabel();
     cleanups.push(new MonitorCleanup(slot));
-    cb.labelBinding(start);
+    bind(start);
     stmt(sy.body());
     cleanups.pop();
     cb.aload(slot);
     cb.monitorexit();
-    cb.labelBinding(end);
-    cb.goto_(after);
-    cb.labelBinding(handler);
+    bind(end);
+    jump(after);
+    handlerEntry(handler);
     int ex = nextSlot++;
     cb.astore(ex);
     cb.aload(slot);
     cb.monitorexit();
     cb.aload(ex);
     cb.athrow();
+    reachable = false;
     cb.exceptionCatchAll(start, end, handler);
-    cb.labelBinding(after);
+    bind(after);
   }
 
   // ------------------------------------------------------------------ expressions
@@ -419,10 +456,10 @@ final class CodeGen {
         Label end = cb.newLabel();
         cond(c.cond(), otherwise, false);
         effect(c.then());
-        cb.goto_(end);
-        cb.labelBinding(otherwise);
+        jump(end);
+        bind(otherwise);
         effect(c.otherwise());
-        cb.labelBinding(end);
+        bind(end);
       }
       default -> {
         expr(e);
@@ -502,10 +539,10 @@ final class CodeGen {
         Label end = cb.newLabel();
         cond(c.cond(), otherwise, false);
         expr(c.then());
-        cb.goto_(end);
-        cb.labelBinding(otherwise);
+        jump(end);
+        bind(otherwise);
         expr(c.otherwise());
-        cb.labelBinding(end);
+        bind(end);
       }
       case BExpr.Concat c -> concat(c.parts());
       case BExpr.Indy i -> indy(i);
@@ -524,6 +561,7 @@ final class CodeGen {
       case BExpr.Throw t -> {
         expr(t.exception());
         cb.athrow();
+        reachable = false;
       }
       case BExpr.Nop n -> {}
       default -> throw new IllegalStateException("not lowered: " + e.getClass().getSimpleName());
@@ -617,7 +655,11 @@ final class CodeGen {
     }
     Type declaredRet = m.jvmReturnType() != null ? m.jvmReturnType() : m.returnType();
     if (m.returnType() instanceof Type.NeverType) {
-      // A call that never returns: keep the verifier happy if a value is expected.
+      // The JVM does not know the call never returns: end the path explicitly.
+      pop(declaredRet);
+      cb.aconst_null();
+      cb.athrow();
+      reachable = false;
       return;
     }
     if (!m.isConstructor()) {
@@ -692,10 +734,10 @@ final class CodeGen {
       Label end = cb.newLabel();
       cond(b, f, false);
       cb.iconst_1();
-      cb.goto_(end);
-      cb.labelBinding(f);
+      jump(end);
+      bind(f);
       cb.iconst_0();
-      cb.labelBinding(end);
+      bind(end);
       return;
     }
     expr(b.left());
@@ -764,10 +806,13 @@ final class CodeGen {
 
   /** Jumps to {@code target} if {@code e} evaluates to {@code jumpIf}; otherwise falls through. */
   void cond(BExpr e, Label target, boolean jumpIf) {
+    if (!(e instanceof BExpr.Const k && k.value() instanceof Boolean kb && kb != jumpIf)) {
+      targeted.add(target);
+    }
     switch (e) {
       case BExpr.Const c when c.value() instanceof Boolean b -> {
         if (b == jumpIf) {
-          cb.goto_(target);
+          jump(target);
         }
       }
       case BExpr.Unary u when u.op() == BExpr.UnOp.NOT -> cond(u.operand(), target, !jumpIf);
@@ -779,7 +824,7 @@ final class CodeGen {
           Label skip = cb.newLabel();
           cond(b.left(), skip, false);
           cond(b.right(), target, true);
-          cb.labelBinding(skip);
+          bind(skip);
         }
       }
       case BExpr.Binary b when b.op() == BinOp.COND_OR -> {
@@ -790,7 +835,7 @@ final class CodeGen {
           Label skip = cb.newLabel();
           cond(b.left(), skip, true);
           cond(b.right(), target, false);
-          cb.labelBinding(skip);
+          bind(skip);
         }
       }
       case BExpr.Binary b when b.op() == BinOp.REF_EQ || b.op() == BinOp.REF_NE -> {

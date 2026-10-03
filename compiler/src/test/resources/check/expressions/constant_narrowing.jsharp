@@ -27,3 +27,10 @@ void takeByte(byte x) { }
 takeByte(10);
 takeByte((byte) 10);
 takeByte(b);
+// Exact and widening matches beat constant narrowing in overload resolution.
+String which(char c) => "char";
+String which(int i) => "int";
+String which(long l) => "long";
+String r1 = which(65);
+String r2 = which('A');
+String r3 = which(0xF0 | 0x0F);

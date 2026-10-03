@@ -1,0 +1,45 @@
+public open class Animal {
+    protected String name;
+    public Animal(String name) { this.name = name; }
+    public open String sound() => "...";
+    public String describe() => name + " says " + sound();
+    public override String toString() => "Animal(" + name + ")";
+}
+
+public class Dog : Animal {
+    public Dog(String name) { super(name); }
+    public override String sound() => "Woof";
+}
+
+public class Cat : Animal {
+    private int lives = 9;
+    public Cat(String name) { super(name); }
+    public override String sound() => "Meow";
+    public int livesLeft() => lives;
+    public void loseLife() { lives--; }
+}
+
+public class Counter {
+    private static int created = 0;
+    private int value;
+    public Counter() { created++; }
+    public Counter(int start) { this(); value = start; }
+    public void increment() { value++; }
+    public int get() => value;
+    public static int count() => created;
+}
+
+var animals = new Animal[] { new Dog("Rex"), new Cat("Tom"), new Animal("Generic") };
+foreach (var a in animals) println(a.describe());
+println(animals[0]);
+var cat = new Cat("Felix");
+cat.loseLife();
+println(cat.livesLeft());
+var c1 = new Counter();
+var c2 = new Counter(10);
+c1.increment();
+c2.increment();
+println(c1.get() + " " + c2.get() + " " + Counter.count());
+Animal maybeDog = animals[0];
+if (maybeDog is Dog d) println("dog: " + d.sound());
+println(maybeDog is Cat);

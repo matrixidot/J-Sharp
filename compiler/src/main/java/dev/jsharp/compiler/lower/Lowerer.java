@@ -55,6 +55,10 @@ public final class Lowerer {
   private final Map<ClassSymbol, FieldSymbol> outerThisFields = new IdentityHashMap<>();
   private final Map<ClassSymbol, BClass> checkedByClass = new IdentityHashMap<>();
 
+  /** Source-level parameters of constructors (lowering prepends synthetic ones). */
+  private final Map<MethodSymbol, List<MethodSymbol.Param>> originalParams =
+      new IdentityHashMap<>();
+
   // ---- per class / per method state
   private ClassSymbol cls;
   private List<BClass.Method> extraMethods;
@@ -82,6 +86,11 @@ public final class Lowerer {
     for (BClass c : flat) {
       checkedByClass.put(c.sym(), c);
       prepareSyntheticFields(c);
+      for (BClass.Method m : c.methods()) {
+        if (m.sym().isConstructor()) {
+          originalParams.put(m.sym(), m.sym().params());
+        }
+      }
     }
     for (BClass c : flat) {
       output.add(lowerClass(c));
@@ -525,7 +534,7 @@ public final class Lowerer {
   }
 
   private Type declaredParamType(MethodSymbol m, int i) {
-    List<MethodSymbol.Param> ps = m.params();
+    List<MethodSymbol.Param> ps = originalParams.getOrDefault(m, m.params());
     return i < ps.size() ? ps.get(i).type() : null;
   }
 
@@ -1468,7 +1477,9 @@ public final class Lowerer {
       case BExpr.IsPattern ip -> isPattern(ip);
       case BExpr.Nop n -> n;
       case BExpr.Indy i -> i;
-      case BExpr.Error err -> throw new IllegalStateException("error node reached lowering");
+      case BExpr.Error err ->
+          throw new IllegalStateException(
+              "error node reached lowering at offset " + err.span() + " in " + cls);
     };
   }
 

@@ -146,7 +146,11 @@ public final class Attr {
     report(err(code, span, message));
   }
 
+  /** Number of diagnostics reported through this checker (including speculative ones). */
+  int reported;
+
   void report(Diagnostic.Builder b) {
+    reported++;
     sink.report(b.build());
   }
 

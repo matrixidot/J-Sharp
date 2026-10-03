@@ -163,3 +163,15 @@ Format: **decision** — reason. *Rejected:* alternatives.
   names exist only at compile time.
 - **D050: Exception filters** `catch (E e) when (c)` are compiled as a rethrow when `c` is false
   (the JVM has no filters); observable only through `finally` ordering in nested handlers.
+- **D051: Constant narrowing in calls.** `f(byte)` accepts `f(10)` (C#-like, unlike Java), but
+  the conversion ranks with boxing (applicable only in the loose phase), so an identity or
+  widening overload always wins: `println(3)` calls `println(int)`, not `println(char)`.
+- **D052: Code generation** uses the JDK ClassFile API with generated stack maps. Codegen tracks
+  reachability and never emits statically dead statements; a call to a `@NoReturn`/`never`
+  method is followed by `aconst_null; athrow` because the JVM cannot know it does not return.
+  `finally` bodies are inlined at every exit (like javac); `lock` uses monitorenter/exit with a
+  catch-all handler.
+- **D053: `jsharp run`** compiles in memory and runs the entry point in the same JVM via a class
+  loader (fast startup); `jsharp build` writes class files (`-d`, default `./out`) or a jar
+  (`--jar`) with a `Main-Class` manifest entry. Jar entries are sorted with zero timestamps so
+  builds are reproducible.
