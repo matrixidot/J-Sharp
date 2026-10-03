@@ -494,7 +494,8 @@ final class CodeGen {
           cb.getstatic(Descs.of(fs.owner()), fs.name(), Descs.of(fs.type()));
         } else {
           expr(f.receiver());
-          cb.getfield(Descs.of(fs.owner()), fs.name(), Descs.of(fs.type()));
+          cb.getfield(
+              Descs.of(qualifyingClass(fs.owner(), f.receiver())), fs.name(), Descs.of(fs.type()));
         }
         castIfNeeded(fs.type(), f.type());
       }
@@ -638,6 +639,10 @@ final class CodeGen {
       cb.checkcast(owner);
       return;
     }
+    if (c.kind() != BExpr.CallKind.SPECIAL && c.kind() != BExpr.CallKind.STATIC) {
+      ownerSym = qualifyingClass(ownerSym, c.receiver());
+      owner = Descs.of(ownerSym);
+    }
     MethodTypeDesc desc = Descs.of(m);
     String name = m.jvmName();
     boolean itf = ownerSym.isInterface();
@@ -665,6 +670,26 @@ final class CodeGen {
     if (!m.isConstructor()) {
       castIfNeeded(declaredRet, c.type());
     }
+  }
+
+  /**
+   * The class named in a member reference (JLS 13.1): the static type of the receiver, not the
+   * declaring class, so that public members inherited from non-public classes (e.g. {@code
+   * StringBuilder.length()} from {@code AbstractStringBuilder}) link. Object members invoked on an
+   * interface or array receiver stay on Object.
+   */
+  private ClassSymbol qualifyingClass(ClassSymbol declaring, BExpr receiver) {
+    if (receiver == null || receiver.type() == null || receiver.type() instanceof Type.ArrayType) {
+      return declaring;
+    }
+    if (!(receiver.type().erasure() instanceof ClassType ct)) {
+      return declaring;
+    }
+    ClassSymbol q = ct.sym();
+    if (declaring == syms.objectSym() && q.isInterface()) {
+      return declaring;
+    }
+    return q;
   }
 
   private void newArray(BExpr.NewArray na) {
@@ -984,7 +1009,8 @@ final class CodeGen {
           if (needValue) {
             dupX1(fs.type());
           }
-          cb.putfield(Descs.of(fs.owner()), fs.name(), Descs.of(fs.type()));
+          cb.putfield(
+              Descs.of(qualifyingClass(fs.owner(), f.receiver())), fs.name(), Descs.of(fs.type()));
         }
       }
       case BLValue.ArrayLV ar -> {

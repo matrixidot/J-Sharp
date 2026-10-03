@@ -120,6 +120,8 @@ final class Calls {
       case Expr.New n -> n.type() != null;
       case Expr.Paren p -> isRetargetable(p.expr());
       case Expr.Conditional c -> isRetargetable(c.then()) || isRetargetable(c.otherwise());
+      // Switch expressions are poly expressions: arms are typed against the parameter type.
+      case Expr.Switch s -> true;
       case Expr.Binary b -> b.op() == Expr.BinaryOp.COALESCE;
       default -> false;
     };

@@ -689,6 +689,14 @@ public final class Types {
     if (ra instanceof ClassType ca) {
       for (ClassType s = supertype(ca); s != null; s = supertype(s)) {
         if (s.sym() != syms.objectSym() && isSubtype(rb, s)) {
+          // Java would infer Record & Shape; without intersection types the shared user
+          // interface is the useful half when the class is only the Record/Enum base.
+          if (isStructuralBase(s.sym())) {
+            ClassType iface = singleCommonInterface(ca, rb, s);
+            if (iface != null) {
+              return iface;
+            }
+          }
           return s;
         }
       }
@@ -719,6 +727,41 @@ public final class Types {
       }
     }
     return syms.objectType();
+  }
+
+  private static boolean isStructuralBase(ClassSymbol c) {
+    String n = c.binaryName();
+    return n.equals("java/lang/Record") || n.equals("java/lang/Enum");
+  }
+
+  /**
+   * The single minimal interface shared by {@code a} and {@code b} that {@code base} does not
+   * already implement, or null.
+   */
+  private ClassType singleCommonInterface(ClassType a, Type b, ClassType base) {
+    Map<ClassSymbol, ClassType> ofBase = collectInterfaces(base, new LinkedHashMap<>());
+    List<ClassType> common = new ArrayList<>();
+    for (ClassType i : collectInterfaces(a, new LinkedHashMap<>()).values()) {
+      if (!ofBase.containsKey(i.sym()) && isSubtype(b, i)) {
+        common.add(i);
+      }
+    }
+    ClassType found = null;
+    for (ClassType c : common) {
+      boolean dominated = false;
+      for (ClassType d : common) {
+        if (d.sym() != c.sym() && isSubtype(d, c)) {
+          dominated = true;
+        }
+      }
+      if (!dominated) {
+        if (found != null && found.sym() != c.sym()) {
+          return null;
+        }
+        found = c;
+      }
+    }
+    return found;
   }
 
   private Map<ClassSymbol, ClassType> collectInterfaces(

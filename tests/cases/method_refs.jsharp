@@ -51,3 +51,12 @@ Supplier<Greeter> ctor = () => new Greeter("Yo");
 println(ctor.get().greet("z"));
 Function<String, Greeter> ctorRef = Greeter::new;
 println(ctorRef.apply("Hey").greet("w"));
+// Members inherited from non-public JDK classes (AbstractStringBuilder).
+var b2 = new StringBuilder("abc");
+println(b2.length());
+Function<StringBuilder, Integer> lenOf = StringBuilder::length;
+println(lenOf.apply(b2));
+Supplier<Integer> boundLen = b2::length;
+println(boundLen.get());
+CharSequence cs = b2;
+println(cs.length() + cs.toString().length());

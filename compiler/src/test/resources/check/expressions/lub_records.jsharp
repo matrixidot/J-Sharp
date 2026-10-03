@@ -1,0 +1,14 @@
+// The common type of records sharing a sealed interface is that interface (not Record).
+import java.util.*;
+sealed interface Shape permits Circle, Square;
+record Circle(double r) : Shape;
+record Square(double s) : Shape;
+enum Small : Runnable { A; public override void run() {} }
+var pick = true;
+var s = pick ? new Circle(1) : new Square(2);
+Shape asShape = s;
+var shapes = new ArrayList<Shape>();
+shapes.add(switch (1) { 0 => new Circle(1), _ => new Square(2) });
+Shape fromSwitch = switch (2) { 0 => new Circle(1), _ => new Square(2) };
+Record notAShape = new Circle(1);
+Shape wrong = notAShape;                 //~ JS0600

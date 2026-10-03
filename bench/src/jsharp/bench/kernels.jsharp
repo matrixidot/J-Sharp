@@ -1,0 +1,82 @@
+// Benchmark kernels written in J#; KernelBench compares each with hand-written Java (JavaKernels).
+package bench;
+
+import java.util.*;
+
+public sealed interface Shape permits Circle, Rect, Tri;
+public record Circle(double r) : Shape;
+public record Rect(double w, double h) : Shape;
+public record Tri(double b, double h) : Shape;
+
+public class Particle {
+    public double x { get; set; }
+    public double y { get; set; }
+    public double vx { get; set; }
+    public double vy { get; set; }
+    public Particle(double x, double y, double vx, double vy) {
+        this.x = x; this.y = y; this.vx = vx; this.vy = vy;
+    }
+}
+
+public static int fib(int n) => n < 2 ? n : fib(n - 1) + fib(n - 2);
+
+public static long sumArray(int[] xs) {
+    long total = 0;
+    foreach (var x in xs) total += x;
+    return total;
+}
+
+public static long sumSquaresOfEvens(List<Integer> xs) =>
+    xs.stream().filter(x => x % 2 == 0).mapToLong(x => (long) x * x).sum();
+
+public static List<Shape> makeShapes(int n) {
+    var out = new ArrayList<Shape>(n);
+    for (int i = 0; i < n; i++) {
+        out.add(switch (i % 3) {
+            0 => new Circle(i % 7 + 1),
+            1 => new Rect(i % 5 + 1, i % 3 + 1),
+            _ => new Tri(i % 4 + 1, i % 6 + 1),
+        });
+    }
+    return out;
+}
+
+public static double area(Shape s) => s switch {
+    Circle c => Math.PI * c.r * c.r,
+    Rect r => r.w * r.h,
+    Tri t => 0.5 * t.b * t.h,
+};
+
+public static double totalArea(List<Shape> shapes) {
+    double total = 0;
+    foreach (var s in shapes) total += area(s);
+    return total;
+}
+
+public static int buildStrings(int n) {
+    var sb = new StringBuilder();
+    for (int i = 0; i < n; i++) {
+        sb.append($"item {i}: {i * 2}, ");
+    }
+    return sb.length();
+}
+
+public static int wordCount(String[] words) {
+    var counts = new HashMap<String, Integer>();
+    foreach (var w in words) counts.merge(w, 1, Integer::sum);
+    return counts.size();
+}
+
+public static double simulate(Particle[] ps, int steps) {
+    for (int s = 0; s < steps; s++) {
+        foreach (var p in ps) {
+            p.x += p.vx * 0.01;
+            p.y += p.vy * 0.01;
+            if (p.x < 0 || p.x > 100) p.vx = -p.vx;
+            if (p.y < 0 || p.y > 100) p.vy = -p.vy;
+        }
+    }
+    double sum = 0;
+    foreach (var p in ps) sum += p.x + p.y;
+    return sum;
+}

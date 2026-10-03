@@ -2163,6 +2163,10 @@ public final class Lowerer {
             || target.params().size()
                 != ft.params().size() - (m.kind() == BExpr.RefKind.UNBOUND ? 1 : 0)
             || target.has(Flags.PROTECTED)
+                && !target.owner().packageName().equals(cls.packageName())
+            // A method handle must name the declaring class, which may be inaccessible here
+            // (StringBuilder::length is declared in package-private AbstractStringBuilder).
+            || !target.owner().has(Flags.PUBLIC)
                 && !target.owner().packageName().equals(cls.packageName());
     if (needsSynthetic) {
       BExpr.Lambda synthetic = syntheticLambda(m, ft);
@@ -2222,8 +2226,11 @@ public final class Lowerer {
                   target.returnType(),
                   span);
       case UNBOUND -> {
-        BExpr recv =
-            adapt(new BExpr.Local(params.getFirst(), span), target.owner().thisType().erasure());
+        Type recvType =
+            m.refType() instanceof ClassType rt
+                ? rt.erasure()
+                : target.owner().thisType().erasure();
+        BExpr recv = adapt(new BExpr.Local(params.getFirst(), span), recvType);
         body =
             new BExpr.Call(
                 recv,
