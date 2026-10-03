@@ -51,7 +51,7 @@ public enum Code {
   INVALID_SUPERTYPE(408, "invalid supertype"),
   DUPLICATE_MEMBER(409, "duplicate member"),
   INVALID_MODIFIER(410, "invalid modifier"),
-  MULTIPLE_ENTRY_POINTS(411, "multiple files with top-level statements"),
+  MULTIPLE_ENTRY_POINTS(411, "multiple entry points"),
   INVALID_PERMITS(412, "invalid sealed hierarchy"),
   MISSING_TYPE_ARGUMENTS(413, "missing type arguments"),
   INACCESSIBLE_TYPE(414, "type is not accessible"),

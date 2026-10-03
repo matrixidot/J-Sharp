@@ -287,3 +287,7 @@ Format: **decision** — reason. *Rejected:* alternatives.
   `compiler`, `runtime` and the plugin publish as Maven artifacts under group
   `io.github.matrixidot.jsharp` (`publishToMavenLocal` today; Maven Central and the plugin portal
   need the owner's accounts).
+- **D074: One entry point per program.** Top-level statements, a top-level `main` function and
+  `static void main(String[])` methods all count; a compilation with more than one is error
+  JS0411 (listing the others) instead of the tools picking one arbitrarily. Methods named `main`
+  with other signatures, or instance methods, are not entry points.

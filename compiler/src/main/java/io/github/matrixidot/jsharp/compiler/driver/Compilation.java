@@ -117,6 +117,9 @@ public final class Compilation {
             attr.recordTypesInto(recordedTypes);
           }
           checked = ClassChecker.checkAll(attr, enter.enteredClasses());
+          if (!diags.hasErrors()) {
+            checkSingleEntryPoint(enter.enteredClasses());
+          }
           phase("check", t);
         });
   }
@@ -173,12 +176,84 @@ public final class Compilation {
         });
   }
 
+  /**
+   * A program has at most one entry point: top-level statements or one {@code static void
+   * main(String[])}. More than one is an error rather than an arbitrary choice.
+   */
+  private void checkSingleEntryPoint(
+      List<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> classes) {
+    List<io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol> mains = new ArrayList<>();
+    java.util.ArrayDeque<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> todo =
+        new java.util.ArrayDeque<>(classes);
+    while (!todo.isEmpty()) {
+      var c = todo.pop();
+      todo.addAll(c.memberTypes());
+      for (var m : c.methods("main")) {
+        if (m.has(io.github.matrixidot.jsharp.compiler.symbols.Flags.ENTRY_POINT) || isMain(m)) {
+          mains.add(m);
+        }
+      }
+    }
+    if (mains.size() < 2) {
+      return;
+    }
+    for (int i = 1; i < mains.size(); i++) {
+      var m = mains.get(i);
+      var d =
+          Diagnostic.error(
+              Code.MULTIPLE_ENTRY_POINTS,
+              fileOf(m),
+              entrySpan(m),
+              "this program has more than one entry point");
+      for (var other : mains) {
+        if (other != m) {
+          d.note("another entry point: " + describeEntry(other), fileOf(other), entrySpan(other));
+        }
+      }
+      d.help("keep one main method (or top-level statements), or compile the programs separately");
+      diags.report(d.build());
+    }
+  }
+
+  private static SourceFile fileOf(io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
+    var top = m.owner().outermost();
+    return top.unit() == null ? null : top.unit().file();
+  }
+
+  private static io.github.matrixidot.jsharp.compiler.source.Span entrySpan(
+      io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
+    if (m.decl() instanceof io.github.matrixidot.jsharp.compiler.ast.Decl.Method dm) {
+      return dm.nameSpan();
+    }
+    var unit = m.owner().outermost().unit();
+    if (unit != null) {
+      for (var d : unit.members()) {
+        if (d instanceof io.github.matrixidot.jsharp.compiler.ast.Decl.TopLevelStmt s) {
+          return s.span();
+        }
+      }
+    }
+    return new io.github.matrixidot.jsharp.compiler.source.Span(0, 0);
+  }
+
+  private static String describeEntry(io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
+    return m.has(io.github.matrixidot.jsharp.compiler.symbols.Flags.ENTRY_POINT)
+        ? "top-level statements"
+        : m.owner().has(io.github.matrixidot.jsharp.compiler.symbols.Flags.MODULE)
+            ? "top-level function main"
+            : m.owner().displayName() + ".main";
+  }
+
   private static boolean isMain(io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
     return m.name().equals("main")
         && m.isStatic()
+        && m.returnType() == io.github.matrixidot.jsharp.compiler.types.Type.PrimType.VOID
         && m.params().size() == 1
         && m.params().getFirst().type()
-            instanceof io.github.matrixidot.jsharp.compiler.types.Type.ArrayType;
+            instanceof io.github.matrixidot.jsharp.compiler.types.Type.ArrayType at
+        && at.elem().erasure()
+            instanceof io.github.matrixidot.jsharp.compiler.types.Type.ClassType ct
+        && ct.sym().binaryName().equals("java/lang/String");
   }
 
   private void writeClassFiles(Path dir) {
