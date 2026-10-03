@@ -1,0 +1,162 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "J#",
+  "scopeName": "source.jsharp",
+  "fileTypes": ["jsharp"],
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#annotations" },
+    { "include": "#declarations" },
+    { "include": "#strings" },
+    { "include": "#numbers" },
+    { "include": "#keywords" },
+    { "include": "#types" },
+    { "include": "#calls" },
+    { "include": "#operators" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.block.documentation.jsharp", "begin": "/\\*\\*(?!/)", "end": "\\*/" },
+        { "name": "comment.block.jsharp", "begin": "/\\*", "end": "\\*/" },
+        { "name": "comment.line.triple-slash.documentation.jsharp", "match": "///.*$" },
+        { "name": "comment.line.double-slash.jsharp", "match": "//.*$" }
+      ]
+    },
+    "annotations": {
+      "patterns": [
+        { "name": "storage.type.annotation.jsharp", "match": "@(?:file:)?[A-Za-z_][A-Za-z0-9_.]*" }
+      ]
+    },
+    "declarations": {
+      "patterns": [
+        {
+          "match": "\\b(package|import)\\s+(static\\s+)?([A-Za-z_][A-Za-z0-9_.]*(?:\\.\\*)?)",
+          "captures": {
+            "1": { "name": "keyword.other.import.jsharp" },
+            "2": { "name": "keyword.other.import.jsharp" },
+            "3": { "name": "entity.name.namespace.jsharp" }
+          }
+        },
+        {
+          "match": "\\b(class|interface|record|enum)\\s+([A-Za-z_][A-Za-z0-9_]*)",
+          "captures": {
+            "1": { "name": "storage.type.jsharp" },
+            "2": { "name": "entity.name.type.jsharp" }
+          }
+        },
+        {
+          "match": "([A-Za-z_][A-Za-z0-9_]*)(?=\\s*(?:<[^()=;]*>)?\\s*\\([^()]*(?:\\([^()]*\\))*[^()]*\\)\\s*(?:=>|\\{|:\\s*this|:\\s*base))",
+          "captures": { "1": { "name": "entity.name.function.jsharp" } }
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.triple.interpolated.jsharp",
+          "begin": "\\$\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "include": "#interpolation" }, { "include": "#escapes" }]
+        },
+        {
+          "name": "string.quoted.triple.jsharp",
+          "begin": "\"\"\"",
+          "end": "\"\"\"",
+          "patterns": [{ "include": "#escapes" }]
+        },
+        {
+          "name": "string.quoted.double.interpolated.jsharp",
+          "begin": "\\$\"",
+          "end": "\"|$",
+          "patterns": [
+            { "name": "constant.character.escape.jsharp", "match": "\\{\\{|\\}\\}" },
+            { "include": "#interpolation" },
+            { "include": "#escapes" }
+          ]
+        },
+        {
+          "name": "string.quoted.double.jsharp",
+          "begin": "\"",
+          "end": "\"|$",
+          "patterns": [{ "include": "#escapes" }]
+        },
+        {
+          "name": "string.quoted.single.jsharp",
+          "match": "'(?:\\\\(?:u[0-9A-Fa-f]{4}|.)|[^'\\\\])'"
+        }
+      ]
+    },
+    "interpolation": {
+      "name": "meta.interpolation.jsharp",
+      "begin": "\\{",
+      "beginCaptures": { "0": { "name": "punctuation.definition.interpolation.begin.jsharp" } },
+      "end": "(?::[A-Za-z%0-9.,#]*)?\\}",
+      "endCaptures": { "0": { "name": "punctuation.definition.interpolation.end.jsharp" } },
+      "patterns": [{ "include": "$self" }]
+    },
+    "escapes": {
+      "name": "constant.character.escape.jsharp",
+      "match": "\\\\(?:u[0-9A-Fa-f]{4}|[btnfr\"'\\\\0s])"
+    },
+    "numbers": {
+      "patterns": [
+        { "name": "constant.numeric.hex.jsharp", "match": "\\b0[xX][0-9A-Fa-f_]+[lL]?\\b" },
+        { "name": "constant.numeric.binary.jsharp", "match": "\\b0[bB][01_]+[lL]?\\b" },
+        {
+          "name": "constant.numeric.decimal.jsharp",
+          "match": "\\b[0-9][0-9_]*(?:\\.[0-9][0-9_]*)?(?:[eE][+-]?[0-9]+)?[lLfFdD]?\\b"
+        }
+      ]
+    },
+    "keywords": {
+      "patterns": [
+        {
+          "name": "keyword.control.jsharp",
+          "match": "\\b(if|else|for|foreach|in|while|do|switch|case|default|return|break|continue|throw|try|catch|finally|using|when|yield|await)\\b"
+        },
+        {
+          "name": "storage.modifier.jsharp",
+          "match": "\\b(public|protected|private|internal|static|final|abstract|sealed|open|override|async|required|synchronized|native|params|this(?=\\s+[A-Za-z_]))\\b"
+        },
+        {
+          "name": "storage.type.jsharp",
+          "match": "\\b(class|interface|record|enum|var|val|permits|get|set|init|field)\\b"
+        },
+        {
+          "name": "keyword.operator.word.jsharp",
+          "match": "\\b(is|as|new|with|and|or|not|typeof|nameof|checked)\\b"
+        },
+        { "name": "constant.language.jsharp", "match": "\\b(true|false|null)\\b" },
+        { "name": "variable.language.jsharp", "match": "\\b(this|super|value)\\b" }
+      ]
+    },
+    "types": {
+      "patterns": [
+        {
+          "name": "support.type.primitive.jsharp",
+          "match": "\\b(boolean|byte|char|short|int|long|float|double|void|never|string)\\b"
+        },
+        { "name": "entity.name.type.jsharp", "match": "\\b[A-Z][A-Za-z0-9_]*\\b" }
+      ]
+    },
+    "calls": {
+      "patterns": [
+        {
+          "match": "\\b([a-z_][A-Za-z0-9_]*)\\s*(?=\\()",
+          "captures": { "1": { "name": "entity.name.function.call.jsharp" } }
+        }
+      ]
+    },
+    "operators": {
+      "patterns": [
+        { "name": "keyword.operator.lambda.jsharp", "match": "=>" },
+        { "name": "keyword.operator.null.jsharp", "match": "\\?\\?=?|\\?\\.|!(?=[.;),\\]])" },
+        { "name": "keyword.operator.comparison.jsharp", "match": "===|==|!=|<=|>=" },
+        { "name": "keyword.operator.range.jsharp", "match": "\\.\\.|\\^" },
+        { "name": "keyword.operator.assignment.jsharp", "match": "(?:[-+*/%&|^]|<<|>>>?)?=" },
+        { "name": "keyword.operator.jsharp", "match": "::|[-+*/%&|!~<>?:]" }
+      ]
+    }
+  }
+}

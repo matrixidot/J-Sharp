@@ -483,7 +483,12 @@ jsharp build <src...> -d out          compile to class files
 jsharp build <src...> --jar app.jar --include-runtime
                                       a self-contained jar: java -jar app.jar
 jsharp check <src...>                 diagnostics only (add --diagnostics=json for tools)
+jsharp lsp                            language server for editors
 ```
+
+For VS Code, install the extension in `editors/vscode` (see its README) to get highlighting,
+errors as you type, hover, go to definition, an outline and completion. Other editors with LSP
+support can run `jsharp lsp`.
 
 Every error has a stable code, a source location and usually a suggestion:
 

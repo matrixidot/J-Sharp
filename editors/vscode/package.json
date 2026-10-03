@@ -1,0 +1,43 @@
+{
+  "name": "jsharp",
+  "displayName": "J#",
+  "description": "J# language support: syntax highlighting, diagnostics, hover, go to definition, outline and completion.",
+  "version": "0.1.0",
+  "publisher": "matrixidot",
+  "repository": { "type": "git", "url": "https://github.com/matrixidot/J-Sharp" },
+  "engines": { "vscode": "^1.85.0" },
+  "categories": ["Programming Languages"],
+  "main": "./extension.js",
+  "activationEvents": ["onLanguage:jsharp"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "jsharp",
+        "aliases": ["J#", "jsharp"],
+        "extensions": [".jsharp"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      { "language": "jsharp", "scopeName": "source.jsharp", "path": "./syntaxes/jsharp.tmLanguage.json" }
+    ],
+    "configuration": {
+      "title": "J#",
+      "properties": {
+        "jsharp.server.path": {
+          "type": "string",
+          "default": "",
+          "description": "Path to the `jsharp` launcher (for example <repo>/cli/build/install/jsharp/bin/jsharp). Empty means `jsharp` on the PATH."
+        },
+        "jsharp.classPath": {
+          "type": "array",
+          "items": { "type": "string" },
+          "default": [],
+          "description": "Extra jars and class directories for analysis (passed as -cp)."
+        }
+      }
+    },
+    "commands": [{ "command": "jsharp.restartServer", "title": "J#: Restart Language Server" }]
+  },
+  "dependencies": { "vscode-languageclient": "^9.0.1" }
+}

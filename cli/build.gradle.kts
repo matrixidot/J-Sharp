@@ -4,6 +4,7 @@ description = "The `jsharp` command-line tool."
 
 dependencies {
     implementation(project(":compiler"))
+    implementation(project(":lsp"))
     runtimeOnly(project(":runtime"))
 }
 

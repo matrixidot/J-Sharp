@@ -269,3 +269,13 @@ Format: **decision** — reason. *Rejected:* alternatives.
   parameter (Kotlin `@JvmOverloads` style). Defaults beyond the cap are still filled in by J#
   callers, which read `@DefaultValue`. Named-argument-only combinations get no overloads; Java
   has no named arguments.
+- **D072: Editor tooling is a language server** (`jsharp lsp`, module `lsp/`, JDK-only like the
+  compiler), not editor-specific plugins. It re-analyzes on every change with the real compiler,
+  so editor diagnostics are exactly `jsharp check`'s. Hover, definition and outline come from
+  `SourceIndex` (positions mapped to bound-tree nodes). Completion analyzes the text with a
+  marker identifier at the cursor, and the checker records the types of subexpressions
+  (`Compilation.recordExpressionTypes`), so the receiver of an unfinished `x.` has a type.
+  Files are grouped into *units*: a file plus every `.jsharp` file under its source root that
+  has no top-level statements, so folders of scripts and multi-file programs both work without
+  a project file. Re-analysis is not incremental; it is fast enough for small and medium
+  projects (~0.4 s per 10k lines warm).

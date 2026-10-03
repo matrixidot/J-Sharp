@@ -421,8 +421,38 @@ public final class Attr {
 
   // ------------------------------------------------------------------ expressions
 
+  /**
+   * When non-null, the type of every attributed expression, by file and span, even if the enclosing
+   * expression later fails (editor tooling: the receiver of an incomplete {@code x.}).
+   */
+  private java.util.Map<SourceFile, java.util.Map<Span, Type>> recordedTypes;
+
+  /** Turns on expression-type recording into {@code into} (see {@link #recordedTypes}). */
+  public void recordTypesInto(java.util.Map<SourceFile, java.util.Map<Span, Type>> into) {
+    this.recordedTypes = into;
+  }
+
+  private void recordType(Expr e, BExpr b) {
+    if (recordedTypes != null
+        && b != null
+        && b.type() != null
+        && !b.type().isError()
+        && !isSpeculative()
+        && file() != null) {
+      recordedTypes
+          .computeIfAbsent(file(), k -> new java.util.HashMap<>())
+          .putIfAbsent(e.span(), b.type());
+    }
+  }
+
   /** Attributes {@code e} with an optional expected type; the result is not yet coerced. */
   BExpr expr(Expr e, Type pt) {
+    BExpr b = exprImpl(e, pt);
+    recordType(e, b);
+    return b;
+  }
+
+  private BExpr exprImpl(Expr e, Type pt) {
     return switch (e) {
       case Expr.Literal l -> literal(l);
       case Expr.Interpolated i -> interpolated(i);
@@ -685,6 +715,14 @@ public final class Attr {
    * @param quietTypes when true, unresolved simple names fall back to type/package lookup silently
    */
   Target target(Expr e, boolean quietTypes) {
+    Target t = targetImpl(e, quietTypes);
+    if (t instanceof ValueTarget vt) {
+      recordType(e, vt.expr());
+    }
+    return t;
+  }
+
+  private Target targetImpl(Expr e, boolean quietTypes) {
     return switch (e) {
       case Expr.Name n -> nameTarget(n);
       case Expr.Member m when !m.nullSafe() -> {

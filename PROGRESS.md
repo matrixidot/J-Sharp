@@ -90,3 +90,10 @@
 5. v0.2 features: list patterns and collection literals.
 6. Primitive-specialized `foreach` over `IntSequence`.
 7. A per-package compile cache to cut cold-start time further.
+
+## Post-v0.1: editor support
+- Works: `jsharp lsp` (module `lsp/`, JDK-only) speaks the Language Server Protocol over stdio. It provides live diagnostics (identical to `jsharp check`), hover (expression types; method, property, field and class signatures), go to definition (locals, members, classes, top-level functions, across files), the document outline, and completion after `.` (members plus stdlib extensions, ranked own > inherited > Object) and of names in scope. It analyzes files in units without a project file (D072).
+- Works: `editors/vscode`, a VS Code extension with a TextMate grammar (interpolated, raw and char literals, keywords, declarations), language configuration, and an LSP client. Highlighting works without npm; language features need `npm install`.
+- Compiler support: `SourceIndex` (positions to symbols, types and declarations), plus `Compilation.recordExpressionTypes()` so the receivers of unfinished `x.` expressions keep their types.
+- Tests: an LSP session test (initialize, open, diagnostics, hover, definition, symbols, completion, an edit that fixes an error, shutdown), workspace unit tests, index tests. Smoke-tested over real stdio on `examples/ledger`: 0.2 s per analysis, completion in 0.09 s.
+- Not yet: rename, find references, signature help, formatting, incremental analysis, and a published `.vsix` (needs npm/vsce on the release machine).

@@ -69,6 +69,7 @@ public final class Main {
         case "check" -> check(rest, out, err);
         case "build" -> build(rest, out, err);
         case "run" -> runProgram(rest, out, err);
+        case "lsp" -> languageServer(rest, err);
         default -> {
           err.println(LanguageInfo.ID + ": unknown command '" + cmd + "'");
           printUsage(err);
@@ -250,6 +251,21 @@ public final class Main {
     }
   }
 
+  /**
+   * Runs the language server on stdin/stdout ({@code jsharp lsp [-cp path]}); logs go to stderr.
+   */
+  private static int languageServer(String[] args, PrintStream err) {
+    Options o = parseOptions(args, false);
+    try {
+      return new io.github.matrixidot.jsharp.lsp.LanguageServer(
+              System.in, System.out, err, o.classPath)
+          .run();
+    } catch (IOException e) {
+      err.println(LanguageInfo.ID + " lsp: " + e.getMessage());
+      return 1;
+    }
+  }
+
   /** Loads compiled classes from memory. */
   static final class MemoryClassLoader extends ClassLoader {
     private final Map<String, byte[]> classes;
@@ -339,6 +355,8 @@ public final class Main {
     out.println(
         "        [--include-runtime]            put the J# runtime in the jar (java -jar f)");
     out.println("  check <src...>                       report diagnostics only");
+    out.println(
+        "  lsp [-cp path]                       language server on stdin/stdout (for editors)");
     out.println("  parse <file>                         print the syntax tree (debug)");
     out.println("  --version                            print version");
     out.println();

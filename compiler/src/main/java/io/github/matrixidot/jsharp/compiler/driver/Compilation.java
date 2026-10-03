@@ -113,6 +113,9 @@ public final class Compilation {
             return;
           }
           attr = new Attr(ctx, memberEnter);
+          if (recordTypes) {
+            attr.recordTypesInto(recordedTypes);
+          }
           checked = ClassChecker.checkAll(attr, enter.enteredClasses());
           phase("check", t);
         });
@@ -188,6 +191,42 @@ public final class Compilation {
     } catch (IOException ex) {
       throw new UncheckedIOException(ex);
     }
+  }
+
+  private io.github.matrixidot.jsharp.compiler.ide.SourceIndex index;
+  private boolean recordTypes;
+  private final java.util.Map<
+          SourceFile,
+          java.util.Map<
+              io.github.matrixidot.jsharp.compiler.source.Span,
+              io.github.matrixidot.jsharp.compiler.types.Type>>
+      recordedTypes = new java.util.IdentityHashMap<>();
+
+  /**
+   * Makes the next {@link #analyze()} record the type of every attributed expression for {@link
+   * #index()}, including subexpressions of erroneous code (for editor completion).
+   */
+  public Compilation recordExpressionTypes() {
+    recordTypes = true;
+    return this;
+  }
+
+  /**
+   * Position index of the analyzed sources for editor tooling (hover, definition, completion);
+   * empty if analysis stopped before type checking.
+   */
+  public io.github.matrixidot.jsharp.compiler.ide.SourceIndex index() {
+    if (index == null) {
+      index =
+          io.github.matrixidot.jsharp.compiler.ide.SourceIndex.build(
+              checked == null ? List.of() : checked, recordedTypes);
+    }
+    return index;
+  }
+
+  /** A class by JVM internal name ({@code java/util/List}), or null (needs a finished analysis). */
+  public io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol lookupClass(String binaryName) {
+    return ctx == null ? null : ctx.syms.lookup(binaryName);
   }
 
   /** Generated class files by JVM internal name. */

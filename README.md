@@ -44,8 +44,12 @@ jsharp build <src...> -d out                     compile to class files
 jsharp build <src...> --jar app.jar --include-runtime
                                                  a self-contained jar for `java -jar app.jar`
 jsharp check <src...> [--diagnostics=json]       report errors and warnings only
+jsharp lsp                                       language server for editors (stdio)
   -cp <path>                                     Java libraries (jars, class directories)
 ```
+
+Editor support: the VS Code extension in [`editors/vscode`](editors/vscode) adds highlighting,
+live errors, hover, go to definition, outline and completion. Other editors can run `jsharp lsp`.
 
 `bin/jsharp` runs the locally built CLI (`cli/build/install/jsharp`), building it if needed; set
 `JSHARP_REBUILD=1` after changing the compiler. On first use the launcher records a class-data
@@ -72,7 +76,9 @@ sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=
 |---|---|
 | `compiler/` | lexer, parser, name resolution, type checker, lowering, ClassFile-API code generation |
 | `runtime/` | the `jsharp.*` library: `jsharp.core` (Prelude, `Task`, tuples, `Result`) in Java, `jsharp.collections` and `jsharp.text` written in J# |
+| `lsp/` | the language server (`jsharp lsp`): JSON-RPC, diagnostics, hover, definition, symbols, completion |
 | `cli/` | the `jsharp` command |
+| `editors/vscode/` | the VS Code extension (grammar, language configuration, LSP client) |
 | `tests/` | end-to-end programs (`tests/cases`), Java interop cases (`tests/interop`), example and documentation tests, the compiler-speed test |
 | `bench/` | JMH benchmarks: J# kernels against equivalent Java |
 | `examples/` | example programs |
@@ -81,6 +87,7 @@ sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=
 
 Version 0.1 (milestones M0–M7 of the roadmap). The compiler implements the full v0.1 language
 and is covered by 402 automated tests, including 129 programs run under `-Xverify:all`.
-Not yet available: IDE support, a build-tool plugin, incremental compilation, and the
+Editor support is new (language server and VS Code extension). Not yet available: a
+build-tool plugin, incremental compilation, rename/refactoring in the editor, and the
 v0.2+ features (list patterns, collection literals, query syntax). See
 [PROGRESS.md](PROGRESS.md).
