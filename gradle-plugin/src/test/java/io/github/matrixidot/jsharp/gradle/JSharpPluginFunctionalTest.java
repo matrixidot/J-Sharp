@@ -108,6 +108,47 @@ class JSharpPluginFunctionalTest {
   }
 
   @Test
+  void javaAndJSharpUseEachOtherInOneModule() throws IOException {
+    project();
+    // J# uses a Java class of its own source set, which in turn uses J#.
+    write(
+        "app/src/main/java/app/Shout.java",
+        """
+        package app;
+
+        public final class Shout {
+          public static String loud(Person p) {
+            return p.name().toUpperCase();
+          }
+        }
+        """);
+    write(
+        "app/src/main/jsharp/app/shouting.jsharp",
+        """
+        package app;
+
+        public static String shoutAll(java.util.List<Person> people) =>
+            people.select(p => Shout.loud(p)).joinToString("+");
+        """);
+    write(
+        "app/src/main/java/app/Launcher.java",
+        """
+        package app;
+
+        import java.util.List;
+
+        public class Launcher {
+          public static void main(String[] args) {
+            System.out.println(
+                ShoutingModule.shoutAll(List.of(new Person("Ada", 36), new Person("Tim", 9))));
+          }
+        }
+        """);
+    BuildResult result = runner(":app:run", "--stacktrace").build();
+    assertThat(result.getOutput()).contains("ADA+TIM");
+  }
+
+  @Test
   void reportsCompileErrors() throws IOException {
     project();
     write(

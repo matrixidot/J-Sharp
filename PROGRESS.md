@@ -100,7 +100,7 @@
 
 ## Post-v0.1: Gradle plugin
 - Works: `plugins { id("io.github.matrixidot.jsharp") }` compiles `src/main/jsharp` and `src/test/jsharp` with the project's dependencies (D073). A TestKit functional test builds and runs a two-module project (J# using a Java library module, Java calling J# in the same module), checks the second compile is up to date, and checks that J# errors fail the build with full diagnostics. `compiler`, `runtime` and the plugin publish as Maven artifacts (verified into `build/repo`).
-- Not yet: joint compilation with same-module Java sources, incremental compilation, publication to Maven Central and the Gradle plugin portal.
+- Not yet: incremental compilation, publication to Maven Central and the Gradle plugin portal.
 
 ## Post-v0.1: language changes requested by the owner
 - `base` replaces `open` (D075), `init { }` replaces the compact record constructor and adds instance initializers (D076), and more than one entry point is an error (D074).
@@ -110,3 +110,11 @@
 ## Post-v0.1: v0.2 language features
 - Collection literals with spreads and map literals, target-typed (D080), and list patterns with slice bindings and exhaustiveness by length (D081). With operator overloading (D077), this completes the v0.2 language items of the spec. Structured concurrency (`Task.scope`) waits for `StructuredTaskScope` to leave preview in the JDK.
 - Tests: e2e `collection_literals` and `list_patterns`, checker files for literal errors and list-pattern rules, and tour examples.
+
+## Post-v0.1: joint Java/J# compilation
+- Java and J# sources of one module now reference each other in both directions: `jsharp build`/`run` (javac runs in process after J#), the Gradle plugin (J# reads `src/<set>/java`; `compileJava` compiles it), and the language server (Java files join the unit; go to definition opens them). D082.
+- Tests:
+  - a differential test checking that source-read Java declarations equal class-file ones;
+  - an interop program under `-Xverify:all` with a Java sealed interface, records, enums, generics, inner classes, a Java class extending a J# class, and J# implementing Java interfaces;
+  - checker modules for JS1000/JS1001, duplicate classes, and access, nullness, sealed and abstract rules on Java sources;
+  - plugin, CLI and LSP tests.

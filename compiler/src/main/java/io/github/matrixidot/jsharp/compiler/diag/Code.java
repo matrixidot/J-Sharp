@@ -130,6 +130,10 @@ public enum Code {
   INVALID_RETHROW(908, "rethrow outside catch"),
   DUPLICATE_VARIABLE(909, "variable already defined"),
 
+  // ---- driver ----
+  JAVA_ERROR(1000, "error in Java source"),
+  JAVA_WARNING(1001, "warning in Java source"),
+
   // ---- internal ----
   INTERNAL_ERROR(9000, "internal compiler error");
 
@@ -157,7 +161,8 @@ public enum Code {
 
   public Severity defaultSeverity() {
     return switch (this) {
-      case REDUNDANT_NON_NULL_ASSERTION, PLATFORM_NULLNESS, DEPRECATED -> Severity.WARNING;
+      case REDUNDANT_NON_NULL_ASSERTION, PLATFORM_NULLNESS, DEPRECATED, JAVA_WARNING ->
+          Severity.WARNING;
       default -> Severity.ERROR;
     };
   }

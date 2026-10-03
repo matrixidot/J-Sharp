@@ -63,6 +63,30 @@ class MainTest {
   }
 
   @Test
+  void buildsJavaAndJSharpTogether(@TempDir Path dir) throws IOException {
+    Path src = Files.createDirectories(dir.resolve("src/app"));
+    Files.writeString(
+        src.resolve("Names.java"),
+        "package app;\npublic class Names { public static String of(Pet p) { return p.name(); } }\n");
+    Files.writeString(
+        src.resolve("pets.jsharp"),
+        "package app;\npublic record Pet(String name);\nprintln(Names.of(new Pet(\"Rex\")));\n");
+    Path jar = dir.resolve("app.jar");
+    Outcome o = run("build", dir.resolve("src").toString(), "--jar", jar.toString());
+    assertThat(o.code()).as(o.err()).isZero();
+    try (JarFile jf = new JarFile(jar.toFile())) {
+      assertThat(jf.getEntry("app/Names.class")).isNotNull();
+      assertThat(jf.getEntry("app/Pet.class")).isNotNull();
+    }
+    Outcome bad =
+        run(
+            "check",
+            Files.writeString(src.resolve("Bad.java"), "class Bad { int x = ; }").toString());
+    assertThat(bad.code()).isEqualTo(1);
+    assertThat(bad.err()).contains("error[JS1000]");
+  }
+
+  @Test
   void cdsTrainingProgramCompiles() {
     assertThat(run("--cds-train").code()).isZero();
   }

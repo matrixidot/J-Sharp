@@ -58,8 +58,8 @@ sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=
 ## Using J# in a Gradle project
 
 The Gradle plugin compiles `src/main/jsharp` and `src/test/jsharp` with the project's
-dependencies, before Java, and adds the J# runtime. Java code in the same module can call the
-J# code, and the J# classes go into tests, jars and `run`.
+dependencies and adds the J# runtime. J# and Java in the same module can use each other freely,
+and the J# classes go into tests, jars and `run`.
 
 ```kotlin
 // settings.gradle.kts: use the plugin from a J-Sharp checkout...
@@ -76,8 +76,23 @@ dependencies { implementation("com.example:some-java-library:1.0") }
 application { mainClass.set("app.MainModule") }
 ```
 
-J# compiles first, so J# code can use Java from libraries and other modules, but not Java
-sources of its own module.
+## Mixing Java and J# in one module
+
+Java and J# sources of one module can reference each other in both directions: J# classes can
+extend Java classes and implement Java interfaces, and Java can call and extend J# code. The J#
+compiler reads the declarations of the module's `.java` files, compiles the J# sources, and then
+javac compiles the Java sources against the J# classes. Java code is held to J#'s rules, the same
+way as Java from a jar: `@Nullable` returns are nullable, sealed hierarchies are checked for
+exhaustiveness, private members stay private.
+
+- `jsharp build src/` and `jsharp run src/` compile every `.jsharp` and `.java` file under `src/`.
+  javac's errors and warnings are reported like J#'s (JS1000, JS1001), with the Java line.
+- The Gradle plugin reads `src/<set>/java` for J# and leaves compiling it to `compileJava`.
+- The language server includes the module's Java files, so completion, hover and go to
+  definition work across the two languages.
+
+This needs a JDK (javac), not just a Java runtime. Annotation processors do not run on Java
+sources compiled by `jsharp build`; use Gradle for those.
 
 ## Documentation
 

@@ -19,9 +19,10 @@ import org.junit.jupiter.api.DynamicTest;
 import org.junit.jupiter.api.TestFactory;
 
 /**
- * Java/J# interop in both directions. Each {@code tests/interop/NAME/} has {@code lib/} compiled
- * first and {@code main/} compiled against it (each Java or J#), then the program runs on a fresh
- * JVM with {@code -Xverify:all} and its stdout must equal {@code expected.txt}.
+ * Java/J# interop in both directions. Each {@code tests/interop/NAME/} has an optional {@code lib/}
+ * compiled first and {@code main/} compiled against it (Java, J#, or both compiled together as one
+ * module), then the program runs on a fresh JVM with {@code -Xverify:all} and its stdout must equal
+ * {@code expected.txt}.
  */
 class InteropTest {
   private static final Path CASES = Path.of(System.getProperty("jsharp.interop"));
@@ -40,7 +41,10 @@ class InteropTest {
     Path work = Files.createTempDirectory("jsharp-interop-" + dir.getFileName());
     Path libOut = work.resolve("lib");
     Path mainOut = work.resolve("main");
-    compile(dir.resolve("lib"), List.of(), libOut);
+    Files.createDirectories(libOut);
+    if (Files.isDirectory(dir.resolve("lib"))) {
+      compile(dir.resolve("lib"), List.of(), libOut);
+    }
     String jsharpMain = compile(dir.resolve("main"), List.of(libOut), mainOut);
     String mainClass = jsharpMain;
     if (mainClass == null) {
@@ -61,8 +65,7 @@ class InteropTest {
     Files.createDirectories(out);
     List<Path> java = TestSupport.files(src, ".java");
     List<Path> jsharp = TestSupport.files(src, ".jsharp");
-    assertThat(java.isEmpty() || jsharp.isEmpty()).as("%s mixes Java and J# sources", src).isTrue();
-    if (!java.isEmpty()) {
+    if (jsharp.isEmpty()) {
       var javac = ToolProvider.getSystemJavaCompiler();
       List<String> args = new ArrayList<>();
       List<String> cp = new ArrayList<>();
@@ -88,6 +91,10 @@ class InteropTest {
       return null;
     }
     List<SourceFile> files = new ArrayList<>();
+    // Java sources next to J# sources are compiled together (D082).
+    for (Path p : java) {
+      files.add(new SourceFile(src.relativize(p).toString(), Files.readString(p)));
+    }
     for (Path p : jsharp) {
       files.add(new SourceFile(src.relativize(p).toString(), Files.readString(p)));
     }

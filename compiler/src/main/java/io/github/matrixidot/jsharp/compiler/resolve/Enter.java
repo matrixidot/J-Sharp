@@ -96,8 +96,12 @@ public final class Enter {
               "duplicate " + td.kind().keyword() + " '" + td.name() + "'")
           .note(
               "first declared here",
-              prev.unit() != null ? prev.unit().file() : file,
-              prev.decl() != null ? prev.decl().nameSpan() : td.nameSpan())
+              prev.unit() != null
+                  ? prev.unit().file()
+                  : prev.javaFile() != null ? prev.javaFile() : file,
+              prev.decl() != null
+                  ? prev.decl().nameSpan()
+                  : prev.javaSpan() != null ? prev.javaSpan() : td.nameSpan())
           .report(ctx.diags);
       return null;
     }

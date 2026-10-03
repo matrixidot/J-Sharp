@@ -1,0 +1,25 @@
+package shop;
+
+public interface Priced {
+    int priceCents();
+}
+
+public interface Discount {
+    int apply(int cents);
+}
+
+public base class Item : Priced {
+    private final String itemName;
+    private final int cents;
+    private final Catalog.Category category;
+
+    public Item(String name, int priceCents, Catalog.Category category) {
+        itemName = name;
+        cents = priceCents;
+        this.category = category;
+    }
+
+    public String name() => itemName;
+    public override int priceCents() => cents;
+    public base String label() => $"{itemName} ({category.label()})";
+}

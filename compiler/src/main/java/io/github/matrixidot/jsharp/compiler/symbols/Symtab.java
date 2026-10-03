@@ -20,6 +20,7 @@ public final class Symtab {
   private final ClassFileLoader loader;
   private final Map<String, ClassSymbol> classes = new HashMap<>();
   private final Set<String> sourcePackages = new HashSet<>();
+  private final Set<String> javaSources = new HashSet<>();
   private final Map<String, ClassType> wellKnown = new HashMap<>();
 
   public Symtab(ClassPath classPath) {
@@ -80,10 +81,25 @@ public final class Symtab {
     sourcePackages.add(c.packageName());
   }
 
-  /** True if the source set already declares this binary name. */
+  /**
+   * Registers a class declared in a Java source file of the same compilation (D082). It is not a J#
+   * source class: javac compiles it.
+   */
+  public void enterJavaSource(ClassSymbol c) {
+    classes.put(c.binaryName(), c);
+    javaSources.add(c.binaryName());
+    sourcePackages.add(c.packageName());
+  }
+
+  /** True if the source set (J# or Java) already declares this binary name. */
   public boolean isDeclaredInSource(String binaryName) {
     ClassSymbol c = classes.get(binaryName);
-    return c != null && c.isSource();
+    return c != null && (c.isSource() || javaSources.contains(binaryName));
+  }
+
+  /** True if this class comes from a Java source file of the compilation. */
+  public boolean isJavaSource(ClassSymbol c) {
+    return javaSources.contains(c.binaryName()) && classes.get(c.binaryName()) == c;
   }
 
   public boolean packageExists(String dotted) {

@@ -1,0 +1,51 @@
+package shop;
+
+import java.util.*;
+import shop.Catalog.*;
+
+var catalog = new Catalog()
+    .add(new Item("apple", 120, Category.FOOD), new Item("saw", 2500, Category.TOOLS))
+    .add(new Special("cake", 900));
+
+// Constants from Java sources fold like Java's.
+println($"{Catalog.CURRENCY}{Catalog.MAX_ITEMS} {Catalog.BIG}");
+
+// A @Nullable Java return is nullable in J#.
+println(catalog.find("saw")?.label() ?? "none");
+println(catalog.find("drill")?.label() ?? "none");
+
+// Overriding across languages: Special (Java) overrides Item.label (J#).
+foreach (var i in catalog.all()) println(i.label());
+
+// Generic Java methods and classes infer from J#.
+List<String> names = catalog.map(i => i.name());
+println(names);
+var p = new Pair<String, int>("n", 1).withSecond(2.5);
+println($"{p.first} {p.second}");
+
+// Inner classes and default methods.
+var cursor = catalog.cursor();
+var seen = 0;
+while (cursor.hasNext()) { cursor.next(); seen++; }
+println(seen);
+Visitor<int> priceOf = i => i.priceCents();
+println(catalog.accept(priceOf));
+println(priceOf.describe(catalog.all()[0]));
+
+// A Java class implementing a J# interface, passed back into Java.
+println(catalog.discounted("saw", new PercentOff(10)));
+println(catalog.total(new Item("x", 7, Category.TOOLS)));
+
+// Java records, with a compact constructor.
+var r = new Receipt(["a", "b"], 300);
+println($"{r.count()} {r.totalCents()}");
+try { new Receipt([], -1); } catch (IllegalArgumentException e) { println(e.getMessage()); }
+
+// Java enums in an exhaustive switch.
+String kind(Category c) => c switch {
+    Category.FOOD => "eat",
+    Category.TOOLS => "use",
+};
+var kinds = new ArrayList<String>();
+foreach (var c in Category.values()) kinds.add(kind(c));
+println(kinds);

@@ -19,9 +19,9 @@ import org.gradle.api.tasks.compile.JavaCompile;
  * join the source set's output (so tests, jars, {@code run} and Java code in the same source set
  * see them), and the J# runtime library is added to {@code implementation}.
  *
- * <p>J# compiles first, against the dependencies: J# code can use Java from other modules and
- * libraries, and Java code can use J# from the same module, but J# cannot reference Java sources of
- * its own module (that would need joint compilation).
+ * <p>J# compiles first. It reads the declarations of the source set's Java sources, so the two
+ * languages can use each other within one module; {@code compileJava} then compiles the Java
+ * sources against the J# classes (D082).
  */
 public class JSharpPlugin implements Plugin<Project> {
   @Override
@@ -59,6 +59,7 @@ public class JSharpPlugin implements Plugin<Project> {
                   t.setDescription("Compiles the " + name + " J# sources.");
                   t.setGroup("build");
                   t.getSource().from(jsharp.getSrcDirs());
+                  t.getJavaSource().from(sourceSet.getJava().getSrcDirs());
                   t.getWarningsAsErrors().convention(false);
                   t.getClasspath().from(sourceSet.getCompileClasspath());
                   t.getDestinationDirectory()

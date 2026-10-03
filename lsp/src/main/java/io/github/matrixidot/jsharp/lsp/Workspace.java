@@ -30,6 +30,10 @@ import java.util.stream.Stream;
  * no top-level statements of its own, plus the document itself. So scripts with top-level
  * statements stand alone while multi-file programs and libraries are analyzed together (D072). Open
  * documents override the files on disk.
+ *
+ * <p>Java sources of the same module join the unit for their declarations (D082): {@code .java}
+ * files under the source root and, in the Gradle layout {@code src/<set>/jsharp}, under the sibling
+ * {@code src/<set>/java}.
  */
 final class Workspace {
   private static final Set<String> SKIPPED_DIRS =
@@ -171,6 +175,25 @@ final class Workspace {
       }
     } catch (IOException e) {
       throw new UncheckedIOException(e);
+    }
+    List<Path> javaRoots = new ArrayList<>(List.of(root));
+    if (root.getFileName() != null
+        && root.getFileName().toString().equals("jsharp")
+        && root.getParent() != null) {
+      javaRoots.add(root.getParent().resolve("java"));
+    }
+    for (Path javaRoot : javaRoots) {
+      if (!Files.isDirectory(javaRoot)) {
+        continue;
+      }
+      try (Stream<Path> s = Files.walk(javaRoot, 12)) {
+        s.filter(x -> x.toString().endsWith(".java"))
+            .filter(x -> !skipped(javaRoot, x))
+            .sorted()
+            .forEach(p -> out.add(p.toUri()));
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
     }
     return out;
   }

@@ -7,6 +7,7 @@ import io.github.matrixidot.jsharp.compiler.bound.BClass;
 import io.github.matrixidot.jsharp.compiler.check.Attr;
 import io.github.matrixidot.jsharp.compiler.check.ClassChecker;
 import io.github.matrixidot.jsharp.compiler.classpath.ClassPath;
+import io.github.matrixidot.jsharp.compiler.classpath.JavaSourceLoader;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostics;
@@ -40,6 +41,9 @@ public final class Compilation {
   private SourceFile currentFile;
   private Attr attr;
   private List<BClass> checked = List.of();
+  private JavaSourceLoader javaLoader;
+  private List<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> javaClasses = List.of();
+  private boolean compileJava = true;
 
   /**
    * @param sharedClassPath a class path to reuse (must already include the runtime), or null to
@@ -70,6 +74,16 @@ public final class Compilation {
     }
   }
 
+  /**
+   * Java sources ({@code .java} files among the sources) are only read for their declarations;
+   * another tool compiles them (the Gradle plugin leaves them to {@code compileJava}). By default
+   * {@link #compile()} also compiles them with javac, after the J# classes (D082).
+   */
+  public Compilation javaDeclarationsOnly() {
+    compileJava = false;
+    return this;
+  }
+
   public Diagnostics diagnostics() {
     return diags;
   }
@@ -96,8 +110,10 @@ public final class Compilation {
         () -> {
           long t = System.nanoTime();
           for (SourceFile f : sources) {
-            currentFile = f;
-            units.add(Parser.parse(f, diags));
+            if (!JavaSourceLoader.isJava(f)) {
+              currentFile = f;
+              units.add(Parser.parse(f, diags));
+            }
           }
           currentFile = null;
           t = phase("parse", t);
@@ -105,6 +121,11 @@ public final class Compilation {
             return;
           }
           ctx = new Context(new Symtab(classPath), diags, options);
+          javaLoader = new JavaSourceLoader(ctx.syms, diags);
+          javaClasses = javaLoader.load(javaSources());
+          if (diags.hasErrors()) {
+            return;
+          }
           memberEnter = new MemberEnter(ctx);
           enter = new Enter(ctx, memberEnter);
           enter.enterAll(units);
@@ -118,7 +139,10 @@ public final class Compilation {
           }
           checked = ClassChecker.checkAll(attr, enter.enteredClasses());
           if (!diags.hasErrors()) {
-            checkSingleEntryPoint(enter.enteredClasses());
+            List<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> all =
+                new ArrayList<>(enter.enteredClasses());
+            all.addAll(javaClasses);
+            checkSingleEntryPoint(all);
           }
           phase("check", t);
         });
@@ -169,6 +193,12 @@ public final class Compilation {
           }
           currentFile = null;
           t = phase("codegen", t);
+          if (compileJava && !javaSources().isEmpty()) {
+            if (!compileJavaSources()) {
+              return;
+            }
+            t = phase("javac", t);
+          }
           if (options.outputDir() != null) {
             writeClassFiles(options.outputDir());
             phase("write", t);
@@ -217,13 +247,16 @@ public final class Compilation {
 
   private static SourceFile fileOf(io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
     var top = m.owner().outermost();
-    return top.unit() == null ? null : top.unit().file();
+    return top.unit() != null ? top.unit().file() : top.javaFile();
   }
 
-  private static io.github.matrixidot.jsharp.compiler.source.Span entrySpan(
+  private io.github.matrixidot.jsharp.compiler.source.Span entrySpan(
       io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
     if (m.decl() instanceof io.github.matrixidot.jsharp.compiler.ast.Decl.Method dm) {
       return dm.nameSpan();
+    }
+    if (javaLoader != null && javaLoader.spanOf(m) != null) {
+      return javaLoader.spanOf(m);
     }
     var unit = m.owner().outermost().unit();
     if (unit != null) {
@@ -254,6 +287,97 @@ public final class Compilation {
         && at.elem().erasure()
             instanceof io.github.matrixidot.jsharp.compiler.types.Type.ClassType ct
         && ct.sym().binaryName().equals("java/lang/String");
+  }
+
+  private List<SourceFile> javaSources() {
+    return sources.stream().filter(JavaSourceLoader::isJava).toList();
+  }
+
+  /**
+   * Compiles the Java sources with javac against the J# classes just generated, and adds the
+   * resulting class files. javac's errors and warnings become JS1000/JS1001 diagnostics.
+   */
+  private boolean compileJavaSources() {
+    javax.tools.JavaCompiler javac = javax.tools.ToolProvider.getSystemJavaCompiler();
+    Path tmp = null;
+    try {
+      tmp = java.nio.file.Files.createTempDirectory("jsharp-javac");
+      Path jsharpOut = tmp.resolve("jsharp");
+      Path javaOut = tmp.resolve("java");
+      java.nio.file.Files.createDirectories(javaOut);
+      writeClassFiles(jsharpOut);
+      List<String> cp = new ArrayList<>();
+      cp.add(jsharpOut.toString());
+      RuntimeLocator.findAll().forEach(p -> cp.add(p.toString()));
+      options.classPath().forEach(p -> cp.add(p.toString()));
+      List<String> args =
+          new ArrayList<>(
+              List.of(
+                  "-proc:none",
+                  "-implicit:none",
+                  "-parameters",
+                  "-d",
+                  javaOut.toString(),
+                  "-cp",
+                  String.join(java.io.File.pathSeparator, cp)));
+      if (options.emitDebugInfo()) {
+        args.add("-g");
+      }
+      var collected = new javax.tools.DiagnosticCollector<javax.tools.JavaFileObject>();
+      List<javax.tools.JavaFileObject> files =
+          javaSources().stream().map(JavaSourceLoader::fileObject).toList();
+      boolean ok = javac.getTask(null, null, collected, args, null, files).call();
+      JavaSourceLoader.reportJavac(collected, diags, javaSources());
+      if (!ok || diags.hasErrors()) {
+        return false;
+      }
+      List<Path> outputs;
+      try (var s = java.nio.file.Files.walk(javaOut)) {
+        outputs = s.filter(p -> p.toString().endsWith(".class")).sorted().toList();
+      }
+      for (Path p : outputs) {
+        String rel = javaOut.relativize(p).toString().replace('\\', '/');
+        classFiles.put(
+            rel.substring(0, rel.length() - ".class".length()),
+            java.nio.file.Files.readAllBytes(p));
+      }
+      if (mainClass == null) {
+        mainClass = javaMainClass();
+      }
+      return true;
+    } catch (IOException e) {
+      throw new UncheckedIOException(e);
+    } finally {
+      if (tmp != null) {
+        deleteTree(tmp);
+      }
+    }
+  }
+
+  /** The Java class declaring {@code static void main(String[])}, if there is exactly one. */
+  private String javaMainClass() {
+    java.util.ArrayDeque<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> todo =
+        new java.util.ArrayDeque<>(javaClasses);
+    while (!todo.isEmpty()) {
+      var c = todo.pop();
+      todo.addAll(c.memberTypes());
+      for (var m : c.methods("main")) {
+        if (isMain(m)) {
+          return c.binaryName().replace('/', '.');
+        }
+      }
+    }
+    return null;
+  }
+
+  private static void deleteTree(Path dir) {
+    try (var s = java.nio.file.Files.walk(dir)) {
+      for (Path p : s.sorted(java.util.Comparator.reverseOrder()).toList()) {
+        java.nio.file.Files.deleteIfExists(p);
+      }
+    } catch (IOException e) {
+      // Best effort: the directory is in the system temporary directory.
+    }
   }
 
   private void writeClassFiles(Path dir) {

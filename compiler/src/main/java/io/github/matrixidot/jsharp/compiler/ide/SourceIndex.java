@@ -143,7 +143,9 @@ public final class SourceIndex {
         if (m.decl() instanceof Decl.Constructor dc) {
           yield located(m.owner(), dc.nameSpan());
         }
-        yield m.isConstructor() ? classLocation(m.owner()) : Optional.empty();
+        yield m.isConstructor() || m.owner().outermost().javaFile() != null
+            ? classLocation(m.owner())
+            : Optional.empty();
       }
       case PropertySymbol p ->
           p.decl() != null ? located(p.owner(), p.decl().nameSpan()) : Optional.empty();
@@ -158,13 +160,19 @@ public final class SourceIndex {
             }
           }
         }
-        yield Optional.empty();
+        // Members of Java source classes lead to their class.
+        yield f.owner().outermost().javaFile() != null
+            ? classLocation(f.owner())
+            : Optional.empty();
       }
       default -> Optional.empty();
     };
   }
 
   private static Optional<Location> classLocation(ClassSymbol c) {
+    if (c.javaFile() != null && c.javaSpan() != null) {
+      return Optional.of(new Location(c.javaFile(), c.javaSpan())); // a Java source (D082)
+    }
     return c.decl() != null ? located(c, c.decl().nameSpan()) : Optional.empty();
   }
 

@@ -22,7 +22,10 @@ final class SourceFiles {
       if (Files.isDirectory(in)) {
         try (Stream<Path> s = Files.walk(in)) {
           s.filter(
-                  p -> p.toString().endsWith(LanguageInfo.FILE_EXTENSION) && Files.isRegularFile(p))
+                  p ->
+                      (p.toString().endsWith(LanguageInfo.FILE_EXTENSION)
+                              || p.toString().endsWith(".java"))
+                          && Files.isRegularFile(p))
               .sorted()
               .forEach(paths::add);
         }

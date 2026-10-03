@@ -45,6 +45,7 @@ subprojects {
     extensions.configure<com.diffplug.gradle.spotless.SpotlessExtension> {
         java {
             target("src/**/*.java")
+            targetExclude("src/**/resources/**")
             googleJavaFormat()
         }
     }

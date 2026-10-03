@@ -57,6 +57,8 @@ public final class ClassSymbol implements Symbol {
   private CompilationUnit unit;
   private Type thisType;
   private String sourceFileName;
+  private io.github.matrixidot.jsharp.compiler.source.SourceFile javaFile;
+  private io.github.matrixidot.jsharp.compiler.source.Span javaSpan;
 
   /**
    * @param binaryName JVM internal name, e.g. {@code java/util/Map$Entry}
@@ -199,6 +201,24 @@ public final class ClassSymbol implements Symbol {
 
   public boolean isFinal() {
     return has(Flags.FINAL);
+  }
+
+  /** Records where a class from a Java source file of the compilation is declared (D082). */
+  public void setJavaOrigin(
+      io.github.matrixidot.jsharp.compiler.source.SourceFile file,
+      io.github.matrixidot.jsharp.compiler.source.Span nameSpan) {
+    this.javaFile = file;
+    this.javaSpan = nameSpan;
+  }
+
+  /** The Java source file declaring this class, or null. */
+  public io.github.matrixidot.jsharp.compiler.source.SourceFile javaFile() {
+    return javaFile;
+  }
+
+  /** The span of the class name in {@link #javaFile()}, or null. */
+  public io.github.matrixidot.jsharp.compiler.source.Span javaSpan() {
+    return javaSpan;
   }
 
   public boolean isSource() {

@@ -1,0 +1,16 @@
+$100 -5
+saw (tools)
+none
+apple (food)
+saw (tools)
+*cake (food)*
+[apple, saw, cake]
+n 2.5
+3
+[120, 2500, 900]
+visited apple
+2250
+7
+2 300
+negative total
+[eat, use]

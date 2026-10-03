@@ -39,6 +39,14 @@ public abstract class JSharpCompile extends DefaultTask {
   @PathSensitive(PathSensitivity.RELATIVE)
   public abstract ConfigurableFileCollection getSource();
 
+  /**
+   * Java source directories of the same source set. J# reads their declarations, so J# code can use
+   * the module's Java classes; {@code compileJava} compiles them afterwards (D082).
+   */
+  @InputFiles
+  @PathSensitive(PathSensitivity.RELATIVE)
+  public abstract ConfigurableFileCollection getJavaSource();
+
   /** Jars and class directories the sources compile against. */
   @Classpath
   public abstract ConfigurableFileCollection getClasspath();
@@ -56,10 +64,14 @@ public abstract class JSharpCompile extends DefaultTask {
     deleteContents(out);
     List<SourceFile> files = new ArrayList<>();
     for (File root : getSource().getFiles()) {
-      collect(root.toPath(), files);
+      collect(root.toPath(), ".jsharp", files);
     }
     if (files.isEmpty()) {
       return;
+    }
+    int jsharpFiles = files.size();
+    for (File root : getJavaSource().getFiles()) {
+      collect(root.toPath(), ".java", files);
     }
     List<Path> cp = new ArrayList<>();
     for (File f : getClasspath().getFiles()) {
@@ -69,7 +81,7 @@ public abstract class JSharpCompile extends DefaultTask {
     }
     CompilerOptions options =
         new CompilerOptions(cp, out, getWarningsAsErrors().get(), false, true);
-    Compilation comp = new Compilation(files, options, null);
+    Compilation comp = new Compilation(files, options, null).javaDeclarationsOnly();
     comp.compile();
     comp.close();
     List<Diagnostic> ds = comp.diagnostics().sorted();
@@ -84,15 +96,15 @@ public abstract class JSharpCompile extends DefaultTask {
     if (comp.diagnostics().hasErrors()) {
       throw new GradleException("J# compilation failed; see the errors above.");
     }
-    getLogger().info("J#: compiled {} files into {}", files.size(), out);
+    getLogger().info("J#: compiled {} files into {}", jsharpFiles, out);
   }
 
-  private static void collect(Path root, List<SourceFile> out) {
+  private static void collect(Path root, String extension, List<SourceFile> out) {
     if (!Files.isDirectory(root)) {
       return;
     }
     try (Stream<Path> s = Files.walk(root)) {
-      for (Path p : s.filter(x -> x.toString().endsWith(".jsharp")).sorted().toList()) {
+      for (Path p : s.filter(x -> x.toString().endsWith(extension)).sorted().toList()) {
         // Paths relative to the project read well in diagnostics.
         out.add(new SourceFile(p.toString(), Files.readString(p)));
       }
