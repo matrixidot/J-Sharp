@@ -80,7 +80,7 @@ sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=
 ## Status
 
 Version 0.1 (milestones M0–M7 of the roadmap). The compiler implements the full v0.1 language
-and is tested by about 400 automated tests, including 127 programs run under `-Xverify:all`.
+and is covered by 402 automated tests, including 129 programs run under `-Xverify:all`.
 Not yet available: IDE support, a build-tool plugin, incremental compilation, and the
 v0.2+ features (list patterns, collection literals, query syntax). See
 [PROGRESS.md](PROGRESS.md).

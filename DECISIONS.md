@@ -264,3 +264,8 @@ Format: **decision** — reason. *Rejected:* alternatives.
   `LocalDate` (a `Comparable<ChronoLocalDate>`) satisfies `K : Comparable<K>`, and a
   `Predicate<Object>` is a `Predicate<String>`. This affects type checking only; bytecode is
   unchanged.
+- **D071: Default-argument overloads for Java callers are capped at 8.** A method whose last `k`
+  parameters have defaults gets `min(k, 8)` extra overloads, each dropping one more trailing
+  parameter (Kotlin `@JvmOverloads` style). Defaults beyond the cap are still filled in by J#
+  callers, which read `@DefaultValue`. Named-argument-only combinations get no overloads; Java
+  has no named arguments.

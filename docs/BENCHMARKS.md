@@ -73,3 +73,52 @@ Findings:
 - **`KernelBench.streamPipeline` is the same `java.util.stream` code in both languages.** Its
   0.42 ratio is bimodal JIT behavior of the Java baseline run on this machine (M4 measured
   15.6 µs for both), not a J# effect.
+
+## M7 — full suite (final v0.1 numbers)
+
+All 20 J#/baseline pairs, 2 forks each, `-prof gc` (`bench/results/m7.json`). Absolute times are
+about 2.4× lower than in the M4/M6 runs because the machine was less loaded; compare ratios,
+not times, across sections. The KernelBench additions since M6 cover int switches (9 and 32
+labels), a String switch, a 10-type sealed pattern switch, record equality/hashing and async
+fan-out on virtual threads.
+
+| Benchmark | Baseline (µs/op) | J# (µs/op) | Ratio | Baseline B/op | J# B/op |
+|---|---:|---:|---:|---:|---:|
+| KernelBench.asyncFanOut | 58.02 ± 1.49 | 45.45 ± 0.42 | 0.78 | 47,163 | 47,426 |
+| KernelBench.fib | 14.16 ± 0.78 | 14.34 ± 1.73 | 1.01 | 0 | 0 |
+| KernelBench.intSwitch | 57.11 ± 3.54 | 30.76 ± 6.67 | 0.54 | 0 | 0 |
+| KernelBench.interpolation | 12.26 ± 1.26 | 13.32 ± 0.19 | 1.09 | 69,024 | 69,024 |
+| KernelBench.patternSwitch | 9.24 ± 0.67 | 7.65 ± 0.94 | 0.83 | 0 | 0 |
+| KernelBench.properties | 12.28 ± 0.60 | 12.36 ± 0.83 | 1.01 | 0 | 0 |
+| KernelBench.records | 70.36 ± 2.01 | 70.87 ± 3.99 | 1.01 | 290,107 | 290,107 |
+| KernelBench.streamPipeline | 6.41 ± 0.67 | 6.87 ± 1.88 | 1.07 | 280 | 280 |
+| KernelBench.stringSwitch | 97.12 ± 4.33 | 88.65 ± 5.02 | 0.91 | 1 | 1 |
+| KernelBench.sumArray | 0.68 ± 0.02 | 0.68 ± 0.02 | 0.99 | 0 | 0 |
+| KernelBench.widePatternSwitch | 73.71 ± 6.18 | 68.20 ± 8.57 | 0.93 | 1 | 0 |
+| KernelBench.wideSwitch | 68.26 ± 1.84 | 69.35 ± 0.93 | 1.02 | 0 | 0 |
+| KernelBench.wordCount | 167.10 ± 9.63 | 169.51 ± 10.85 | 1.01 | 24,289 | 24,289 |
+| PipelineBench.array | 3.67 ± 0.20 | 3.36 ± 0.05 | 0.92 | 320 | 0 |
+| PipelineBench.boxed | 6.64 ± 0.96 | 9.16 ± 4.19 | 1.38 | 280 | 0 |
+| PipelineBench.firstMatch | 0.09 ± 0.00 | 0.01 ± 0.00 | 0.15 | 208 | 0 |
+| PipelineBench.groupBy | 100.77 ± 3.45 | 98.83 ± 2.62 | 0.98 | 332,908 | 172,930 |
+| PipelineBench.mapFilterCollect | 27.05 ± 0.82 | 41.20 ± 9.33 | 1.52 | 117,384 | 125,357 |
+| PipelineBench.primitive | 4.69 ± 0.20 | 3.33 ± 0.08 | 0.71 | 264 | 0 |
+| PipelineBench.topTen | 830.06 ± 61.25 | 852.54 ± 84.33 | 1.03 | 92,542 | 92,414 |
+
+Findings:
+
+- **Every pair except `mapFilterCollect` (see below) is within noise or faster.** J# is ahead on
+  int switches below 20 labels (compare chains, D065), pattern switches (`instanceof` chains vs
+  `typeSwitch`, D066), String switches (`equals` chains vs javac's `hashCode` switch), async
+  fan-out (`Task` on virtual threads vs `CompletableFuture.supplyAsync`), and the primitive,
+  array and short-circuiting sequence pipelines.
+- **`mapFilterCollect` is bimodal.** This run measured 1.52×; a 4-fork rerun measured 1.47×
+  (39.4 ± 5.1 vs 26.8 ± 0.7 µs). A third, 3-fork run measured parity: 26.9 ± 0.6 µs for J# vs
+  27.3 ± 0.7 µs for Streams, and 27.5 ± 0.6 µs when the J# library is driven by javac-compiled
+  lambdas. The bytecode J# emits for the pipeline is the same as javac's. The JIT sometimes
+  settles on a slower compilation of the sink chain, so treat this pair as unresolved, not as a
+  steady 1.5× cost.
+- **`boxed` (1.38 ± 0.46 here) is noise:** a 4-fork rerun measured 8.75 ± 1.69 vs 8.65 ± 2.47 µs
+  (1.01).
+- **`interpolation` (1.09)** has overlapping error bars with the baseline (13.32 ± 0.19 vs
+  12.26 ± 1.26); both use the same `StringConcatFactory` recipe.

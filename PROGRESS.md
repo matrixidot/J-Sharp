@@ -47,3 +47,46 @@
 - Fixed along the way: synthetic lambda methods no longer carry generic signatures (javac rejected J# classes using them), J# tuple types round-trip through class files, StringConcat passes wrapper types like javac.
 - Deferred: `foreach` over primitive sequences without boxing, query syntax (v0.3).
 - Known issues: the machine's JMH runs are noisy (bimodal JIT on some Java baselines); see BENCHMARKS.md.
+
+## M7 — Performance & polish (done)
+- Performance: constant int switches with 20+ labels compile to `tableswitch`/`lookupswitch`, smaller ones to compare chains, which measured faster (D065). Type-pattern switches stay `instanceof` chains, which beat `SwitchBootstraps.typeSwitch` at 3 and 10 cases (D066). The suite now has 13 J#-vs-Java kernels and 7 sequence-vs-stream pipelines; all pairs except the bimodal `mapFilterCollect` are within noise or faster (BENCHMARKS.md, raw data in `bench/results/m7.json`).
+- Compiler speed: a generated 10k-line project compiles (through codegen) in about 0.4 s warm, against the 2 s target, guarded by `CompilerSpeedTest`. Cold `jsharp check` of a small file takes about 0.26 s, against 0.3 s, using a CDS archive the launcher trains on first run (D067). `-Djsharp.timings=true` prints phase times.
+- Tooling and diagnostics: `--include-runtime` builds self-contained jars. Unresolved names suggest the missing import. Null literals and `for (x : xs)` get targeted messages. Deep nesting is reported as JS0109, never as a crash (D069).
+- Docs and examples: `docs/TOUR.md` (every example compiled and run by `DocsTest`), a new README, and `examples/ledger`, a 1,000-line demo app with 12 end-to-end tests (`ExamplesTest`).
+- Other: package root renamed to `io.github.matrixidot.jsharp` (D068); Kotlin-style variance for JDK functional interfaces (D070); the default-argument overload cap is documented (D071).
+
+## Final assessment (v0.1)
+
+**Done:** every exit criterion of M0–M7. The compiler implements the v0.1 language of LANGUAGE_SPEC.md, and the spec's example programs (sections 6 and 11) compile and run. Java⇄J# interop works in both directions. Benchmarks show J# at parity with or faster than hand-written Java and `java.util.stream` in every pair except one bimodal pipeline (BENCHMARKS.md). 402 automated tests (all passing) cover it:
+- 129 golden programs under `-Xverify:all`;
+- 121 checker files with 616 inline assertions;
+- parser and resolution goldens, plus a fuzz test;
+- 3 interop cases, 12 demo-app cases, 13 tour examples and a compiler-speed bound.
+
+**Incomplete or limited:**
+- Type inference is a pragmatic subset of JLS 18. Unusual nested generic calls can still need explicit type arguments; the corpus found and fixed many such cases, so expect a long tail.
+- Smart casts apply to locals only, not fields.
+- `super::m` method references and instantiating Java inner (non-static) classes are not supported.
+- Local functions and enum constants with bodies are not supported (D014).
+- `foreach` over primitive sequences boxes elements.
+- Cold-start latency for files that exercise heavy inference is about 0.5 s, above the 0.3 s single-file target; small files meet it.
+- No IDE/LSP support, build-tool plugin or incremental compilation.
+- v0.2/v0.3 features are not implemented: list patterns (parsed only), collection literals, query syntax.
+
+**Deviations from the spec**, all in DECISIONS.md:
+- Null checks guard every public/protected method, not only Java entry points (D045).
+- Exception filters run after inner `finally` blocks, since the JVM has no filter pass (D050).
+- Constant narrowing is allowed for arguments, ranked below exact and widening matches (D051).
+- The common type of records sharing an interface is the interface (D054).
+- Sequences are lazy (C# LINQ semantics) rather than "eager-by-default" (D063).
+- `typeSwitch` is never used (D066).
+- Platform-type member access is silent unless `--strict-platform-nullness` is given (D026).
+
+**Next steps:**
+1. A language server (diagnostics and completion already have stable codes and spans).
+2. A Gradle plugin and Maven publication of the compiler and runtime under `io.github.matrixidot.jsharp`.
+3. Incremental compilation using class-file metadata.
+4. Grow inference toward full JLS 18 and extend smart casts to `val` fields.
+5. v0.2 features: list patterns and collection literals.
+6. Primitive-specialized `foreach` over `IntSequence`.
+7. A per-package compile cache to cut cold-start time further.
