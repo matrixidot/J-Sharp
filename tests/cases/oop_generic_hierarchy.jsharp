@@ -14,11 +14,11 @@ public class Exclaim : Mapper<String> {
     public override String twice(String s) => "<" + map(map(s)) + ">";
 }
 
-public open class Holder<T> {
+public base class Holder<T> {
     protected T value;
     public Holder(T value) { this.value = value; }
     public T get() => value;
-    public open void set(T v) { value = v; }
+    public base void set(T v) { value = v; }
     public override String toString() => "Holder(" + value + ")";
 }
 

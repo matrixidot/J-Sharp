@@ -12,7 +12,7 @@ public class Point {
     public override String toString() => "P(" + x + "," + y + ")";
 }
 
-public open class Animal {
+public base class Animal {
     protected final String name;
     public Animal(String name) { this.name = name; }
     public override String toString() => getClass().getSimpleName() + ":" + name;

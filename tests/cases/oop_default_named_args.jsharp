@@ -10,8 +10,8 @@ public class Client {
     public String send(String msg, String to = "all", char sep = ':') => prefix + to + sep + msg;
 }
 
-public open class Shape {
-    public open String draw(String color = "black", int width = 1) => "shape " + color + " " + width;
+public base class Shape {
+    public base String draw(String color = "black", int width = 1) => "shape " + color + " " + width;
 }
 
 public class Circle : Shape {

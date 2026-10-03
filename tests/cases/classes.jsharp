@@ -1,7 +1,7 @@
-public open class Animal {
+public base class Animal {
     protected String name;
     public Animal(String name) { this.name = name; }
-    public open String sound() => "...";
+    public base String sound() => "...";
     public String describe() => name + " says " + sound();
     public override String toString() => "Animal(" + name + ")";
 }

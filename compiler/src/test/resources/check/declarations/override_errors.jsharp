@@ -1,10 +1,10 @@
-public open class Widget {
-    public open void render() { }
-    public open String label() => "widget";
+public base class Widget {
+    public base void render() { }
+    public base String label() => "widget";
     public void layout() { }
-    protected open void onClick(int x, int y) { }
-    public open Object payload() => "p";
-    public open int size() => 1;
+    protected base void onClick(int x, int y) { }
+    public base Object payload() => "p";
+    public base int size() => 1;
     public static void reset() { }
 }
 

@@ -1706,7 +1706,7 @@ public final class Lowerer {
             && !accessor.has(Flags.FINAL)
             && !accessor.has(Flags.PRIVATE)
             && !accessor.isStatic();
-    if (overridable || accessor.has(Flags.OPEN) || accessor.isAbstract()) {
+    if (overridable || accessor.has(Flags.BASE) || accessor.isAbstract()) {
       return null;
     }
     if (p.decl().accessors() == null) {

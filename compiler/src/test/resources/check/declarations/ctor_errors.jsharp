@@ -1,4 +1,4 @@
-public open class Account {
+public base class Account {
     protected final long id;
     public Account(long id) { this.id = id; }
 }

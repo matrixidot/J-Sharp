@@ -1,7 +1,7 @@
 // Multi-catch, custom exception hierarchies, unchecked use of Java checked exceptions.
 import java.io.*;
 
-public open class AppException : RuntimeException {
+public base class AppException : RuntimeException {
     public final int code;
     public AppException(String msg, int code) {
         super(msg);

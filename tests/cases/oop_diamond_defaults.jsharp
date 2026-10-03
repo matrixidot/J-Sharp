@@ -12,7 +12,7 @@ public class Picky : Left, Other {
 }
 
 // A class method always wins over an interface default.
-public open class Named { public String who() => "class"; }
+public base class Named { public String who() => "class"; }
 public class Mixed : Named, Other { }
 
 public abstract class Partial : Top {

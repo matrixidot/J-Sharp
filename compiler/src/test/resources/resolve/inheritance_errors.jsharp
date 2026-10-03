@@ -1,10 +1,10 @@
 class Final { }
 class A : Final { }
-open class Cyc1 : Cyc2 { }
-open class Cyc2 : Cyc1 { }
+base class Cyc1 : Cyc2 { }
+base class Cyc2 : Cyc1 { }
 interface I : Final { }
 record R(int x) : Final;
-open class Base { }
+base class Base { }
 class Two : Runnable, Base { }
 class E : Enum<E> { }
 class S : String { }

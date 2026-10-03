@@ -1,5 +1,5 @@
 public sealed class Node {
-    public open int weight() => 1;
+    public base int weight() => 1;
 }
 public class Leaf : Node {
     public override int weight() => 0;

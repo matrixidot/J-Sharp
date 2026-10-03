@@ -44,9 +44,9 @@
       (=> (/ (* 6.67e-11 mass) (paren (* radius radius))))))
   (class
     Base
-    (mods open)
+    (mods base)
     (tparams (tparam T (: Comparable<T>) (: java.io.Serializable)))
-    (method value (mods protected open) T (params) (=> (!! null))))
+    (method value (mods protected base) T (params) (=> (!! null))))
   (interface Shape2 (mods sealed) (permits Circle Square))
   (record Circle (header (param double r)) (: Shape2))
   (record Square (header (param double side)) (: Shape2))

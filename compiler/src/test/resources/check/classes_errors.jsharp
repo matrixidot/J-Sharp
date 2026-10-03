@@ -1,7 +1,7 @@
 public class Final { }
-public open class Base {
+public base class Base {
     public void fixed() { }
-    public open void hook() { }
+    public base void hook() { }
 }
 public class Sub : Base {
     public void hook() { }                   //~ JS0617
@@ -25,12 +25,12 @@ void main2() {
     b.nothing();                             //~ JS0603
     var c = new Base(1);                     //~ JS0614
 }
-public open class NoDefault {
+public base class NoDefault {
     public NoDefault(int x) { }
 }
 public class Child : NoDefault {             //~ JS0630
 }
-public open class OpenNoDefault {
+public base class OpenNoDefault {
     public OpenNoDefault(int x) { }
 }
 public class Child2 : OpenNoDefault {

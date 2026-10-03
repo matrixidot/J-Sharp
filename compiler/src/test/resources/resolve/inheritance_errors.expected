@@ -1,4 +1,4 @@
-inheritance_errors.jsharp:2:11 JS0407 cannot inherit from final class Final [help: J# classes are final by default; declare it 'open class Final']
+inheritance_errors.jsharp:2:11 JS0407 cannot inherit from final class Final [help: J# classes are final by default; declare it 'base class Final']
 inheritance_errors.jsharp:3:12 JS0406 cyclic inheritance involving Cyc1
 inheritance_errors.jsharp:5:15 JS0408 an interface can only extend interfaces, but Final is a class
 inheritance_errors.jsharp:6:19 JS0408 records cannot extend classes; Final is a class

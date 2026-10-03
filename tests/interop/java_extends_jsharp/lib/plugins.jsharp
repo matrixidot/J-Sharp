@@ -7,11 +7,11 @@ public interface Plugin {
     default String greet(String who) => name() + " greets " + who;
 }
 
-public open class Host {
+public base class Host {
     private final ArrayList<Plugin> plugins = new ArrayList<>();
     public void register(Plugin p) { plugins.add(p); onRegister(p); }
-    protected open void onRegister(Plugin p) { println("host registered " + p.name()); }
-    public open String banner() => "Host";
+    protected base void onRegister(Plugin p) { println("host registered " + p.name()); }
+    public base String banner() => "Host";
     public String run(String who) {
         var sb = new StringBuilder(banner());
         foreach (var p in plugins) sb.append(" | ").append(p.greet(who));

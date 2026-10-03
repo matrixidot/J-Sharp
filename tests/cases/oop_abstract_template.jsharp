@@ -10,12 +10,12 @@ public abstract class Report {
         sb.append(footer());
         return sb.toString();
     }
-    protected open String header() => "== " + title + " ==";
+    protected base String header() => "== " + title + " ==";
     protected abstract List<String> body();
-    protected open String footer() => "-- end --";
+    protected base String footer() => "-- end --";
 }
 
-public open class SalesReport : Report {
+public base class SalesReport : Report {
     protected final int[] sales;
     public SalesReport(params int[] sales) { super("Sales"); this.sales = sales; }
     protected override List<String> body() {

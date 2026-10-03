@@ -7,11 +7,11 @@ class C {
     static abstract void i();
     default void j() { }
     override int k;
-    private open void l() { }
+    private base void l() { }
 }
-open final class D { }
+base final class D { }
 static class E { }
-sealed open class F { }
+sealed base class F { }
 interface G {
     int instanceField;
     protected void p();
@@ -19,5 +19,5 @@ interface G {
 record H(int x) {
     int extra;
 }
-open record I(int x);
+base record I(int x);
 abstract interface J { }

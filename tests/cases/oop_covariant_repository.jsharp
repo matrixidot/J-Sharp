@@ -5,7 +5,7 @@ public interface Identified { long id(); }
 public abstract class Repository<T : Identified> {
     protected final TreeMap<Long, T> store = new TreeMap<>();
     public void save(T item) { store.put(item.id(), item); onSave(item); }
-    protected open void onSave(T item) { }
+    protected base void onSave(T item) { }
     public T? find(long id) => store.get(id);
     public abstract String describe(T item);
     public List<String> all() {
@@ -13,7 +13,7 @@ public abstract class Repository<T : Identified> {
         foreach (var v in store.values()) out.add(describe(v));
         return out;
     }
-    public open Repository<T> self() => this;
+    public base Repository<T> self() => this;
 }
 
 public record User(long id, String name) : Identified;
@@ -32,7 +32,7 @@ public abstract class Shape {
     public final override String toString() => getClass().getSimpleName() + "(" + area() + ")";
 }
 
-public open class Rect : Shape {
+public base class Rect : Shape {
     protected final double w;
     protected final double h;
     public Rect(double w, double h) { this.w = w; this.h = h; }

@@ -3,7 +3,7 @@ package lib.ui;
 import lib.core.*;
 import lib.text.*;
 
-public open class Button : Component, Clickable {
+public base class Button : Component, Clickable {
     private int clicks = 0;
     public final String label;
     public Button(String label) { super("btn"); this.label = label; }

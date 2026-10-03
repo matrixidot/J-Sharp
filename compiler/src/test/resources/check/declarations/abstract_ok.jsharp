@@ -27,7 +27,7 @@ public abstract class Template {
     public String render() => header() + body() + footer();
     protected abstract String header();
     protected abstract String body();
-    protected open String footer() => "";
+    protected base String footer() => "";
 }
 
 public class Page : Template {

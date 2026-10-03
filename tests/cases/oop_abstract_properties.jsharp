@@ -4,7 +4,7 @@ public abstract class Employee {
     public abstract String title { get; }
     public abstract double baseSalary { get; }
     public required String name { get; init; }
-    public open double bonusRate => 0.1;
+    public base double bonusRate => 0.1;
     public double total => baseSalary * (1 + bonusRate);
     public override String toString() => $"{name} ({title}): {total:F1}";
 }

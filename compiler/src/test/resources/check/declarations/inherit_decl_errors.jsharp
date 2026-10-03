@@ -8,7 +8,7 @@ public record Minus() : Op;                      //~ JS0412
 public abstract class Abs { }
 public class FromAbs : Abs { }
 
-public open class Open { }
+public base class Open { }
 public class FromOpen : Open { }
 
 public class FromString : StringBuilder { }      //~ JS0407

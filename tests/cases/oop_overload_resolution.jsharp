@@ -25,9 +25,9 @@ public class O {
     public static String n(Integer x) => "n(Integer)";
 }
 
-public open class Base {
+public base class Base {
     public String m(Object o) => "Base.m(Object)";
-    public open String p(Object o) => "Base.p(Object)";
+    public base String p(Object o) => "Base.p(Object)";
 }
 
 public class Derived : Base {

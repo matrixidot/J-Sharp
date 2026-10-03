@@ -1,4 +1,4 @@
-public open class Vehicle {
+public base class Vehicle {
     protected final String make;
     protected final int wheels;
 

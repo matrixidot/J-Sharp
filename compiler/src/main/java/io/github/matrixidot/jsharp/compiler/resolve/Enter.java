@@ -136,7 +136,7 @@ public final class Enter {
             invalidModifier(file, item, td.kind().keyword() + "s cannot be 'final'");
           }
         }
-        case ABSTRACT, OPEN -> {
+        case ABSTRACT, BASE -> {
           if (td.kind() != Decl.TypeKind.CLASS) {
             invalidModifier(
                 file,
@@ -156,15 +156,15 @@ public final class Enter {
                 "'" + item.modifier().keyword() + "' is not allowed on a type declaration");
       }
     }
-    if (mods.has(Modifier.OPEN) && mods.has(Modifier.FINAL)) {
+    if (mods.has(Modifier.BASE) && mods.has(Modifier.FINAL)) {
       invalidModifier(
-          file, itemOf(mods, Modifier.OPEN), "a class cannot be both 'open' and 'final'");
+          file, itemOf(mods, Modifier.BASE), "a class cannot be both 'base' and 'final'");
     }
-    if (mods.has(Modifier.SEALED) && (mods.has(Modifier.OPEN) || mods.has(Modifier.FINAL))) {
+    if (mods.has(Modifier.SEALED) && (mods.has(Modifier.BASE) || mods.has(Modifier.FINAL))) {
       invalidModifier(
           file,
           itemOf(mods, Modifier.SEALED),
-          "'sealed' cannot be combined with 'open' or 'final'");
+          "'sealed' cannot be combined with 'base' or 'final'");
     }
     if (outer != null) {
       f |= Flags.STATIC; // J# named nested types never capture an outer instance
@@ -177,10 +177,10 @@ public final class Enter {
         if (mods.has(Modifier.SEALED)) {
           f |= Flags.SEALED | Flags.ABSTRACT;
         }
-        if (mods.has(Modifier.OPEN)) {
-          f |= Flags.OPEN;
+        if (mods.has(Modifier.BASE)) {
+          f |= Flags.BASE;
         }
-        if (!mods.has(Modifier.OPEN)
+        if (!mods.has(Modifier.BASE)
             && !mods.has(Modifier.ABSTRACT)
             && !mods.has(Modifier.SEALED)) {
           f |= Flags.FINAL;

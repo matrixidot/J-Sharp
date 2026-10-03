@@ -1,7 +1,7 @@
 import java.util.*;
 
-public open class Shape { public open String name() => "shape"; }
-public open class Polygon : Shape { public override String name() => "polygon"; }
+public base class Shape { public base String name() => "shape"; }
+public base class Polygon : Shape { public override String name() => "polygon"; }
 public class Triangle : Polygon { public override String name() => "triangle"; public int sides => 3; }
 public class Circle : Shape { public override String name() => "circle"; }
 

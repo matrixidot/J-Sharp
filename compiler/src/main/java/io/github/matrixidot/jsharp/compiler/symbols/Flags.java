@@ -30,7 +30,7 @@ public final class Flags {
   public static final long JVM_MASK = 0xFFFF;
 
   public static final long SEALED = 1L << 16;
-  public static final long OPEN = 1L << 17;
+  public static final long BASE = 1L << 17;
   public static final long OVERRIDE = 1L << 18;
   public static final long ASYNC = 1L << 19;
   public static final long REQUIRED = 1L << 20;

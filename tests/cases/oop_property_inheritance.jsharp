@@ -1,10 +1,10 @@
-public open class Shape {
+public base class Shape {
     public static int created { get; private set; }
     public Shape() { created++; }
-    public open String name => "shape";
-    public open double area => 0.0;
+    public base String name => "shape";
+    public base double area => 0.0;
     public String label => name + ":" + area;
-    public open int scale { get; set; } = 1;
+    public base int scale { get; set; } = 1;
 }
 
 public class Square : Shape {

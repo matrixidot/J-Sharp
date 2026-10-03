@@ -23,7 +23,7 @@ Format: **decision** — reason. *Rejected:* alternatives.
 ## 2026-10-02 — M1 lexer & parser
 
 - **D005: Reserved vs contextual keywords.** Reserved: all Java keywords plus `foreach using typeof
-  internal operator`. Everything else J#-specific is contextual (`var val record sealed open
+  internal operator`. Everything else J#-specific is contextual (`var val record sealed base
   override async await required in out is as with when where get set init field value permits
   and or not params lock checked nameof`) so Java names like `System.out`, `System.in` and
   `Lock.lock()` stay usable. Any name can be escaped with backticks: `` `class` ``.
@@ -82,8 +82,8 @@ Format: **decision** — reason. *Rejected:* alternatives.
   maps 1:1 to the JVM.
 - **D023: Named nested types are always static** (C#-like): they never capture an outer instance,
   so outer type parameters are not visible inside them. Only local and anonymous classes capture.
-- **D024: Methods are final by default** in `open`/`abstract` classes (emitted `ACC_FINAL`);
-  `open`, `abstract` and `override` members are overridable, and an `override` stays open unless
+- **D024: Methods are final by default** in `base`/`abstract` classes (emitted `ACC_FINAL`);
+  `base`, `abstract` and `override` members are overridable, and an `override` stays open unless
   marked `final override` (Kotlin model). Consistent with final-by-default classes.
 - **D025: `sealed class` is implicitly abstract** (Kotlin). `sealed` without `permits` permits the
   direct subtypes declared in the same file (spec 4.1); permitted subtypes must be in the same
@@ -291,3 +291,8 @@ Format: **decision** — reason. *Rejected:* alternatives.
   `static void main(String[])` methods all count; a compilation with more than one is error
   JS0411 (listing the others) instead of the tools picking one arbitrarily. Methods named `main`
   with other signatures, or instance methods, are not entry points.
+- **D075: `base` replaces `open`** (owner's choice): `public base class Animal` allows
+  inheritance and `public base String speak()` allows overriding. `open` (Kotlin's word) is an
+  error, JS0410 "J# uses 'base' instead of 'open'", parsed as `base` so nothing else cascades.
+  `base` is contextual, so it stays usable as an identifier. J# keeps Java's `super` for calls to
+  the superclass, so `base` has no second meaning (unlike C#'s `base.Method()`).

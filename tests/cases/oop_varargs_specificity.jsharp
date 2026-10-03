@@ -1,6 +1,6 @@
 import java.util.*;
 
-public open class Animal { public override String toString() => "animal"; }
+public base class Animal { public override String toString() => "animal"; }
 public class Dog : Animal { public override String toString() => "dog"; }
 
 public class V {

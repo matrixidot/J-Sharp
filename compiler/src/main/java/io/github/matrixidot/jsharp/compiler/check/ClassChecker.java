@@ -798,7 +798,7 @@ public final class ClassChecker {
           Diagnostic.Builder d =
               a.err(Code.CANNOT_OVERRIDE, at, "cannot override final method " + o.signature());
           if (o.owner().isSource()) {
-            d.help("J# methods are final unless declared 'open', 'abstract' or 'override'");
+            d.help("J# methods are final unless declared 'base', 'abstract' or 'override'");
           }
           a.report(d);
         }

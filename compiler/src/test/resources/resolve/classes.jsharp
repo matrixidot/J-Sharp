@@ -1,13 +1,13 @@
 public abstract class Shape {
     public abstract double area();
     public String describe() => "shape";
-    public open String name() => "shape";
+    public base String name() => "shape";
 }
 
-public open class Base {
+public base class Base {
     protected int x;
     public Base(int x) { this.x = x; }
-    public open void hook() { }
+    public base void hook() { }
     public void fixed() { }
     public final override String toString() => "Base";
 }
@@ -35,5 +35,5 @@ public class Outer {
 
 class NoCtor { }
 class Polite : Greeter { public override String greet(String name) => "Hello " + name; }
-public open class PublicNoCtor { }
+public base class PublicNoCtor { }
 public abstract class AbstractNoCtor { }

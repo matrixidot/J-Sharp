@@ -117,7 +117,7 @@
         },
         {
           "name": "storage.modifier.jsharp",
-          "match": "\\b(public|protected|private|internal|static|final|abstract|sealed|open|override|async|required|synchronized|native|params|this(?=\\s+[A-Za-z_]))\\b"
+          "match": "\\b(public|protected|private|internal|static|final|abstract|sealed|base|override|async|required|synchronized|native|params|this(?=\\s+[A-Za-z_]))\\b"
         },
         {
           "name": "storage.type.jsharp",

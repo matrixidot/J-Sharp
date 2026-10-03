@@ -11,12 +11,12 @@ public abstract class IntSequence : Iterable<Integer> {
     public abstract boolean forEachWhileInt(IntPredicate sink);
 
     /** Pushes every element (no early exit); used by terminals that consume everything. */
-    public open void forEachInt(IntConsumer sink) {
+    public base void forEachInt(IntConsumer sink) {
         forEachWhileInt(x => { sink.accept(x); return true; });
     }
 
     /** Boxing iterator (used by foreach); prefer the terminal operations in hot code. */
-    public open override Iterator<Integer> iterator() {
+    public base override Iterator<Integer> iterator() {
         val list = new ArrayList<Integer>();
         forEachWhileInt(x => list.add(x));
         return list.iterator();
@@ -78,7 +78,7 @@ public abstract class IntSequence : Iterable<Integer> {
         return acc.value;
     }
 
-    public open int count() {
+    public base int count() {
         val c = new Counter();
         forEachInt(x => c.n++);
         return c.n;
@@ -150,11 +150,11 @@ public abstract class IntSequence : Iterable<Integer> {
 public abstract class LongSequence : Iterable<Long> {
     public abstract boolean forEachWhileLong(LongPredicate sink);
 
-    public open void forEachLong(LongConsumer sink) {
+    public base void forEachLong(LongConsumer sink) {
         forEachWhileLong(x => { sink.accept(x); return true; });
     }
 
-    public open override Iterator<Long> iterator() {
+    public base override Iterator<Long> iterator() {
         val list = new ArrayList<Long>();
         forEachWhileLong(x => list.add(x));
         return list.iterator();
@@ -218,11 +218,11 @@ public abstract class LongSequence : Iterable<Long> {
 public abstract class DoubleSequence : Iterable<Double> {
     public abstract boolean forEachWhileDouble(DoublePredicate sink);
 
-    public open void forEachDouble(DoubleConsumer sink) {
+    public base void forEachDouble(DoubleConsumer sink) {
         forEachWhileDouble(x => { sink.accept(x); return true; });
     }
 
-    public open override Iterator<Double> iterator() {
+    public base override Iterator<Double> iterator() {
         val list = new ArrayList<Double>();
         forEachWhileDouble(x => list.add(x));
         return list.iterator();

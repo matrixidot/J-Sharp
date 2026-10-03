@@ -2,7 +2,7 @@ import java.util.*;
 
 // `==` is null-safe value equality on references, numeric on primitives; `===` is identity.
 public interface Named { String name(); }
-public open class Animal { }
+public base class Animal { }
 public record Person(String name) : Named { }
 
 String a = "x";

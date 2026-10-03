@@ -4,7 +4,7 @@ public abstract class Handler {
     protected final String name;
     protected Handler(String name) { this.name = name; }
     public abstract boolean handle(String msg);
-    public open String describe() => name;
+    public base String describe() => name;
 }
 
 public interface Listener {

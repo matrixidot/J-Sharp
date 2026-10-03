@@ -664,7 +664,7 @@ abstract class ParserBase {
   abstract Expr.ArrayInit parseArrayInit();
 
   private static final Set<String> CONTEXTUAL_MODIFIERS =
-      Set.of("open", "sealed", "override", "async", "required");
+      Set.of("base", "open", "sealed", "override", "async", "required");
 
   /** True if a contextual modifier word at index {@code i} acts as a modifier. */
   final boolean isContextualModifierAt(int i) {
@@ -755,6 +755,14 @@ abstract class ParserBase {
         m = Modifier.valueOf(t.kind().name());
       } else if (t.is(DEFAULT) && startsType(peek(1).kind())) {
         m = Modifier.DEFAULT;
+      } else if (isContextualModifierAt(pos) && t.text().equals("open")) {
+        // `open` (Kotlin's spelling) was renamed to `base` (D075).
+        errorAlways(
+            Code.INVALID_MODIFIER,
+            t.span(),
+            "J# uses 'base' instead of 'open'",
+            "write 'base' to allow inheriting from a class or overriding a member");
+        m = Modifier.BASE;
       } else if (isContextualModifierAt(pos)) {
         m = Modifier.valueOf(t.text().toUpperCase(java.util.Locale.ROOT));
       } else if (t.isContextual("value") && peek(1).is(CLASS)) {

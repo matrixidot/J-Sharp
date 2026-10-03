@@ -1,6 +1,6 @@
 import java.util.*;
 
-public open class Vault {
+public base class Vault {
     private String secret = "s";
     protected String hint = "h";
     internal String note = "n";
@@ -11,7 +11,7 @@ public open class Vault {
     public Vault() { }
 
     private void unlock() { }
-    protected open void audit() { }
+    protected base void audit() { }
     private static Vault master() => new Vault(0);
     public static Vault create() => master();
 

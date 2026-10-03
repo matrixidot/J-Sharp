@@ -13,7 +13,7 @@ public abstract class Component {
     }
 
     protected void emit(String e) => events.add(id + ":" + e);
-    protected open String render() => "<" + id + ">";
+    protected base String render() => "<" + id + ">";
     public abstract String kind();
     public String show(boolean verbose = false, String sep = " ") =>
         verbose ? kind() + sep + render() + sep + events : render();

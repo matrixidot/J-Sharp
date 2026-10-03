@@ -10,7 +10,7 @@ public class Settings {
     public boolean verbose { get; set; }
 }
 
-public open class Entity {
+public base class Entity {
     public required long id { get; init; }
 }
 

@@ -1,7 +1,7 @@
 // Casts between types that can never be converted.
 public interface Shape { double area(); }
 public class Point { }                   // final by default
-public open class Base { }
+public base class Base { }
 public record Square(double side) : Shape { public override double area() => side * side; }
 
 String s = "x";

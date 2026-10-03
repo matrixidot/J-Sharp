@@ -1730,10 +1730,10 @@ final class Patterns {
         if (mods.has(Modifier.ABSTRACT)) {
           flags |= Flags.ABSTRACT;
         }
-        if (mods.has(Modifier.OPEN)) {
-          flags |= Flags.OPEN;
+        if (mods.has(Modifier.BASE)) {
+          flags |= Flags.BASE;
         }
-        if (!mods.has(Modifier.OPEN) && !mods.has(Modifier.ABSTRACT)) {
+        if (!mods.has(Modifier.BASE) && !mods.has(Modifier.ABSTRACT)) {
           flags |= Flags.FINAL;
         }
         if (!hasThis()) {
@@ -1746,7 +1746,7 @@ final class Patterns {
     }
     for (Modifiers.Item item : mods.list()) {
       if (item.modifier() != Modifier.ABSTRACT
-          && item.modifier() != Modifier.OPEN
+          && item.modifier() != Modifier.BASE
           && item.modifier() != Modifier.FINAL) {
         a.error(
             Code.INVALID_MODIFIER,
@@ -1785,7 +1785,7 @@ final class Patterns {
                   + " "
                   + bs.displayName());
       if (bs.isSource() && !bs.isEnum() && !bs.isRecord()) {
-        d.help("declare it 'open class " + bs.name() + "'");
+        d.help("declare it 'base class " + bs.name() + "'");
       }
       a.report(d);
       return new BExpr.Error(base, span);

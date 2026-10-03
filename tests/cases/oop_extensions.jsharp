@@ -25,7 +25,7 @@ public class MoneyExt {
     public static Money plus(this Money m, Money other) => new Money(m.cents + other.cents);
 }
 
-public open class Animal { public String name() => "animal"; }
+public base class Animal { public String name() => "animal"; }
 public class Dog : Animal { }
 public static String hello(this Animal a) => "hello " + a.name();
 

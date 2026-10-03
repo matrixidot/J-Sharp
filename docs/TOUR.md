@@ -198,15 +198,15 @@ println(day(6));                                  // prints: weekend
 
 ## Classes and properties
 
-Classes are `final` unless declared `open`, and overriding needs `override`. Inheritance uses
+Classes are `final` unless declared `base`, and overriding needs `override`. Inheritance uses
 `:` with the base class first, then interfaces. Properties replace getter and setter
 boilerplate, and Java sees them as `getX()`/`setX()`.
 
 ```jsharp
-public open class Shape {
+public base class Shape {
     public String name { get; }
     public Shape(String name) { this.name = name; }
-    public open double area() => 0;
+    public base double area() => 0;
     public override String toString() => $"{name} with area {area():F2}";
 }
 

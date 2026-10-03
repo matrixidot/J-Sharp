@@ -210,7 +210,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
                 tn.span(),
                 "cannot inherit from final " + s.kindName() + " " + s.displayName());
         if (s.isSource() && !s.isEnum() && !s.isRecord()) {
-          b.help("J# classes are final by default; declare it 'open class " + s.name() + "'");
+          b.help("J# classes are final by default; declare it 'base class " + s.name() + "'");
         }
         b.report(ctx.diags);
         continue;
@@ -465,7 +465,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
         Modifier.STATIC,
         Modifier.FINAL,
         Modifier.ABSTRACT,
-        Modifier.OPEN,
+        Modifier.BASE,
         Modifier.OVERRIDE,
         Modifier.ASYNC,
         Modifier.DEFAULT,
@@ -526,14 +526,14 @@ public final class MemberEnter implements ClassSymbol.Completer {
           ModifierRules.itemOf(mods, Modifier.DEFAULT),
           "'default' is only allowed on interface methods");
     }
-    if (mods.has(Modifier.OPEN)) {
-      flags |= Flags.OPEN;
+    if (mods.has(Modifier.BASE)) {
+      flags |= Flags.BASE;
       if (isStatic || mods.has(Modifier.PRIVATE)) {
         ModifierRules.invalid(
             ctx,
             file,
-            ModifierRules.itemOf(mods, Modifier.OPEN),
-            "static and private methods cannot be 'open'");
+            ModifierRules.itemOf(mods, Modifier.BASE),
+            "static and private methods cannot be 'base'");
       }
     }
     if (mods.has(Modifier.OVERRIDE)) {
@@ -600,7 +600,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
     c.addMethod(m);
   }
 
-  /** Adds FINAL to overridable-looking instance methods of open classes that are not open. */
+  /** Adds FINAL to overridable-looking instance methods of base classes that are not base. */
   private static long finalityFlag(ClassSymbol c, Modifiers mods, long flags) {
     boolean classAllowsSubclasses = !c.isFinal() && !c.isInterface();
     if (!classAllowsSubclasses || Flags.is(flags, Flags.STATIC | Flags.PRIVATE | Flags.ABSTRACT)) {
@@ -609,7 +609,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
     if (mods.has(Modifier.FINAL)) {
       return Flags.FINAL;
     }
-    if (Flags.is(flags, Flags.OPEN) || Flags.is(flags, Flags.OVERRIDE)) {
+    if (Flags.is(flags, Flags.BASE) || Flags.is(flags, Flags.OVERRIDE)) {
       return 0;
     }
     return Flags.FINAL;
@@ -779,7 +779,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
         Modifier.INTERNAL,
         Modifier.STATIC,
         Modifier.ABSTRACT,
-        Modifier.OPEN,
+        Modifier.BASE,
         Modifier.OVERRIDE,
         Modifier.REQUIRED,
         Modifier.FINAL);
@@ -885,8 +885,8 @@ public final class MemberEnter implements ClassSymbol.Completer {
       ps.addFlags(Flags.INIT_ONLY);
     }
     long methodFlags = access | (isStatic ? Flags.STATIC : 0) | (isAbstract ? Flags.ABSTRACT : 0);
-    if (mods.has(Modifier.OPEN)) {
-      methodFlags |= Flags.OPEN;
+    if (mods.has(Modifier.BASE)) {
+      methodFlags |= Flags.BASE;
     }
     if (mods.has(Modifier.OVERRIDE)) {
       methodFlags |= Flags.OVERRIDE;

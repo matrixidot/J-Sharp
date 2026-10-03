@@ -8,16 +8,16 @@ modifier_errors.jsharp:7:26 JS0410 a method cannot be both 'static' and 'abstrac
 modifier_errors.jsharp:7:26 JS0410 abstract method 'i' in non-abstract class C [help: declare the class 'abstract']
 modifier_errors.jsharp:8:5 JS0410 'default' is only allowed on interface methods
 modifier_errors.jsharp:9:5 JS0410 'override' is not allowed on a field
-modifier_errors.jsharp:10:13 JS0410 static and private methods cannot be 'open'
-modifier_errors.jsharp:12:1 JS0410 a class cannot be both 'open' and 'final'
+modifier_errors.jsharp:10:13 JS0410 static and private methods cannot be 'base'
+modifier_errors.jsharp:12:1 JS0410 a class cannot be both 'base' and 'final'
 modifier_errors.jsharp:13:1 JS0410 top-level types are never 'static'
-modifier_errors.jsharp:14:1 JS0410 'sealed' cannot be combined with 'open' or 'final'
+modifier_errors.jsharp:14:1 JS0410 'sealed' cannot be combined with 'base' or 'final'
 modifier_errors.jsharp:14:19 JS0412 sealed class F has no subtypes in this file
 modifier_errors.jsharp:16:5 JS0410 interfaces cannot have instance fields [help: declare a property instead, or make it 'static']
 modifier_errors.jsharp:16:9 JS0417 interface constants need an initializer
 modifier_errors.jsharp:17:5 JS0410 interface members cannot be 'protected'
 modifier_errors.jsharp:20:5 JS0410 records cannot declare instance fields [help: add a record component, or make the field 'static']
-modifier_errors.jsharp:22:1 JS0410 records cannot be 'open'
+modifier_errors.jsharp:22:1 JS0410 records cannot be 'base'
 modifier_errors.jsharp:23:1 JS0410 interfaces cannot be 'abstract'
 ---
 class A : Object [public private final]

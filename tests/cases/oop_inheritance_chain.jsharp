@@ -1,12 +1,12 @@
-public open class Base {
+public base class Base {
     protected int level = 1;
     public Base() { println("Base ctor sees: " + describe()); }
-    public open String describe() => "base";
-    public open String greet() => "hello from A";
+    public base String describe() => "base";
+    public base String greet() => "hello from A";
     public String chain() => greet() + " | level " + level;
 }
 
-public open class Middle : Base {
+public base class Middle : Base {
     private String name = "middle";
     private int n = 5;
     public Middle() {

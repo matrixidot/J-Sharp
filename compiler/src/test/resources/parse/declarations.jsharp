@@ -27,8 +27,8 @@ public enum Planet(double mass, double radius) {
     public double gravity() => 6.67e-11 * mass / (radius * radius);
 }
 
-open class Base<T : Comparable<T>> where T : java.io.Serializable {
-    protected open T value() => null!;
+base class Base<T : Comparable<T>> where T : java.io.Serializable {
+    protected base T value() => null!;
 }
 
 sealed interface Shape2 permits Circle, Square;

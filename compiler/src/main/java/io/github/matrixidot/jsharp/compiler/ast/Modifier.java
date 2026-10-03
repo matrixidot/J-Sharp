@@ -10,7 +10,7 @@ public enum Modifier {
   FINAL,
   ABSTRACT,
   SEALED,
-  OPEN,
+  BASE,
   OVERRIDE,
   ASYNC,
   REQUIRED,

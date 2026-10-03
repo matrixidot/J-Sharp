@@ -1,0 +1,8 @@
+// `open` was renamed to `base`; the old spelling is an error with a fix, and still parses.
+public open class Animal {                                //~ JS0410
+    public base String speak() => "...";
+}
+public class Dog : Animal {
+    public override String speak() => "Woof";
+}
+int base = 3;                                             // `base` is contextual: still a name

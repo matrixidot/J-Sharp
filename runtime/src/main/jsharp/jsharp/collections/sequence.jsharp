@@ -25,7 +25,7 @@ public abstract class Sequence<T> : Iterable<T> {
      * Pushes every element into {@code action}: the non-cancellable traversal used by terminal
      * operations that consume everything (stages override it without per-element stop checks).
      */
-    public open override void forEach(Consumer<T> action) {
+    public base override void forEach(Consumer<T> action) {
         forEachWhile(x => { action.accept(x); return true; });
     }
 
@@ -82,7 +82,7 @@ public abstract class Sequence<T> : Iterable<T> {
     // ---------------------------------------------------------------- terminal operations
 
     /** The exact number of elements if known without traversing (collections), else -1. */
-    public open int sizeHint() => -1;
+    public base int sizeHint() => -1;
 
     public ArrayList<T> toList() {
         val n = sizeHint();

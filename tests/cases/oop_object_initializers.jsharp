@@ -9,7 +9,7 @@ public class Config {
     public Config() { println("Config() port=" + port); }
 }
 
-public open class Widget {
+public base class Widget {
     public String id { get; set; } = "w";
     public int width { get; set; }
     public Widget() { }

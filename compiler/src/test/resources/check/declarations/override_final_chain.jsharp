@@ -1,9 +1,9 @@
-public open class Animal {
-    public open String sound() => "...";
-    public open String name() => "animal";
+public base class Animal {
+    public base String sound() => "...";
+    public base String name() => "animal";
 }
 
-public open class Dog : Animal {
+public base class Dog : Animal {
     public final override String sound() => "woof";
     public override String name() => "dog";
 }
@@ -13,7 +13,7 @@ public class Puppy : Dog {
     public override String name() => "puppy";
 }
 
-public open class Mammal : Animal {
+public base class Mammal : Animal {
 }
 
 public class Cat : Mammal {

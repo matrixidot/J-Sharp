@@ -24,7 +24,7 @@ public final class SymbolPrinter {
     Flags.FINAL,
     Flags.ABSTRACT,
     Flags.SEALED,
-    Flags.OPEN,
+    Flags.BASE,
     Flags.OVERRIDE,
     Flags.ASYNC,
     Flags.REQUIRED,

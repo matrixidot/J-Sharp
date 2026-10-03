@@ -1,6 +1,6 @@
 import java.util.*;
 
-public open class Entity {
+public base class Entity {
     public required long id { get; init; }
     public String createdBy { get; init; } = "system";
 }

@@ -1,4 +1,4 @@
-public open class Base {
+public base class Base {
     static { println("Base static"); }
     private String tag = trace("Base field");
     { println("Base init block"); }
