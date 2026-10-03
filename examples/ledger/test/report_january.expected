@@ -1,0 +1,34 @@
+== Balances ==========================================
+  Checking     checking    5,700.02 USD
+  Savings      savings     9,300.00 USD
+  Visa         credit       -128.85 USD
+  net worth               14,871.17 USD
+== Spending by category ==============================
+  housing      2,900.00 USD  69.4%
+  food           571.65 USD  13.7%
+  shopping       248.20 USD  5.9%
+  fun            219.00 USD  5.2%
+  transport      179.98 USD  4.3%
+  health          60.00 USD  1.4%
+  total        4,178.83 USD
+== Monthly cash flow =================================
+  2024-01  in  4,200.00 USD  out  2,074.59 USD  net  2,125.41 USD +#####################
+  2024-02  in  4,450.00 USD  out  2,104.24 USD  net  2,345.76 USD +#######################
+== Budgets, 2024-01 ==================================
+  food          219.20 USD of    450.00 USD  ok, 230.80 USD left
+  fun            45.00 USD of    150.00 USD  ok, 105.00 USD left
+  shopping      210.40 USD of    200.00 USD  OVER by 10.40 USD
+== Top 5 payees ======================================
+  Maple Apartments     2x   2,900.00 USD
+  Green Grocer         4x     438.35 USD
+  Outdoor Gear Co      1x     210.40 USD
+  City Transit         2x     179.98 USD
+  Concert Hall         1x     120.00 USD
+== Spending by category, 2024-01 =====================
+  housing      1,450.00 USD  69.9%
+  food           219.20 USD  10.6%
+  shopping       210.40 USD  10.1%
+  transport       89.99 USD  4.3%
+  health          60.00 USD  2.9%
+  fun             45.00 USD  2.2%
+  total        2,074.59 USD

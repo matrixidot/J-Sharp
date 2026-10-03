@@ -1,0 +1,77 @@
+// A tiny JSON model and writer (export format), using a sealed hierarchy and pattern matching.
+package ledger.json;
+
+import java.util.*;
+import ledger.model.*;
+
+public sealed interface Json permits JNull, JBool, JNum, JStr, JArr, JObj;
+public record JNull() : Json;
+public record JBool(boolean value) : Json;
+public record JNum(long value) : Json;
+public record JStr(String value) : Json;
+public record JArr(List<Json> items) : Json;
+public record JObj(LinkedHashMap<String, Json> fields) : Json {
+    public JObj put(String key, Json value) {
+        fields.put(key, value);
+        return this;
+    }
+}
+
+public static JObj obj() => new JObj(new LinkedHashMap<>());
+
+public static JStr str(String s) => new JStr(s);
+
+/** Serializes with two-space indentation. */
+public static String write(Json j, int indent = 0) {
+    val pad = "  ".repeat(indent);
+    return j switch {
+        JNull n => "null",
+        JBool b => String.valueOf(b.value),
+        JNum n => String.valueOf(n.value),
+        JStr s => quote(s.value),
+        JArr a when a.items.isEmpty() => "[]",
+        JArr a => "[\n" + a.items.select(x => pad + "  " + write(x, indent + 1)).joinToString(",\n") + "\n" + pad + "]",
+        JObj o when o.fields.isEmpty() => "{}",
+        JObj o => "{\n" + o.fields.entrySet()
+            .select(e => $"{pad}  {quote(e.getKey())}: {write(e.getValue(), indent + 1)}")
+            .joinToString(",\n") + "\n" + pad + "}",
+    };
+}
+
+public static String quote(String s) {
+    val sb = new StringBuilder("\"");
+    foreach (var c in s.toCharArray()) {
+        switch (c) {
+            case '"': sb.append("\\\""); break;
+            case '\\': sb.append("\\\\"); break;
+            case '\n': sb.append("\\n"); break;
+            case '\t': sb.append("\\t"); break;
+            default:
+                if (c < ' ') sb.append(String.format("\\u%04x", (int) c));
+                else sb.append(c);
+                break;
+        }
+    }
+    return sb.append('"').toString();
+}
+
+/** The ledger as JSON (amounts in cents to stay exact). */
+public static Json toJson(Ledger l) {
+    val accounts = l.accounts.select(a => (Json) obj()
+        .put("name", str(a.name))
+        .put("kind", str(a.kind.name().toLowerCase()))
+        .put("openingCents", new JNum(a.opening.cents))
+        .put("balanceCents", new JNum(l.balance(a.name).cents))).toList();
+    val transactions = l.transactions.select(t => (Json) obj()
+        .put("id", new JNum(t.id))
+        .put("date", str(t.date.toString()))
+        .put("account", str(t.account))
+        .put("amountCents", new JNum(t.amount.cents))
+        .put("category", str(t.category.label))
+        .put("payee", str(t.payee))
+        .put("tags", new JArr(t.tags.select(x => (Json) str(x)).toList()))).toList();
+    return obj()
+        .put("currency", str(l.currency))
+        .put("accounts", new JArr(accounts))
+        .put("transactions", new JArr(transactions));
+}

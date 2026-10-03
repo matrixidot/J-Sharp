@@ -1,0 +1,10 @@
+# A ledger with mistakes, to show error reporting.
+currency USD
+account Checking checking 100.00
+account Checking savings 5
+account Wallet pocket 20
+budget snacks 50
+2024-03-01 Checking -12.345 food "Deli"
+2024-03-02 Checking -5.00 food "Deli" oops
+2024-13-01 Checking -1.00 food "Deli"
+2024-03-03 Cash -3.00 food "Deli"

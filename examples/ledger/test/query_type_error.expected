@@ -1,0 +1,4 @@
+query: category >= food
+  category >= food
+              ^
+error at column 13: category only supports = and !=

@@ -1,0 +1,162 @@
+// Parses the plain-text ledger format (see data/sample.ledger):
+//   currency USD
+//   account <name> <checking|savings|credit> <opening>
+//   budget <category> <monthly limit>
+//   <yyyy-mm-dd> <account> <+/-amount> <category> "<payee>" [#tag ...]
+//   transfer <yyyy-mm-dd> <from> <to> <amount>
+package ledger.parse;
+
+import java.time.*;
+import java.time.format.DateTimeParseException;
+import java.util.*;
+import ledger.model.*;
+
+/** A problem at a line of the input. */
+public record ParseError(int line, String message) {
+    public override String toString() => $"line {line}: {message}";
+}
+
+/** Splits a line into words; double quotes group words, `#` starts a comment unless it starts a tag. */
+public static List<String> words(String line) {
+    val out = new ArrayList<String>();
+    val sb = new StringBuilder();
+    var quoted = false;
+    var inWord = false;
+    for (int i = 0; i < line.length(); i++) {
+        val c = line.charAt(i);
+        if (c == '"') {
+            quoted = !quoted;
+            inWord = true;
+            continue;
+        }
+        if (!quoted && Character.isWhitespace(c)) {
+            if (inWord) {
+                out.add(sb.toString());
+                sb.setLength(0);
+                inWord = false;
+            }
+            continue;
+        }
+        if (!quoted && c == '#' && !inWord && (i + 1 >= line.length() || Character.isWhitespace(line.charAt(i + 1)))) {
+            break; // a lone '#' starts a comment
+        }
+        sb.append(c);
+        inWord = true;
+    }
+    if (inWord) out.add(sb.toString());
+    return out;
+}
+
+public class LedgerParser {
+    private final ArrayList<ParseError> errors = new ArrayList<>();
+    private final ArrayList<Account> accounts = new ArrayList<>();
+    private final ArrayList<Transaction> transactions = new ArrayList<>();
+    private final ArrayList<Budget> budgets = new ArrayList<>();
+    private String currency = "USD";
+        private int nextId = 1;
+    private int lineNo;
+    private final HashMap<Integer, Integer> lineOfId = new HashMap<>();
+
+    public Result<Ledger, List<ParseError>> parse(String text) {
+        foreach (var raw in text.lines().toList()) {
+            lineNo++;
+            val line = raw.strip();
+            if (line.isEmpty() || line.startsWith("# ") || line == "#") continue;
+            try {
+                parseLine(words(line));
+            } catch (DateTimeParseException e) {
+                error($"bad date: {e.getParsedString()}");
+            } catch (NumberFormatException e) {
+                error($"bad number: {e.getMessage()}");
+            } catch (IllegalArgumentException e) {
+                error(e.getMessage() ?? "invalid value");
+            }
+        }
+        checkAccountsExist();
+        if (!errors.isEmpty()) return Result.err(errors);
+        return Result.ok(new Ledger {
+            accounts = accounts,
+            transactions = transactions,
+            budgets = budgets,
+            currency = currency,
+        });
+    }
+
+    private void parseLine(List<String> w) {
+        switch (w.get(0)) {
+            case "currency":
+                expectWords(w, 2);
+                currency = w.get(1).toUpperCase();
+                break;
+            case "account":
+                expectWords(w, 4);
+                val kind = switch (w.get(2).toLowerCase()) {
+                    "checking" => AccountKind.Checking,
+                    "savings" => AccountKind.Savings,
+                    "credit" => AccountKind.Credit,
+                    _ => throw new IllegalArgumentException($"unknown account kind '{w.get(2)}'"),
+                };
+                if (accounts.any(a => a.name == w.get(1))) {
+                    error($"account '{w.get(1)}' declared twice");
+                    return;
+                }
+                accounts.add(new Account(w.get(1), kind, Money.parse(w.get(3), currency)));
+                break;
+            case "budget":
+                expectWords(w, 3);
+                budgets.add(new Budget(category(w.get(1)), Money.parse(w.get(2), currency)));
+                break;
+            case "transfer":
+                expectWords(w, 5);
+                val date = LocalDate.parse(w.get(1));
+                val amount = Money.parse(w.get(4), currency);
+                require(!amount.isNegative, "transfer amounts are positive");
+                add(date, w.get(2), amount.negate(), Category.Other, "transfer to " + w.get(3), List.of("transfer"));
+                add(date, w.get(3), amount, Category.Other, "transfer from " + w.get(2), List.of("transfer"));
+                break;
+            default:
+                transaction(w);
+                break;
+        }
+    }
+
+    private void transaction(List<String> w) {
+        if (w.size() < 5) {
+            error($"expected '<date> <account> <amount> <category> <payee>', found {w.size()} words");
+            return;
+        }
+        val tags = w.subList(5, w.size()).where(t => t.startsWith("#")).select(t => t.substring(1)).toList();
+        val stray = w.subList(5, w.size()).firstOrNull(t => !t.startsWith("#"));
+        if (stray != null) {
+            error($"unexpected '{stray}' after the payee (tags start with #)");
+            return;
+        }
+        add(LocalDate.parse(w.get(0)), w.get(1), Money.parse(w.get(2), currency), category(w.get(3)), w.get(4), tags);
+    }
+
+    private void add(LocalDate date, String account, Money amount, Category category, String payee, List<String> tags) {
+                lineOfId.put(nextId, lineNo);
+        transactions.add(new Transaction(nextId++, date, account, amount, category, payee, tags));
+    }
+
+    private Category category(String name) =>
+        Category.find(name) ?? throw new IllegalArgumentException($"unknown category '{name}'");
+
+    private void expectWords(List<String> w, int n) {
+        if (w.size() != n) {
+            throw new IllegalArgumentException($"'{w.get(0)}' takes {n - 1} values, found {w.size() - 1}");
+        }
+    }
+
+    private void checkAccountsExist() {
+        val names = accounts.select(a => a.name).toSet();
+        foreach (var t in transactions) {
+            if (!names.contains(t.account)) {
+                                errors.add(new ParseError(lineOfId.get(t.id) ?? 0, $"unknown account '{t.account}'"));
+            }
+        }
+        errors.sort(Comparator.comparingInt(ParseError::line));
+    }
+
+    private void error(String message) => errors.add(new ParseError(lineNo, message));
+}

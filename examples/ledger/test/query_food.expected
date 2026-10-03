@@ -1,0 +1,7 @@
+query: (category = food and amount < -50)
+  #3 2024-01-03 Green Grocer           -64.20 USD  food
+  #7 2024-01-12 Green Grocer          -132.75 USD  food
+  #17 2024-02-04 Green Grocer           -98.30 USD  food
+  #21 2024-02-14 Bistro Nine            -86.40 USD  food
+  #23 2024-02-20 Green Grocer          -143.10 USD  food
+5 transaction(s), total -524.75 USD

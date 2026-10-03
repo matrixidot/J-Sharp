@@ -1,0 +1,95 @@
+// Money as a value type: exact integer cents, never floating point.
+package ledger.model;
+
+import java.util.*;
+
+/** An amount of money in cents, in a single currency. */
+public record Money(long cents, String currency) : Comparable<Money> {
+    public Money {
+        require(currency.length() == 3, $"currency code must have 3 letters: '{currency}'");
+    }
+
+    public static Money zero(String currency = "USD") => new Money(0, currency);
+
+    /** Parses "12.34", "-5", "1,250.00" (at most two decimals). */
+    public static Money parse(String text, String currency = "USD") {
+        var s = text.trim().replace(",", "");
+        val negative = s.startsWith("-");
+        if (negative) s = s.substring(1);
+        val dot = s.indexOf('.');
+        long whole;
+        long frac = 0;
+        if (dot < 0) {
+            whole = Long.parseLong(s);
+        } else {
+            whole = dot == 0 ? 0 : Long.parseLong(s.substring(0, dot));
+            var digits = s.substring(dot + 1);
+            require(digits.length() <= 2, $"too many decimals in '{text}'");
+            if (digits.length() == 1) digits += "0";
+            frac = digits.isEmpty() ? 0 : Long.parseLong(digits);
+        }
+        val cents = whole * 100 + frac;
+        return new Money(negative ? -cents : cents, currency);
+    }
+
+    public Money plus(Money other) {
+        sameCurrency(other);
+        return new Money(Math.addExact(cents, other.cents), currency);
+    }
+
+    public Money minus(Money other) {
+        sameCurrency(other);
+        return new Money(Math.subtractExact(cents, other.cents), currency);
+    }
+
+    public Money times(int factor) => new Money(Math.multiplyExact(cents, (long) factor), currency);
+
+    public Money negate() => new Money(-cents, currency);
+
+    public Money abs() => cents < 0 ? negate() : this;
+
+    public boolean isNegative => cents < 0;
+
+    public boolean isZero => cents == 0;
+
+    /** Splits into {@code parts} amounts that differ by at most one cent and sum to this. */
+    public List<Money> split(int parts) {
+        require(parts > 0, "parts must be positive");
+        val base = cents / parts;
+        val rest = cents % parts;
+        val out = new ArrayList<Money>();
+        for (int i = 0; i < parts; i++) {
+            out.add(new Money(base + (i < rest ? 1 : 0), currency));
+        }
+        return out;
+    }
+
+    /** Percentage of {@code total} (0 when the total is zero), rounded to one decimal. */
+    public double percentOf(Money total) =>
+        total.cents == 0 ? 0 : Math.round(cents * 1000.0 / total.cents) / 10.0;
+
+    public override int compareTo(Money other) {
+        sameCurrency(other);
+        return Long.compare(cents, other.cents);
+    }
+
+    private void sameCurrency(Money other) {
+        if (currency != other.currency) {
+            throw new IllegalArgumentException($"currency mismatch: {currency} vs {other.currency}");
+        }
+    }
+
+    /** "1,234.56 USD"; negative amounts get a leading minus. */
+    public override String toString() {
+        val a = Math.abs(cents);
+        val whole = String.format("%,d", a / 100);
+        return $"{(cents < 0 ? "-" : "")}{whole}.{a % 100:D2} {currency}";
+    }
+}
+
+/** Sums money values; the result of an empty sequence is zero. */
+public static Money total(this Iterable<Money> amounts, String currency = "USD") {
+    var sum = Money.zero(currency);
+    foreach (var m in amounts) sum = sum.plus(m);
+    return sum;
+}

@@ -1,0 +1,3 @@
+query
+data/sample.ledger
+category = food and amount < -50

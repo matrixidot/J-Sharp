@@ -1,0 +1,67 @@
+// The ledger's domain: accounts, categories, transactions and budgets.
+package ledger.model;
+
+import java.time.*;
+import java.util.*;
+
+public enum Category(String label, boolean essential) {
+    Housing("housing", true),
+    Food("food", true),
+    Transport("transport", true),
+    Health("health", true),
+    Fun("fun", false),
+    Shopping("shopping", false),
+    Income("income", false),
+    Other("other", false);
+
+    /** Case-insensitive lookup by label or name. */
+    public static Category? find(String text) {
+        foreach (var c in values()) {
+            if (c.label.equalsIgnoreCase(text) || c.name().equalsIgnoreCase(text)) return c;
+        }
+        return null;
+    }
+}
+
+public enum AccountKind { Checking, Savings, Credit }
+
+public record Account(String name, AccountKind kind, Money opening);
+
+/** One booked transaction. Positive amounts are money in, negative money out. */
+public record Transaction(
+    int id, LocalDate date, String account, Money amount, Category category, String payee, List<String> tags) {
+
+    public boolean isIncome => !amount.isNegative;
+
+    public boolean hasTag(String tag) => tags.contains(tag);
+
+    public YearMonth month => YearMonth.from(date);
+
+    public override String toString() =>
+        $"#{id} {date} {payee.padRight(18)} {amount.toString().padLeft(14)}  {category.label}";
+}
+
+/** A monthly spending limit for a category. */
+public record Budget(Category category, Money limit);
+
+/** Everything parsed from a ledger file. */
+public class Ledger {
+    public List<Account> accounts { get; init; } = new ArrayList<>();
+    public List<Transaction> transactions { get; init; } = new ArrayList<>();
+    public List<Budget> budgets { get; init; } = new ArrayList<>();
+    public String currency { get; init; } = "USD";
+
+    public Account? account(String name) => accounts.firstOrNull(a => a.name == name);
+
+    /** Opening balance plus all of the account's transactions. */
+    public Money balance(String accountName) {
+        val acc = account(accountName);
+        if (acc == null) throw new NoSuchElementException("no account " + accountName);
+        return acc.opening.plus(transactions.where(t => t.account == accountName).select(t => t.amount).total(currency));
+    }
+
+    public Money netWorth() => accounts.select(a => balance(a.name)).total(currency);
+
+    public List<YearMonth> months() =>
+        transactions.select(t => t.month).distinct().orderBy(m => m).toList();
+}

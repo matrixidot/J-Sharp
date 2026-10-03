@@ -1,0 +1,339 @@
+{
+  "currency": "USD",
+  "accounts": [
+    {
+      "name": "Checking",
+      "kind": "checking",
+      "openingCents": 240000,
+      "balanceCents": 570002
+    },
+    {
+      "name": "Savings",
+      "kind": "savings",
+      "openingCents": 800000,
+      "balanceCents": 930000
+    },
+    {
+      "name": "Visa",
+      "kind": "credit",
+      "openingCents": 0,
+      "balanceCents": -12885
+    }
+  ],
+  "transactions": [
+    {
+      "id": 1,
+      "date": "2024-01-01",
+      "account": "Checking",
+      "amountCents": 420000,
+      "category": "income",
+      "payee": "Acme Corp",
+      "tags": [
+        "salary"
+      ]
+    },
+    {
+      "id": 2,
+      "date": "2024-01-02",
+      "account": "Checking",
+      "amountCents": -145000,
+      "category": "housing",
+      "payee": "Maple Apartments",
+      "tags": [
+        "rent"
+      ]
+    },
+    {
+      "id": 3,
+      "date": "2024-01-03",
+      "account": "Visa",
+      "amountCents": -6420,
+      "category": "food",
+      "payee": "Green Grocer",
+      "tags": []
+    },
+    {
+      "id": 4,
+      "date": "2024-01-05",
+      "account": "Visa",
+      "amountCents": -1250,
+      "category": "food",
+      "payee": "Corner Coffee",
+      "tags": [
+        "coffee"
+      ]
+    },
+    {
+      "id": 5,
+      "date": "2024-01-07",
+      "account": "Checking",
+      "amountCents": -8999,
+      "category": "transport",
+      "payee": "City Transit",
+      "tags": [
+        "pass"
+      ]
+    },
+    {
+      "id": 6,
+      "date": "2024-01-09",
+      "account": "Visa",
+      "amountCents": -4500,
+      "category": "fun",
+      "payee": "Cinema Plaza",
+      "tags": []
+    },
+    {
+      "id": 7,
+      "date": "2024-01-12",
+      "account": "Visa",
+      "amountCents": -13275,
+      "category": "food",
+      "payee": "Green Grocer",
+      "tags": []
+    },
+    {
+      "id": 8,
+      "date": "2024-01-15",
+      "account": "Checking",
+      "amountCents": -6000,
+      "category": "health",
+      "payee": "Wellness Clinic",
+      "tags": []
+    },
+    {
+      "id": 9,
+      "date": "2024-01-19",
+      "account": "Visa",
+      "amountCents": -21040,
+      "category": "shopping",
+      "payee": "Outdoor Gear Co",
+      "tags": [
+        "travel"
+      ]
+    },
+    {
+      "id": 10,
+      "date": "2024-01-22",
+      "account": "Visa",
+      "amountCents": -975,
+      "category": "food",
+      "payee": "Corner Coffee",
+      "tags": [
+        "coffee"
+      ]
+    },
+    {
+      "id": 11,
+      "date": "2024-01-25",
+      "account": "Checking",
+      "amountCents": -50000,
+      "category": "other",
+      "payee": "transfer to Savings",
+      "tags": [
+        "transfer"
+      ]
+    },
+    {
+      "id": 12,
+      "date": "2024-01-25",
+      "account": "Savings",
+      "amountCents": 50000,
+      "category": "other",
+      "payee": "transfer from Checking",
+      "tags": [
+        "transfer"
+      ]
+    },
+    {
+      "id": 13,
+      "date": "2024-01-28",
+      "account": "Checking",
+      "amountCents": -35000,
+      "category": "other",
+      "payee": "transfer to Visa",
+      "tags": [
+        "transfer"
+      ]
+    },
+    {
+      "id": 14,
+      "date": "2024-01-28",
+      "account": "Visa",
+      "amountCents": 35000,
+      "category": "other",
+      "payee": "transfer from Checking",
+      "tags": [
+        "transfer"
+      ]
+    },
+    {
+      "id": 15,
+      "date": "2024-02-01",
+      "account": "Checking",
+      "amountCents": 420000,
+      "category": "income",
+      "payee": "Acme Corp",
+      "tags": [
+        "salary"
+      ]
+    },
+    {
+      "id": 16,
+      "date": "2024-02-01",
+      "account": "Checking",
+      "amountCents": -145000,
+      "category": "housing",
+      "payee": "Maple Apartments",
+      "tags": [
+        "rent"
+      ]
+    },
+    {
+      "id": 17,
+      "date": "2024-02-04",
+      "account": "Visa",
+      "amountCents": -9830,
+      "category": "food",
+      "payee": "Green Grocer",
+      "tags": []
+    },
+    {
+      "id": 18,
+      "date": "2024-02-06",
+      "account": "Visa",
+      "amountCents": -1125,
+      "category": "food",
+      "payee": "Corner Coffee",
+      "tags": [
+        "coffee"
+      ]
+    },
+    {
+      "id": 19,
+      "date": "2024-02-07",
+      "account": "Checking",
+      "amountCents": -8999,
+      "category": "transport",
+      "payee": "City Transit",
+      "tags": [
+        "pass"
+      ]
+    },
+    {
+      "id": 20,
+      "date": "2024-02-10",
+      "account": "Visa",
+      "amountCents": -12000,
+      "category": "fun",
+      "payee": "Concert Hall",
+      "tags": [
+        "music"
+      ]
+    },
+    {
+      "id": 21,
+      "date": "2024-02-14",
+      "account": "Visa",
+      "amountCents": -8640,
+      "category": "food",
+      "payee": "Bistro Nine",
+      "tags": [
+        "date"
+      ]
+    },
+    {
+      "id": 22,
+      "date": "2024-02-17",
+      "account": "Visa",
+      "amountCents": -5400,
+      "category": "fun",
+      "payee": "Cinema Plaza",
+      "tags": []
+    },
+    {
+      "id": 23,
+      "date": "2024-02-20",
+      "account": "Visa",
+      "amountCents": -14310,
+      "category": "food",
+      "payee": "Green Grocer",
+      "tags": []
+    },
+    {
+      "id": 24,
+      "date": "2024-02-22",
+      "account": "Checking",
+      "amountCents": 25000,
+      "category": "income",
+      "payee": "Freelance Client",
+      "tags": [
+        "side"
+      ]
+    },
+    {
+      "id": 25,
+      "date": "2024-02-24",
+      "account": "Visa",
+      "amountCents": -3780,
+      "category": "shopping",
+      "payee": "Bookshop",
+      "tags": []
+    },
+    {
+      "id": 26,
+      "date": "2024-02-26",
+      "account": "Visa",
+      "amountCents": -1340,
+      "category": "food",
+      "payee": "Corner Coffee",
+      "tags": [
+        "coffee"
+      ]
+    },
+    {
+      "id": 27,
+      "date": "2024-02-27",
+      "account": "Checking",
+      "amountCents": -80000,
+      "category": "other",
+      "payee": "transfer to Savings",
+      "tags": [
+        "transfer"
+      ]
+    },
+    {
+      "id": 28,
+      "date": "2024-02-27",
+      "account": "Savings",
+      "amountCents": 80000,
+      "category": "other",
+      "payee": "transfer from Checking",
+      "tags": [
+        "transfer"
+      ]
+    },
+    {
+      "id": 29,
+      "date": "2024-02-28",
+      "account": "Checking",
+      "amountCents": -56000,
+      "category": "other",
+      "payee": "transfer to Visa",
+      "tags": [
+        "transfer"
+      ]
+    },
+    {
+      "id": 30,
+      "date": "2024-02-28",
+      "account": "Visa",
+      "amountCents": 56000,
+      "category": "other",
+      "payee": "transfer from Checking",
+      "tags": [
+        "transfer"
+      ]
+    }
+  ]
+}

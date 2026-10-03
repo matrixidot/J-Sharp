@@ -1,0 +1,3 @@
+  payee ~ "coffee" and (month = 2024-02 or amount <)
+                                                   ^
+error at column 50: expected a value

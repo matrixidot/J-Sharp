@@ -1,0 +1,7 @@
+query: (payee ~ coffee or tag = travel)
+  #4 2024-01-05 Corner Coffee          -12.50 USD  food
+  #9 2024-01-19 Outdoor Gear Co       -210.40 USD  shopping
+  #10 2024-01-22 Corner Coffee           -9.75 USD  food
+  #18 2024-02-06 Corner Coffee          -11.25 USD  food
+  #26 2024-02-26 Corner Coffee          -13.40 USD  food
+5 transaction(s), total -257.30 USD

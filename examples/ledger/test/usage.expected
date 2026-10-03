@@ -1,0 +1,7 @@
+usage: ledger <report|query|forecast|split|export|check> ...
+  report <file> [yyyy-mm]   overview; budgets for the given or latest month
+  query  <file> <query>     e.g. 'category = food and amount < -20'
+  forecast <file> [months] recurring items and projected net worth
+  split  <amount> <parts>   split a bill fairly to the cent
+  export <file>             print the ledger as JSON
+  check  <file>             validate a ledger file

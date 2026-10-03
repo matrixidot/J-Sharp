@@ -256,3 +256,11 @@ Format: **decision** — reason. *Rejected:* alternatives.
 - **D069: Deep nesting.** Compiler phases run on a thread with a 512 MB (reserved) stack, and the
   parser reports "code is nested too deeply" (JS0109) at ~1000 source levels or on a stack
   overflow, so pathological input never escapes as an internal error.
+- **D070: Declaration-site variance for JDK interfaces.** J# source has no use-site wildcards, so
+  a few JDK interfaces whose type parameters are used only as inputs or only as outputs get
+  Kotlin-style variance when read from class files: `Comparable<in T>`, `Comparator<in T>`,
+  `Callable<out V>`, and the `java.util.function` types (`Function<in T, out R>`,
+  `Predicate<in T>`, `Consumer<in T>`, `Supplier<out T>`, `ToIntFunction<in T>`, ...). Then
+  `LocalDate` (a `Comparable<ChronoLocalDate>`) satisfies `K : Comparable<K>`, and a
+  `Predicate<Object>` is a `Predicate<String>`. This affects type checking only; bytecode is
+  unchanged.

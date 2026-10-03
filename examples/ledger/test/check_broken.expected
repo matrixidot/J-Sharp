@@ -1,0 +1,8 @@
+data/broken.ledger: 7 problem(s):
+  line 4: account 'Checking' declared twice
+  line 5: unknown account kind 'pocket'
+  line 6: unknown category 'snacks'
+  line 7: too many decimals in '-12.345'
+  line 8: unexpected 'oops' after the payee (tags start with #)
+  line 9: bad date: 2024-13-01
+  line 10: unknown account 'Cash'

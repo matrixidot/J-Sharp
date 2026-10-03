@@ -1,0 +1,239 @@
+// A small query language over transactions, e.g.
+//   category = food and amount < -20
+//   payee ~ "coffee" or (tag = travel and month = 2024-02)
+//   not account = Visa
+// Lexer -> recursive-descent parser -> sealed AST -> compiled Predicate<Transaction>.
+package ledger.query;
+
+import java.time.*;
+import java.util.*;
+import java.util.function.Predicate;
+import ledger.model.*;
+
+/** A malformed or ill-typed query, with the column where it went wrong. */
+public class QueryException : RuntimeException {
+    public final int column;
+    public QueryException(String message, int column) {
+        super(message);
+        this.column = column;
+    }
+}
+
+// -------------------------------------------------------------------- tokens
+
+public sealed interface Token permits Word, Number, Text, Symbol, End;
+public record Word(String text, int column) : Token;
+public record Number(String text, int column) : Token;
+public record Text(String text, int column) : Token;
+public record Symbol(String text, int column) : Token;
+public record End(int column) : Token;
+
+public static int columnOf(Token t) => t switch {
+    Word w => w.column,
+    Number n => n.column,
+    Text s => s.column,
+    Symbol s => s.column,
+    End e => e.column,
+};
+
+public static List<Token> tokenize(String q) {
+    val out = new ArrayList<Token>();
+    var i = 0;
+    while (i < q.length()) {
+        val c = q.charAt(i);
+        val start = i;
+        if (Character.isWhitespace(c)) {
+            i++;
+        } else if (c == '"') {
+            val close = q.indexOf('"', i + 1);
+            if (close < 0) throw new QueryException("unterminated string", start + 1);
+            out.add(new Text(q.substring(i + 1, close), start + 1));
+            i = close + 1;
+        } else if (Character.isDigit(c) || (c == '-' && i + 1 < q.length() && Character.isDigit(q.charAt(i + 1)))) {
+            i++;
+            while (i < q.length() && (Character.isDigit(q.charAt(i)) || q.charAt(i) == '.' || q.charAt(i) == '-')) i++;
+            out.add(new Number(q.substring(start, i), start + 1));
+        } else if (Character.isLetter(c)) {
+            while (i < q.length() && (Character.isLetterOrDigit(q.charAt(i)) || q.charAt(i) == '_')) i++;
+            out.add(new Word(q.substring(start, i), start + 1));
+        } else {
+            val two = i + 1 < q.length() ? q.substring(i, i + 2) : "";
+            if (two == "!=" || two == "<=" || two == ">=") {
+                out.add(new Symbol(two, start + 1));
+                i += 2;
+            } else if ("=<>~()".indexOf(c) >= 0) {
+                out.add(new Symbol(String.valueOf(c), start + 1));
+                i++;
+            } else {
+                throw new QueryException($"unexpected character '{c}'", start + 1);
+            }
+        }
+    }
+    out.add(new End(q.length() + 1));
+    return out;
+}
+
+// -------------------------------------------------------------------- syntax tree
+
+public enum Field { Amount, Payee, Category, Account, Date, Month, Tag }
+
+public enum Op(String symbol) {
+    Eq("="), Ne("!="), Lt("<"), Le("<="), Gt(">"), Ge(">="), Contains("~");
+}
+
+public sealed interface Query permits And, Or, Not, Compare;
+public record And(Query left, Query right) : Query;
+public record Or(Query left, Query right) : Query;
+public record Not(Query inner) : Query;
+public record Compare(Field field, Op op, String value, int column) : Query;
+
+/** Renders a query back to text with explicit parentheses (useful to show how it was read). */
+public static String show(Query q) => q switch {
+    And(var l, var r) => $"({show(l)} and {show(r)})",
+    Or(var l, var r) => $"({show(l)} or {show(r)})",
+    Not(var inner) => $"not {show(inner)}",
+    Compare c => $"{c.field.name().toLowerCase()} {c.op.symbol} {c.value}",
+};
+
+// -------------------------------------------------------------------- parser
+
+public class QueryParser {
+    private final List<Token> tokens;
+    private int pos;
+
+    public QueryParser(String text) { tokens = tokenize(text); }
+
+    public Query parse() {
+        val q = or();
+        if (peek() is not End) throw error("expected 'and', 'or' or the end of the query");
+        return q;
+    }
+
+    private Query or() {
+        var left = and();
+        while (isWord("or")) {
+            pos++;
+            left = new Or(left, and());
+        }
+        return left;
+    }
+
+    private Query and() {
+        var left = not();
+        while (isWord("and")) {
+            pos++;
+            left = new And(left, not());
+        }
+        return left;
+    }
+
+    private Query not() {
+        if (isWord("not")) {
+            pos++;
+            return new Not(not());
+        }
+        return primary();
+    }
+
+    private Query primary() {
+        if (peek() is Symbol { text: "(" }) {
+            pos++;
+            val inner = or();
+            if (!(peek() is Symbol { text: ")" })) throw error("expected ')'");
+            pos++;
+            return inner;
+        }
+        if (!(peek() is Word w)) throw error("expected a field name");
+        val field = fieldNamed(w.text) ?? throw error($"unknown field '{w.text}' (fields: amount, payee, category, account, date, month, tag)");
+        pos++;
+        if (!(peek() is Symbol s) || s.text == "(" || s.text == ")") throw error("expected a comparison (=, !=, <, <=, >, >=, ~)");
+        val op = opNamed(s.text)!;
+        pos++;
+        val value = peek() switch {
+            Word vw => vw.text,
+            Number n => n.text,
+            Text t => t.text,
+            _ => throw error("expected a value"),
+        };
+        val column = columnOf(peek());
+        pos++;
+        return new Compare(field, op, value, column);
+    }
+
+    private Token peek() => tokens.get(pos);
+
+    private boolean isWord(String keyword) => peek() is Word w && w.text.equalsIgnoreCase(keyword);
+
+    private QueryException error(String message) => new QueryException(message, columnOf(peek()));
+
+    private static Field? fieldNamed(String name) =>
+        Field.values().firstOrNull(f => f.name().equalsIgnoreCase(name));
+
+    private static Op? opNamed(String symbol) => Op.values().firstOrNull(o => o.symbol == symbol);
+}
+
+// -------------------------------------------------------------------- compiler
+
+/** Compiles a query to a predicate, checking that each comparison makes sense for its field. */
+public static Predicate<Transaction> compile(Query q, String currency) => q switch {
+    And(var l, var r) => compile(l, currency).and(compile(r, currency)),
+    Or(var l, var r) => compile(l, currency).or(compile(r, currency)),
+    Not(var inner) => compile(inner, currency).negate(),
+    Compare c => compare(c, currency),
+};
+
+private static Predicate<Transaction> compare(Compare c, String currency) {
+    switch (c.field) {
+        case Amount:
+            val m = parseValue(c, () => Money.parse(c.value, currency));
+            return t => test(c, t.amount.compareTo(m));
+        case Date:
+            val d = parseValue(c, () => LocalDate.parse(c.value));
+            return t => test(c, t.date.compareTo(d));
+        case Month:
+            val ym = parseValue(c, () => YearMonth.parse(c.value));
+            return t => test(c, t.month.compareTo(ym));
+        case Category:
+            val cat = Category.find(c.value) ?? throw new QueryException($"unknown category '{c.value}'", c.column);
+            onlyEquality(c);
+            return t => test(c, t.category == cat ? 0 : 1);
+        case Tag:
+            onlyEquality(c);
+            return t => test(c, t.hasTag(c.value) ? 0 : 1);
+        case Payee:
+            return text(c, t => t.payee);
+        case Account:
+            return text(c, t => t.account);
+    }
+    throw new IllegalStateException();
+}
+
+private static Predicate<Transaction> text(Compare c, java.util.function.Function<Transaction, String> get) {
+    val needle = c.value.toLowerCase();
+    if (c.op == Op.Contains) return t => get.apply(t).toLowerCase().contains(needle);
+    return t => test(c, get.apply(t).compareToIgnoreCase(c.value));
+}
+
+private static boolean test(Compare c, int cmp) => c.op switch {
+    Eq => cmp == 0,
+    Ne => cmp != 0,
+    Lt => cmp < 0,
+    Le => cmp <= 0,
+    Gt => cmp > 0,
+    Ge => cmp >= 0,
+    Contains => throw new QueryException($"'~' only applies to payee and account", c.column),
+};
+
+private static void onlyEquality(Compare c) {
+    if (c.op != Op.Eq && c.op != Op.Ne) {
+        throw new QueryException($"{c.field.name().toLowerCase()} only supports = and !=", c.column);
+    }
+}
+
+private static T parseValue<T>(Compare c, java.util.function.Supplier<T> parse) {
+    try {
+        return parse.get();
+    } catch (RuntimeException e) {
+        throw new QueryException($"'{c.value}' is not a valid {c.field.name().toLowerCase()}", c.column);
+    }
+}

@@ -1,0 +1,94 @@
+// Recurring transactions and a simple forecast: anything that happens every month with a stable
+// amount (rent, salary, a transit pass) is assumed to continue.
+package ledger.report;
+
+import java.time.*;
+import java.util.*;
+import ledger.model.*;
+
+/** A payment or income that occurs every month. */
+public record Recurring(String payee, Category category, Money typical, int months) {
+    public boolean isIncome => !typical.isNegative;
+}
+
+/** Statistics over a group of amounts, in cents. */
+public record Stats(long min, long max, long mean) {
+    public static Stats of(List<Money> amounts) {
+        val cents = amounts.select(m => m.cents).toList();
+        val sum = cents.aggregate(0L, (a, c) => a + c);
+        return new Stats(
+            cents.minBy(c => c),
+            cents.maxBy(c => c),
+            Math.round((double) sum / cents.size()));
+    }
+
+    /** True if every amount is within {@code tolerance} (a fraction) of the mean. */
+    public boolean stable(double tolerance) =>
+        Math.abs(max - mean) <= Math.abs(mean) * tolerance && Math.abs(mean - min) <= Math.abs(mean) * tolerance;
+}
+
+/** Finds recurring transactions: same payee and direction in every month of the ledger. */
+public static List<Recurring> findRecurring(Ledger ledger, double tolerance = 0.10) {
+    val months = ledger.months();
+    if (months.size() < 2) return List.of();
+    return ledger.transactions
+        .where(t => !t.hasTag("transfer"))
+        .groupBy(t => (t.payee, t.isIncome))
+        .values()
+        .where(group => group.select(t => t.month).distinct().count() == months.size())
+        .where(group => Stats.of(group.select(t => t.amount).toList()).stable(tolerance))
+        .select(group => {
+            val stats = Stats.of(group.select(t => t.amount).toList());
+            val first = group.first();
+            return new Recurring(first.payee, first.category, new Money(stats.mean, ledger.currency), months.size());
+        })
+        .orderBy(r => r.typical)
+        .toList();
+}
+
+/** One projected month. */
+public record Projection(YearMonth month, Money income, Money expenses, Money netWorth);
+
+/**
+ * Projects net worth forward: recurring items continue, and other spending is assumed to equal
+ * the average non-recurring spending of the past months.
+ */
+public static List<Projection> forecast(Ledger ledger, int monthsAhead) {
+    val recurring = findRecurring(ledger);
+    val recurringPayees = recurring.select(r => r.payee).toSet();
+    val months = ledger.months();
+    val cur = ledger.currency;
+    val otherSpending = ledger.transactions
+        .where(t => !t.isIncome && !t.hasTag("transfer") && !recurringPayees.contains(t.payee))
+        .select(t => t.amount.abs())
+        .total(cur);
+    val avgOther = months.isEmpty() ? Money.zero(cur) : new Money(otherSpending.cents / months.size(), cur);
+    val income = recurring.where(r => r.isIncome).select(r => r.typical).total(cur);
+    val fixed = recurring.where(r => !r.isIncome).select(r => r.typical.abs()).total(cur);
+    val expenses = fixed.plus(avgOther);
+    val out = new ArrayList<Projection>();
+    var worth = ledger.netWorth();
+    var month = months.isEmpty() ? YearMonth.now() : months.getLast();
+    for (int i = 0; i < monthsAhead; i++) {
+        month = month.plusMonths(1);
+        worth = worth.plus(income).minus(expenses);
+        out.add(new Projection(month, income, expenses, worth));
+    }
+    return out;
+}
+
+public static Section recurringSection(Ledger ledger) {
+    val items = findRecurring(ledger);
+    val lines = items
+        .select(r => $"{r.payee.padRight(18)} {r.category.label.padRight(10)} {r.typical.toString().padLeft(14)}  every month")
+        .toList();
+    if (lines.isEmpty()) lines.add("(none found)");
+    return new Section("Recurring", lines);
+}
+
+public static Section forecastSection(Ledger ledger, int monthsAhead) {
+    val lines = forecast(ledger, monthsAhead)
+        .select(p => $"{p.month}  +{p.income.toString().padLeft(13)}  -{p.expenses.toString().padLeft(13)}  net worth {p.netWorth.toString().padLeft(14)}")
+        .toList();
+    return new Section($"Forecast, next {monthsAhead} months", lines);
+}

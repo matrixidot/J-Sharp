@@ -47,6 +47,37 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
   private final Symtab syms;
   private final Map<ClassSymbol, ClassModel> models = new HashMap<>();
 
+  /**
+   * Declaration-site variance for JDK interfaces whose type parameters are used only as inputs
+   * ({@code -}, "in") or only as outputs ({@code +}, "out"), like Kotlin's view of them, so that
+   * e.g. {@code LocalDate} satisfies {@code K : Comparable<K>} and a {@code Predicate<Object>} is a
+   * {@code Predicate<String>} (D070). One character per type parameter; {@code =} is invariant.
+   */
+  private static final Map<String, String> JDK_VARIANCE =
+      Map.ofEntries(
+          Map.entry("java/lang/Comparable", "-"),
+          Map.entry("java/util/Comparator", "-"),
+          Map.entry("java/util/concurrent/Callable", "+"),
+          Map.entry("java/util/function/Function", "-+"),
+          Map.entry("java/util/function/BiFunction", "--+"),
+          Map.entry("java/util/function/Predicate", "-"),
+          Map.entry("java/util/function/BiPredicate", "--"),
+          Map.entry("java/util/function/Consumer", "-"),
+          Map.entry("java/util/function/BiConsumer", "--"),
+          Map.entry("java/util/function/Supplier", "+"),
+          Map.entry("java/util/function/ToIntFunction", "-"),
+          Map.entry("java/util/function/ToLongFunction", "-"),
+          Map.entry("java/util/function/ToDoubleFunction", "-"),
+          Map.entry("java/util/function/ToIntBiFunction", "--"),
+          Map.entry("java/util/function/ToLongBiFunction", "--"),
+          Map.entry("java/util/function/ToDoubleBiFunction", "--"),
+          Map.entry("java/util/function/IntFunction", "+"),
+          Map.entry("java/util/function/LongFunction", "+"),
+          Map.entry("java/util/function/DoubleFunction", "+"),
+          Map.entry("java/util/function/ObjIntConsumer", "-"),
+          Map.entry("java/util/function/ObjLongConsumer", "-"),
+          Map.entry("java/util/function/ObjDoubleConsumer", "-"));
+
   public ClassFileLoader(Symtab syms) {
     this.syms = syms;
   }
@@ -201,9 +232,18 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
       io.github.matrixidot.jsharp.compiler.symbols.Symbol owner,
       Map<String, TypeVarSymbol> scope) {
     List<TypeVarSymbol> tvs = new ArrayList<>();
+    String variances =
+        owner instanceof ClassSymbol cs ? JDK_VARIANCE.getOrDefault(cs.binaryName(), "") : "";
     for (int i = 0; i < params.size(); i++) {
-      TypeVarSymbol tv =
-          new TypeVarSymbol(params.get(i).identifier(), owner, i, TypeParam.Variance.INVARIANT);
+      TypeParam.Variance v =
+          i < variances.length()
+              ? switch (variances.charAt(i)) {
+                case '-' -> TypeParam.Variance.IN;
+                case '+' -> TypeParam.Variance.OUT;
+                default -> TypeParam.Variance.INVARIANT;
+              }
+              : TypeParam.Variance.INVARIANT;
+      TypeVarSymbol tv = new TypeVarSymbol(params.get(i).identifier(), owner, i, v);
       tvs.add(tv);
       scope.put(tv.name(), tv);
     }

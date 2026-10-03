@@ -1,0 +1,3 @@
+query
+data/sample.ledger
+payee ~ "coffee" or tag = travel

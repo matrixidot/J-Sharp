@@ -1,0 +1,143 @@
+// ledger — a small personal-finance tool, the J# demo application.
+//
+//   jsharp run examples/ledger/src <command> <file.ledger> [args]
+//
+// Commands:
+//   report  <file> [yyyy-mm]   balances, spending, cash flow, budgets, top payees
+//   query   <file> <query>     list transactions matching a query (see query/query.jsharp)
+//   forecast <file> [months]   recurring items and a projection of net worth
+//   split   <amount> <n>       split a bill into n fair parts
+//   export  <file>             the ledger as JSON
+//   check   <file>             validate the file and print a summary
+package ledger;
+
+import java.nio.file.*;
+import java.time.YearMonth;
+import java.util.*;
+import ledger.json.*;
+import ledger.model.*;
+import ledger.parse.*;
+import ledger.query.*;
+import ledger.report.*;
+
+int usage() {
+    println("usage: ledger <report|query|forecast|split|export|check> ...");
+    println("  report <file> [yyyy-mm]   overview; budgets for the given or latest month");
+    println("  query  <file> <query>     e.g. 'category = food and amount < -20'");
+    println("  forecast <file> [months] recurring items and projected net worth");
+    println("  split  <amount> <parts>   split a bill fairly to the cent");
+    println("  export <file>             print the ledger as JSON");
+    println("  check  <file>             validate a ledger file");
+    return 2;
+}
+
+Ledger? load(String path) {
+    String text;
+    try {
+        text = Files.readString(Path.of(path));
+    } catch (java.io.IOException e) {
+        println($"cannot read {path}: {e.getMessage()}");
+        return null;
+    }
+    val result = new LedgerParser().parse(text);
+    if (result is Result.Ok(var ledger)) return ledger;
+    if (result is Result.Err(var problems)) {
+        println($"{path}: {problems.size()} problem(s):");
+        foreach (var e in problems) println("  " + e);
+    }
+    return null;
+}
+
+int report(String path, String? monthArg) {
+    val ledger = load(path);
+    if (ledger == null) return 1;
+    YearMonth month;
+    if (monthArg != null) {
+        month = YearMonth.parse(monthArg);
+    } else {
+        val months = ledger.months();
+        if (months.isEmpty()) {
+            println("the ledger has no transactions");
+            return 0;
+        }
+        month = months.getLast();
+    }
+    val reports = new Reports(ledger);
+    foreach (var s in reports.all(month).join()) print(s.render());
+    print(reports.spendingByCategory(month).render());
+    return 0;
+}
+
+int query(String path, String text) {
+    val ledger = load(path);
+    if (ledger == null) return 1;
+    try {
+        val q = new QueryParser(text).parse();
+        println($"query: {show(q)}");
+        val matches = ledger.transactions.where(t => compile(q, ledger.currency).test(t)).toList();
+        foreach (var t in matches) println("  " + t);
+        val sum = matches.select(t => t.amount).total(ledger.currency);
+        println($"{matches.size()} transaction(s), total {sum}");
+        return 0;
+    } catch (QueryException e) {
+        println("  " + text);
+        println("  " + " ".repeat(Math.max(0, e.column - 1)) + "^");
+        println($"error at column {e.column}: {e.getMessage()}");
+        return 1;
+    }
+}
+
+int forecastCommand(String path, String? monthsArg) {
+    val ledger = load(path);
+    if (ledger == null) return 1;
+    val months = monthsArg == null ? 3 : monthsArg.toIntOrNull() ?? -1;
+    if (months <= 0 || months > 120) {
+        println($"months must be between 1 and 120, got '{monthsArg}'");
+        return 1;
+    }
+    print(recurringSection(ledger).render());
+    print(forecastSection(ledger, months).render());
+    return 0;
+}
+
+int split(String amountText, String partsText) {
+    val parts = partsText.toIntOrNull();
+    if (parts == null || parts <= 0) {
+        println($"'{partsText}' is not a positive number of parts");
+        return 1;
+    }
+    val amount = Money.parse(amountText);
+    val shares = amount.split(parts);
+    foreach (var (share, i) in shares.zip(range(1, parts + 1))) println($"  person {i}: {share}");
+    println($"  sum: {shares.total()}");
+    return 0;
+}
+
+int export(String path) {
+    val ledger = load(path);
+    if (ledger == null) return 1;
+    println(write(toJson(ledger)));
+    return 0;
+}
+
+int check(String path) {
+    val ledger = load(path);
+    if (ledger == null) return 1;
+    val first = ledger.transactions.minBy(t => t.date).date;
+    val last = ledger.transactions.maxBy(t => t.date).date;
+    println($"ok: {ledger.accounts.size()} accounts, {ledger.transactions.size()} transactions from {first} to {last}");
+    val untagged = ledger.transactions.count(t => t.tags.isEmpty());
+    println($"    {untagged} untagged, {ledger.budgets.size()} budgets, net worth {ledger.netWorth()}");
+    return 0;
+}
+
+val code = args.length == 0 ? usage() : args[0] switch {
+    "report" when args.length >= 2 => report(args[1], args.length >= 3 ? args[2] : null),
+    "query" when args.length == 3 => query(args[1], args[2]),
+    "forecast" when args.length == 2 || args.length == 3 => forecastCommand(args[1], args.length == 3 ? args[2] : null),
+    "split" when args.length == 3 => split(args[1], args[2]),
+    "export" when args.length == 2 => export(args[1]),
+    "check" when args.length == 2 => check(args[1]),
+    _ => usage(),
+};
+System.exit(code);

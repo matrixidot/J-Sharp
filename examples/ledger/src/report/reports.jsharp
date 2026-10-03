@@ -1,0 +1,122 @@
+// Reports over a ledger: balances, spending by category, monthly cash flow, budgets, top payees.
+package ledger.report;
+
+import java.time.*;
+import java.util.*;
+import ledger.model.*;
+
+/** A titled block of report lines. */
+public record Section(String title, List<String> lines) {
+    public String render() {
+        val sb = new StringBuilder();
+        sb.append("== ").append(title).append(" ").append("=".repeat(Math.max(0, 50 - title.length()))).append('\n');
+        foreach (var l in lines) sb.append("  ").append(l).append('\n');
+        return sb.toString();
+    }
+}
+
+public sealed interface BudgetStatus permits UnderBudget, NearLimit, OverBudget;
+public record UnderBudget(Money left) : BudgetStatus;
+public record NearLimit(Money left, double percent) : BudgetStatus;
+public record OverBudget(Money over) : BudgetStatus;
+
+public static BudgetStatus status(Money spent, Money limit) {
+    val pct = spent.percentOf(limit);
+    if (spent.compareTo(limit) > 0) return new OverBudget(spent.minus(limit));
+    if (pct >= 80) return new NearLimit(limit.minus(spent), pct);
+    return new UnderBudget(limit.minus(spent));
+}
+
+public static String describe(BudgetStatus s) => s switch {
+    UnderBudget u => $"ok, {u.left} left",
+    NearLimit n => $"careful: {n.percent:F1}% used, {n.left} left",
+    OverBudget o => $"OVER by {o.over}",
+};
+
+public class Reports {
+    private final Ledger ledger;
+
+    public Reports(Ledger ledger) { this.ledger = ledger; }
+
+    private String cur => ledger.currency;
+
+    public Section balances() {
+        val lines = new ArrayList<String>();
+        foreach (var a in ledger.accounts.orderBy(a => a.kind).thenBy(a => a.name)) {
+            lines.add($"{a.name.padRight(12)} {a.kind.toString().toLowerCase().padRight(9)} {ledger.balance(a.name).toString().padLeft(14)}");
+        }
+        lines.add($"{"net worth".padRight(22)} {ledger.netWorth().toString().padLeft(14)}");
+        return new Section("Balances", lines);
+    }
+
+    /** Spending (money out, transfers excluded) per category, largest first, with shares. */
+    public Section spendingByCategory(YearMonth? month = null) {
+        val spending = ledger.transactions
+            .where(t => !t.isIncome && !t.hasTag("transfer") && (month == null || t.month == month))
+            .toList();
+        val total = spending.select(t => t.amount.abs()).total(cur);
+        val lines = spending
+            .groupBy(t => t.category)
+            .entrySet()
+            .select(e => (e.getKey(), e.getValue().select(t => t.amount.abs()).total(cur)))
+            .orderByDescending(p => p.item2)
+            .select(p => $"{p.item1.label.padRight(10)} {p.item2.toString().padLeft(14)}  {p.item2.percentOf(total):F1}%")
+            .toList();
+        lines.add($"{"total".padRight(10)} {total.toString().padLeft(14)}");
+        val title = month == null ? "Spending by category" : $"Spending by category, {month}";
+        return new Section(title, lines);
+    }
+
+    public Section cashFlow() {
+        val lines = new ArrayList<String>();
+        foreach (var m in ledger.months()) {
+            val inMonth = ledger.transactions.where(t => t.month == m && !t.hasTag("transfer")).toList();
+            val income = inMonth.where(t => t.isIncome).select(t => t.amount).total(cur);
+            val out = inMonth.where(t => !t.isIncome).select(t => t.amount.abs()).total(cur);
+            val net = income.minus(out);
+            val bar = "#".repeat((int) Math.min(30, Math.abs(net.cents) / 10000));
+            lines.add($"{m}  in {income.toString().padLeft(13)}  out {out.toString().padLeft(13)}  net {net.toString().padLeft(13)} {(net.isNegative ? "-" : "+")}{bar}");
+        }
+        return new Section("Monthly cash flow", lines);
+    }
+
+    public Section budgets(YearMonth month) {
+        val lines = new ArrayList<String>();
+        foreach (var b in ledger.budgets) {
+            val spent = ledger.transactions
+                .where(t => t.month == month && t.category == b.category && !t.isIncome)
+                .select(t => t.amount.abs())
+                .total(cur);
+            lines.add($"{b.category.label.padRight(10)} {spent.toString().padLeft(13)} of {b.limit.toString().padLeft(13)}  {describe(status(spent, b.limit))}");
+        }
+        if (lines.isEmpty()) lines.add("(no budgets)");
+        return new Section($"Budgets, {month}", lines);
+    }
+
+    public Section topPayees(int n = 5) {
+        val lines = ledger.transactions
+            .where(t => !t.isIncome && !t.hasTag("transfer"))
+            .groupBy(t => t.payee)
+            .entrySet()
+            .select(e => (e.getKey(), e.getValue().size(), e.getValue().select(t => t.amount.abs()).total(cur)))
+            .orderByDescending(p => p.item3)
+            .thenBy(p => p.item1)
+            .take(n)
+            .select(p => $"{p.item1.padRight(18)} {p.item2.toString().padLeft(3)}x {p.item3.toString().padLeft(14)}")
+            .toList();
+        return new Section($"Top {n} payees", lines);
+    }
+
+    /** Builds all sections concurrently (each report is independent) and returns them in order. */
+    public async Task<List<Section>> all(YearMonth budgetMonth) {
+        val tasks = List.of(
+            Task.run(() => balances()),
+            Task.run(() => spendingByCategory()),
+            Task.run(() => cashFlow()),
+            Task.run(() => budgets(budgetMonth)),
+            Task.run(() => topPayees()));
+        val sections = new ArrayList<Section>();
+        foreach (var t in tasks) sections.add(await t);
+        return sections;
+    }
+}
