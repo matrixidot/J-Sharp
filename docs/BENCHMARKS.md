@@ -1,7 +1,7 @@
 # Benchmarks
 
 J# kernels (`bench/src/jsharp/bench/kernels.jsharp`) against hand-written Java equivalents
-(`bench/src/jmh/java/dev/jsharp/bench/JavaKernels.java`) on identical inputs. Run with
+(`bench/src/jmh/java/io/github/matrixidot/jsharp/bench/JavaKernels.java`) on identical inputs. Run with
 `./gradlew :bench:jmh` (add `-Pjmh.args='-rf json -rff out.json'` for raw results). Raw results
 per milestone are in `bench/results/`.
 

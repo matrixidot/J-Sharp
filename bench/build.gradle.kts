@@ -11,7 +11,7 @@ val compileJSharp by tasks.registering(JavaExec::class) {
     group = "build"
     description = "Compiles src/jsharp with the J# compiler."
     classpath = jsharpc
-    mainClass.set("dev.jsharp.cli.Main")
+    mainClass.set("io.github.matrixidot.jsharp.cli.Main")
     inputs.dir("src/jsharp")
     outputs.dir(jsharpOut)
     args("build", "src/jsharp", "-d", jsharpOut.get().asFile.absolutePath)

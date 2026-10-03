@@ -17,7 +17,7 @@ Format: **decision** — reason. *Rejected:* alternatives.
   1.37.0 fails under Spotless 8.9 on JDK 25 (reflection mismatch). The Gradle daemon gets
   `--add-exports jdk.compiler/...` flags (in `gradle.properties`) that the formatter needs.
 - **D004: Build version.** Single version in `gradle.properties`, injected into
-  `dev.jsharp.compiler.LanguageInfo` (which also holds the `jsharp`/`.jsharp`/`Module` naming
+  `io.github.matrixidot.jsharp.compiler.LanguageInfo` (which also holds the `jsharp`/`.jsharp`/`Module` naming
   constants the spec asks to keep in one place).
 
 ## 2026-10-02 — M1 lexer & parser
@@ -248,3 +248,11 @@ Format: **decision** — reason. *Rejected:* alternatives.
   used. A warm in-process compile of the generated 10k-line project (`scripts/gen_project.py`)
   takes ~0.4 s through codegen; `CompilerSpeedTest` fails above 2 s. `-Djsharp.timings=true`
   prints per-phase times.
+- **D068: Package root `io.github.matrixidot.jsharp`** (owner's request, replacing `dev.jsharp`):
+  `io.github.matrixidot.jsharp.{compiler,cli,tests,bench}`, Maven group
+  `io.github.matrixidot.jsharp`. The language's own library namespace stays `jsharp.*`
+  (`jsharp.core`, `jsharp.collections`, ...), like `kotlin.*`. Raw JMH results recorded before the
+  rename (`bench/results/m4.json`, `m6.json`) keep the old benchmark class names.
+- **D069: Deep nesting.** Compiler phases run on a thread with a 512 MB (reserved) stack, and the
+  parser reports "code is nested too deeply" (JS0109) at ~1000 source levels or on a stack
+  overflow, so pathological input never escapes as an internal error.

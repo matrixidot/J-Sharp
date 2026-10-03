@@ -7,7 +7,7 @@ val junitVersion = "5.13.4"
 val assertjVersion = "3.27.7"
 
 allprojects {
-    group = "dev.jsharp"
+    group = "io.github.matrixidot.jsharp"
     version = providers.gradleProperty("version").get()
     repositories { mavenCentral() }
 }

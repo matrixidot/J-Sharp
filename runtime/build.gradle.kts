@@ -17,7 +17,7 @@ val compileJSharp by tasks.registering(JavaExec::class) {
     description = "Compiles src/main/jsharp with the J# compiler."
     dependsOn(tasks.compileJava)
     classpath = jsharpc
-    mainClass.set("dev.jsharp.compiler.driver.Batch")
+    mainClass.set("io.github.matrixidot.jsharp.compiler.driver.Batch")
     inputs.dir("src/main/jsharp")
     inputs.files(jsharpc)
     inputs.files(sourceSets.main.get().java.classesDirectory)
