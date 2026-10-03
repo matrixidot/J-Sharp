@@ -417,3 +417,30 @@ Format: **decision** — reason. *Rejected:* alternatives.
     `Iterable<Long>` and `Iterable<Double>`, plus generic `average()`, `min()` and `max()`. The
     `long` and `double` sums live in the classes `LongSums` and `DoubleSums`, because their JVM
     erasure clashes with the `int` version. Both are implicit static imports, like `Sequences`.
+- **D084: `atomic` locals** (the owner's design). Captured variables stay effectively final,
+  except locals declared `atomic var x = ...;` (or `atomic int x = ...;`), which lambdas, local
+  functions and local classes may update.
+  - An atomic local lives in a `java.util.concurrent.atomic` cell: `AtomicInteger`,
+    `AtomicLong`, `AtomicBoolean`, or `AtomicReference<T>` for other types, with primitives
+    boxed. Every use goes through the cell, including the declaring method's own; captures pass
+    the cell, not the value.
+  - Each operation is one atomic step:
+    - a read is `get()`, and `x = v` is `set(v)`;
+    - `x++`, `x--`, `x += n` and `x -= n` on `int`/`long` are `incrementAndGet`, `addAndGet` and
+      so on;
+    - every other compound operator (and `x++` on other types, and checked arithmetic) is a
+      compare-and-set loop around the ordinary operator, so promotions and overflow behave as for
+      plain variables;
+    - `x ??= v` sets only while `x` is null (the first writer wins) and evaluates `v` only then.
+  - Atomic, not just a mutable box, because J# lambdas often run on other threads (async,
+    virtual threads). Uncontended atomic operations are cheap.
+  - `atomic` is contextual: `atomic(x)` calls and variables named `atomic` still work. At the
+    top level of a script, `atomic var` declares a local of the entry point, not a field.
+  - Errors: `atomic val` (a val never changes), atomic fields (use the atomic classes
+    directly), and an atomic local without an initial value.
+  - Smart casts never apply to atomic locals: another thread may change them after a check. The
+    error says so and suggests reading the value once into a `val`.
+  - Warnings: JS0660 for `x = <expression reading x>`, two steps another thread can interleave,
+    with the one-step form suggested (`x += e`); JS0661 when `atomic` is unnecessary (the
+    variable never changes, or nothing that captures it exists).
+  - The "cannot assign to a captured variable" error now suggests `atomic var`.

@@ -127,9 +127,11 @@ final class LocalFunctions {
     }
     if (!a.isSpeculative()) {
       List<MethodSymbol.Param> all = new ArrayList<>();
-      List<VarSymbol> allVars = new ArrayList<>(fn.captures);
+      List<VarSymbol> allVars = new ArrayList<>();
       for (VarSymbol v : fn.captures) {
-        all.add(MethodSymbol.Param.of(v.name(), v.type()));
+        VarSymbol passed = v.cell() != null ? v.cell() : v; // atomic locals pass their cell (D084)
+        allVars.add(passed);
+        all.add(MethodSymbol.Param.of(v.name(), passed.type()));
       }
       all.addAll(params);
       allVars.addAll(real.params());

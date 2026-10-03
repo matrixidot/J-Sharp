@@ -738,7 +738,7 @@ abstract class ParserBase {
   abstract Expr parseBraceLiteral();
 
   private static final Set<String> CONTEXTUAL_MODIFIERS =
-      Set.of("base", "open", "sealed", "override", "async", "required");
+      Set.of("base", "open", "sealed", "override", "async", "required", "atomic");
 
   /** True if a contextual modifier word at index {@code i} acts as a modifier. */
   final boolean isContextualModifierAt(int i) {
@@ -755,7 +755,10 @@ abstract class ParserBase {
         || next == ENUM
         || next == AT
         || (next == DEFAULT && startsType(kind(i + 2))) // override default String f()
-        || (next == LPAREN && t.text().equals("async") == false && scanType(i + 1, true) > 0);
+        || (next == LPAREN
+            && !t.text().equals("async")
+            && !t.text().equals("atomic") // atomic(x) is a call
+            && scanType(i + 1, true) > 0);
   }
 
   static boolean isModifierKeyword(TokenKind k) {

@@ -85,6 +85,11 @@ public final class Attr {
   /** Variables captured by lambdas or local classes, to verify effective finality afterwards. */
   final List<VarSymbol> capturedVars = new ArrayList<>();
 
+  /** Atomic locals declared so far (D084), checked for need at the end. */
+  final List<VarSymbol> atomicVars = new ArrayList<>();
+
+  final Map<VarSymbol, SourceFile> atomicFiles = new java.util.HashMap<>();
+
   final Map<VarSymbol, Span> captureSites = new IdentityHashMap<>();
 
   /** Captured variables of each local/anonymous class. */
@@ -1112,7 +1117,8 @@ public final class Attr {
       env.flow.assigned.set(v.id());
     }
     BExpr ref = new BExpr.Local(v, span);
-    Type narrowed = env.flow.narrowed.get(v);
+    // Another thread may change an atomic variable between a check and a use: no smart casts.
+    Type narrowed = v.isAtomic() ? null : env.flow.narrowed.get(v);
     if (narrowed != null && !narrowed.equals(v.type())) {
       boolean needsCast =
           !types.isSameType(narrowed.erasure(), v.type().erasure())
@@ -1132,6 +1138,9 @@ public final class Attr {
       return new BExpr.Local(v, span);
     }
     BExpr ref = localRef(f, span);
+    if (v.cell() != null) {
+      return new BExpr.Local(v.cell(), span); // atomic: the function receives the cell (D084)
+    }
     // The function's parameter has the variable's declared type, not a narrowed one.
     return ref instanceof BExpr.Conv c && c.expr() instanceof BExpr.Local l ? l : ref;
   }
@@ -1493,6 +1502,21 @@ public final class Attr {
       return;
     }
     if (t.isReference() && t.nullness() == Nullness.NULLABLE) {
+      if (recv instanceof BExpr.Local l && l.var().isAtomic()) {
+        String n = l.var().name();
+        report(
+            err(Code.NULLABLE_RECEIVER, at, "value of type " + t.display() + " may be null")
+                .note(
+                    "'"
+                        + n
+                        + "' is atomic: another thread may change it after a null check, so"
+                        + " checks do not narrow it")
+                .help(
+                    "read it once into a val and check that: 'val current = "
+                        + n
+                        + "; if (current != null) ...', or use '?.'"));
+        return;
+      }
       report(
           err(Code.NULLABLE_RECEIVER, at, "value of type " + t.display() + " may be null")
               .help(

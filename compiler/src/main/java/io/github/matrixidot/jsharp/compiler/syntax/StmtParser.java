@@ -224,7 +224,7 @@ abstract class StmtParser extends ExprParser {
       }
       Modifiers mods = parseModifiers();
       for (Modifiers.Item item : mods.list()) {
-        if (item.modifier() != Modifier.FINAL) {
+        if (item.modifier() != Modifier.FINAL && item.modifier() != Modifier.ATOMIC) {
           errorAlways(
               Code.UNEXPECTED_TOKEN,
               item.span(),

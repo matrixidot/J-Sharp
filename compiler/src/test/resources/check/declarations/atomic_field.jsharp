@@ -1,0 +1,4 @@
+// Only locals can be atomic (D084); fields have java.util.concurrent.atomic types.
+class Holder {
+    atomic int f = 0;                                                    //~ JS0410
+}

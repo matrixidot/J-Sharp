@@ -20,7 +20,9 @@ public enum Modifier {
   TRANSIENT,
   NATIVE,
   /** Marks a user-defined operator method (implicit; written as the `operator` keyword). */
-  OPERATOR;
+  OPERATOR,
+  /** A local variable lambdas and local functions may update, stored atomically (D084). */
+  ATOMIC;
 
   public String keyword() {
     return name().toLowerCase(java.util.Locale.ROOT);

@@ -61,6 +61,7 @@ public final class ClassChecker {
     for (ClassSymbol c : classes) {
       out.add(check(a, c));
     }
+    checkAtomics(a); // before checkCaptures, which clears the captured variables
     checkCaptures(a);
     return out;
   }
@@ -1158,11 +1159,36 @@ public final class ClassChecker {
     }
   }
 
+  /**
+   * An atomic local (D084) is only worth its cost when it changes and something it is captured by
+   * sees the change: warn otherwise.
+   */
+  private static void checkAtomics(Attr a) {
+    Set<VarSymbol> captured = new HashSet<>(a.capturedVars);
+    for (VarSymbol v : a.atomicVars) {
+      String why =
+          !v.reassigned()
+              ? "it never changes after its initial value"
+              : !captured.contains(v) ? "no lambda, local function or local class uses it" : null;
+      if (why != null) {
+        a.report(
+            Diagnostic.error(
+                    Code.UNNECESSARY_ATOMIC,
+                    a.atomicFiles.get(v),
+                    v.span(),
+                    "'" + v.name() + "' does not need to be atomic: " + why)
+                .help(!v.reassigned() ? "declare it with 'val'" : "remove 'atomic'"));
+      }
+    }
+    a.atomicVars.clear();
+    a.atomicFiles.clear();
+  }
+
   /** Captured variables must be effectively final. */
   private static void checkCaptures(Attr a) {
     Set<VarSymbol> reported = new HashSet<>();
     for (VarSymbol v : a.capturedVars) {
-      if (v.reassigned() && reported.add(v)) {
+      if (v.reassigned() && !v.isAtomic() && reported.add(v)) {
         Span at = a.captureSites.get(v);
         a.report(
             Diagnostic.error(
@@ -1174,11 +1200,11 @@ public final class ClassChecker {
                         + "' is captured by a lambda or local class but reassigned")
                 .note("captured variables must be effectively final, as in Java")
                 .help(
-                    "copy it into a 'val' before the lambda: 'val "
+                    "copy it into a 'val' before the lambda ('val "
                         + v.name()
                         + "Copy = "
                         + v.name()
-                        + ";'"));
+                        + ";'), or declare it 'atomic var' to share updates"));
       }
     }
     a.capturedVars.clear();

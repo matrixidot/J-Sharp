@@ -114,7 +114,8 @@ public final class Lowerer {
       outerThisFields.put(s, f);
     }
     Map<VarSymbol, FieldSymbol> caps = new LinkedHashMap<>();
-    for (VarSymbol v : c.captures()) {
+    for (VarSymbol captured : c.captures()) {
+      VarSymbol v = cellOf(captured);
       FieldSymbol f =
           new FieldSymbol(
               "val$" + v.name(), s, Flags.PRIVATE | Flags.FINAL | Flags.SYNTHETIC, v.type());
@@ -908,6 +909,7 @@ public final class Lowerer {
     }
     return switch (s) {
       case BStmt.Block b -> new BStmt.Block(lsAll(b.stmts()), b.span());
+      case BStmt.LocalDecl d when d.var().cell() != null -> atomicDecl(d);
       case BStmt.LocalDecl d ->
           new BStmt.LocalDecl(
               d.var(), d.init() == null ? null : adapt(lx(d.init()), d.var().type()), d.span());
@@ -1702,6 +1704,7 @@ public final class Lowerer {
   BExpr lx(BExpr e) {
     return switch (e) {
       case BExpr.Const c -> c;
+      case BExpr.Local l when l.var().cell() != null -> atomicGet(l.var(), l.span());
       case BExpr.Local l -> localRef(l);
       case BExpr.This t -> t;
       case BExpr.OuterThis o -> outerThis(o.outer(), o.span());
@@ -1761,6 +1764,218 @@ public final class Lowerer {
       out.add(adapt(e, to));
     }
     return out;
+  }
+
+  // ------------------------------------------------------------------ atomic locals (D084)
+
+  /** The variable lowered code uses for {@code v}: its atomic cell, or itself. */
+  private static VarSymbol cellOf(VarSymbol v) {
+    return v.cell() != null ? v.cell() : v;
+  }
+
+  private static boolean isCell(VarSymbol v, String simpleName) {
+    return v.cell().type() instanceof ClassType ct && ct.sym().name().equals(simpleName);
+  }
+
+  private MethodSymbol cellMethod(VarSymbol v, String name, int arity) {
+    ClassSymbol c = ((ClassType) v.cell().type()).sym();
+    for (MethodSymbol m : c.methods(name)) {
+      if (m.params().size() == arity && !m.isStatic()) {
+        return m;
+      }
+    }
+    throw new IllegalStateException("no " + name + "/" + arity + " in " + c.name());
+  }
+
+  /** {@code cell.name(args)}, arguments converted to the method's erased parameter types. */
+  private BExpr cellCall(VarSymbol v, String name, List<BExpr> args, Span span) {
+    MethodSymbol m = cellMethod(v, name, args.size());
+    List<BExpr> adapted = new ArrayList<>();
+    for (int i = 0; i < args.size(); i++) {
+      adapted.add(adapt(args.get(i), m.params().get(i).type().erasure()));
+    }
+    BExpr cell = localRef(new BExpr.Local(v.cell(), span));
+    return new BExpr.Call(cell, m, adapted, CallKind.VIRTUAL, m.returnType().erasure(), span);
+  }
+
+  /** The raw value type of the cell: int, long, boolean or Object. */
+  private Type cellValueType(VarSymbol v) {
+    return cellMethod(v, "get", 0).returnType().erasure();
+  }
+
+  private BStmt atomicDecl(BStmt.LocalDecl d) {
+    VarSymbol v = d.var();
+    ClassType cellType = (ClassType) v.cell().type();
+    MethodSymbol ctor = null;
+    for (MethodSymbol m : cellType.sym().methods(MethodSymbol.CONSTRUCTOR)) {
+      if (m.params().size() == 1) {
+        ctor = m;
+      }
+    }
+    BExpr init =
+        d.init() == null ? new BExpr.Const(null, Type.NullType.INSTANCE, d.span()) : lx(d.init());
+    BExpr created =
+        new BExpr.New(
+            cellType,
+            ctor,
+            List.of(adapt(adapt(init, v.type()), ctor.params().getFirst().type().erasure())),
+            d.span());
+    return new BStmt.LocalDecl(v.cell(), created, d.span());
+  }
+
+  /** The current value: {@code cell.get()} as the variable's type. */
+  private BExpr atomicGet(VarSymbol v, Span span) {
+    return adapt(cellCall(v, "get", List.of(), span), v.type());
+  }
+
+  /** {@code x = value}: {@code cell.set(value)}, yielding the value. */
+  private BExpr atomicSet(VarSymbol v, BExpr value, Span span) {
+    VarSymbol tmp = temp("v", v.type(), span);
+    BStmt set =
+        new BStmt.ExprStmt(cellCall(v, "set", List.of(new BExpr.Local(tmp, span)), span), span);
+    return new BExpr.Let(
+        tmp,
+        adapt(value, v.type()),
+        new BExpr.Block(List.of(set), new BExpr.Local(tmp, span), span),
+        span);
+  }
+
+  /** A fresh mutable temporary (the loop variables of a compare-and-set loop). */
+  private VarSymbol mutableTemp(String name, Type type, Span span) {
+    return new VarSymbol(
+        "$" + name + (tempCounter++), type, Flags.SYNTHETIC, VarSymbol.Kind.LOCAL, span, -1);
+  }
+
+  private BExpr atomicCompound(VarSymbol v, BExpr.CompoundAssign ca) {
+    Span span = ca.span();
+    boolean addable = (isCell(v, "AtomicInteger") || isCell(v, "AtomicLong")) && !ca.checked();
+    if (addable
+        && ca.userOp() == null
+        && (ca.op() == BinOp.ADD || ca.op() == BinOp.SUB)
+        && ca.opType() == v.type()) {
+      // One atomic instruction: addAndGet(+v) / addAndGet(-v).
+      BExpr delta = adapt(lx(ca.value()), v.type());
+      if (ca.op() == BinOp.SUB) {
+        delta = new BExpr.Unary(BExpr.UnOp.NEG, delta, v.type(), span);
+      }
+      return cellCall(v, "addAndGet", List.of(delta), span);
+    }
+    if (ca.op() == null) {
+      return atomicCoalesce(v, ca);
+    }
+    // A compare-and-set loop applying the ordinary compound assignment to a temporary.
+    VarSymbol operand = temp("arg", ca.value().type(), span);
+    return casLoop(
+        v,
+        cur ->
+            new BExpr.CompoundAssign(
+                new BLValue.LocalLV(cur),
+                ca.op(),
+                new BExpr.Local(operand, span),
+                ca.opType(),
+                ca.type(),
+                ca.checked(),
+                span,
+                ca.userOp()),
+        false,
+        span,
+        new BStmt.LocalDecl(operand, lx(ca.value()), span));
+  }
+
+  private BExpr atomicIncDec(VarSymbol v, BExpr.IncDec id) {
+    Span span = id.span();
+    if ((isCell(v, "AtomicInteger") || isCell(v, "AtomicLong")) && !id.checked()) {
+      String m =
+          id.prefix()
+              ? (id.increment() ? "incrementAndGet" : "decrementAndGet")
+              : (id.increment() ? "getAndIncrement" : "getAndDecrement");
+      return cellCall(v, m, List.of(), span);
+    }
+    return casLoop(
+        v,
+        cur ->
+            new BExpr.IncDec(
+                new BLValue.LocalLV(cur), id.increment(), true, id.type(), id.checked(), span),
+        !id.prefix(),
+        span,
+        null);
+  }
+
+  /**
+   * {@code do { old = cell.get(); cur = old; <update cur>; } while (!cell.compareAndSet(old,
+   * cur));} yielding {@code cur}, or the old value when {@code yieldOld}. Reference cells compare
+   * the very object read, so boxed values work.
+   */
+  private BExpr casLoop(
+      VarSymbol v,
+      java.util.function.Function<VarSymbol, BExpr> update,
+      boolean yieldOld,
+      Span span,
+      BStmt before) {
+    Type raw = cellValueType(v);
+    VarSymbol old = mutableTemp("old", raw, span);
+    VarSymbol cur = mutableTemp("cur", v.type(), span);
+    List<BStmt> body =
+        List.of(
+            new BStmt.LocalDecl(old, cellCall(v, "get", List.of(), span), span),
+            new BStmt.LocalDecl(cur, adapt(new BExpr.Local(old, span), v.type()), span),
+            new BStmt.ExprStmt(lx(update.apply(cur)), span));
+    BExpr swapped =
+        cellCall(
+            v,
+            "compareAndSet",
+            List.of(new BExpr.Local(old, span), adapt(new BExpr.Local(cur, span), raw)),
+            span);
+    BStmt loop =
+        new BStmt.DoWhile(
+            new BStmt.Block(body, span),
+            new BExpr.Unary(BExpr.UnOp.NOT, swapped, PrimType.BOOLEAN, span),
+            null,
+            span);
+    List<BStmt> stmts = new ArrayList<>();
+    if (before != null) {
+      stmts.add(before);
+    }
+    stmts.add(loop);
+    BExpr result =
+        yieldOld ? adapt(new BExpr.Local(old, span), v.type()) : new BExpr.Local(cur, span);
+    return new BExpr.Block(stmts, result, span);
+  }
+
+  /** {@code x ??= value}: set only while null (the first writer wins); yields the current value. */
+  private BExpr atomicCoalesce(VarSymbol v, BExpr.CompoundAssign ca) {
+    Span span = ca.span();
+    VarSymbol cur = mutableTemp("cur", v.type(), span);
+    VarSymbol fresh = temp("new", v.type(), span);
+    BExpr isNull =
+        new BExpr.Binary(
+            BinOp.REF_EQ,
+            new BExpr.Local(cur, span),
+            nullConst(span),
+            PrimType.BOOLEAN,
+            false,
+            span);
+    BStmt fill =
+        new BStmt.Block(
+            List.of(
+                new BStmt.LocalDecl(fresh, adapt(lx(ca.value()), v.type()), span),
+                new BStmt.ExprStmt(
+                    cellCall(
+                        v,
+                        "compareAndSet",
+                        List.of(nullConst(span), new BExpr.Local(fresh, span)),
+                        span),
+                    span),
+                new BStmt.ExprStmt(
+                    new BExpr.Assign(new BLValue.LocalLV(cur), atomicGet(v, span), v.type(), span),
+                    span)),
+            span);
+    return new BExpr.Block(
+        List.of(
+            new BStmt.LocalDecl(cur, atomicGet(v, span), span),
+            new BStmt.If(isNull, fill, null, span)),
+        new BExpr.Local(cur, span),
+        span);
   }
 
   /** A captured variable inside a local class becomes a field read. */
@@ -2007,6 +2222,9 @@ public final class Lowerer {
   // ------------------------------------------------------------------ assignments
 
   private BExpr assign(BExpr.Assign as) {
+    if (as.target() instanceof BLValue.LocalLV l && l.var().cell() != null) {
+      return atomicSet(l.var(), lx(as.value()), as.span());
+    }
     BLValue lv = lowerLValue(as.target(), null);
     BExpr value = adapt(lx(as.value()), lv.type());
     if (lv instanceof BLValue.PropertyLV p) {
@@ -2146,6 +2364,9 @@ public final class Lowerer {
 
   private BExpr compound(BExpr.CompoundAssign ca) {
     Span span = ca.span();
+    if (ca.target() instanceof BLValue.LocalLV al && al.var().cell() != null) {
+      return atomicCompound(al.var(), ca);
+    }
     if (ca.target() instanceof BLValue.LocalLV l
         && ca.op() != null
         && ca.userOp() == null
@@ -2216,6 +2437,9 @@ public final class Lowerer {
 
   private BExpr incDec(BExpr.IncDec id) {
     Span span = id.span();
+    if (id.target() instanceof BLValue.LocalLV al && al.var().cell() != null) {
+      return atomicIncDec(al.var(), id);
+    }
     PrimType prim = types.primitiveView(id.type());
     if (id.target() instanceof BLValue.LocalLV l
         && id.type() instanceof PrimType
@@ -2368,7 +2592,8 @@ public final class Lowerer {
     Span span = l.span();
     boolean capturesThis = l.capturesThis();
     List<VarSymbol> caps = new ArrayList<>();
-    for (VarSymbol v : l.captures()) {
+    for (VarSymbol captured : l.captures()) {
+      VarSymbol v = cellOf(captured);
       if (isCapturedField(v)) {
         capturesThis = true;
       } else {

@@ -23,6 +23,7 @@ public final class VarSymbol implements Symbol {
   private final int id;
   private boolean captured;
   private boolean reassigned;
+  private VarSymbol cell;
 
   public VarSymbol(String name, Type type, long flags, Kind kind, Span span, int id) {
     this.name = name;
@@ -66,6 +67,23 @@ public final class VarSymbol implements Symbol {
 
   public boolean isFinal() {
     return has(Flags.FINAL);
+  }
+
+  /**
+   * For an {@code atomic} local (D084): the variable holding its {@code AtomicInteger}/{@code
+   * AtomicLong}/{@code AtomicBoolean}/{@code AtomicReference} cell, which lowered code and captures
+   * use instead of the value; null otherwise.
+   */
+  public VarSymbol cell() {
+    return cell;
+  }
+
+  public void setCell(VarSymbol c) {
+    this.cell = c;
+  }
+
+  public boolean isAtomic() {
+    return has(Flags.ATOMIC);
   }
 
   public boolean captured() {

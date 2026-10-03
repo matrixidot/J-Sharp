@@ -157,6 +157,27 @@ A project can have any number of files holding only functions, like a `mathutils
 helpers. Files in the same package call each other's functions by name, and other packages
 `import` them. Only one file may contain top-level statements: that is the program's entry point.
 
+Lambdas and local functions cannot change the variables around them, unless a variable is
+declared `atomic`. Then every update is a single atomic step, safe even when lambdas run on other
+threads, and the compiler warns when `atomic` is not needed or when an update reads and writes
+in two steps (`n = n + 1` instead of `n += 1`).
+
+```jsharp
+import java.util.concurrent.Executors;
+
+atomic var letters = 0;
+["a", "bb", "ccc"].forEach(w => letters += w.length());
+println(letters);                                    // prints: 6
+
+atomic var hits = 0;
+using (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
+    for (var i = 0; i < 1000; i++) {
+        pool.submit(() => hits++);
+    }
+}
+println(hits);                                       // prints: 1000
+```
+
 A function's name without a call is a function value, wherever a function type is expected.
 This works for top-level functions, methods (`Math.abs`, `list.add`) and local functions.
 Local functions are declared inside a block, can read the variables around them that are never

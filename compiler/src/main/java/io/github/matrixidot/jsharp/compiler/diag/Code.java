@@ -117,6 +117,8 @@ public enum Code {
   INVALID_ASYNC(657, "invalid async declaration"),
   UNSUPPORTED_FEATURE(658, "feature not supported"),
   INVALID_LITERAL(659, "invalid collection literal"),
+  NON_ATOMIC_UPDATE(660, "separate read and write of an atomic variable"),
+  UNNECESSARY_ATOMIC(661, "unnecessary atomic"),
 
   // ---- flow ----
   UNINITIALIZED_VARIABLE(900, "variable might not be initialized"),
@@ -161,7 +163,12 @@ public enum Code {
 
   public Severity defaultSeverity() {
     return switch (this) {
-      case REDUNDANT_NON_NULL_ASSERTION, PLATFORM_NULLNESS, DEPRECATED, JAVA_WARNING ->
+      case REDUNDANT_NON_NULL_ASSERTION,
+          PLATFORM_NULLNESS,
+          DEPRECATED,
+          JAVA_WARNING,
+          NON_ATOMIC_UPDATE,
+          UNNECESSARY_ATOMIC ->
           Severity.WARNING;
       default -> Severity.ERROR;
     };

@@ -708,6 +708,17 @@ final class Ops {
     if (as.op() == Expr.AssignOp.ASSIGN) {
       BExpr v = a.exprCoerced(as.value(), lv.type(), as.value().span());
       afterAssign(lv, v);
+      if (lv instanceof BLValue.LocalLV l && l.var().isAtomic() && mentions(as.value(), l.var())) {
+        a.report(
+            a.err(
+                    Code.NON_ATOMIC_UPDATE,
+                    span,
+                    "'"
+                        + l.var().name()
+                        + "' is read and written in two steps; another thread can change it in"
+                        + " between")
+                .help(oneStepUpdate(as.value(), l.var())));
+      }
       return new BExpr.Assign(lv, v, lv.type(), span);
     }
     BExpr rhs = a.value(as.value(), null);
@@ -1036,15 +1047,28 @@ final class Ops {
     Scope.Found found = env.scope.lookup(name);
     if (found != null) {
       VarSymbol v = found.var();
+      if (!found.crossed().isEmpty() && v.isAtomic()) {
+        // Atomic locals may be updated from lambdas and local functions (D084).
+        a.captureValue(v, span);
+        v.markReassigned();
+        return new BLValue.LocalLV(v);
+      }
       if (!found.crossed().isEmpty()) {
-        a.report(
+        io.github.matrixidot.jsharp.compiler.diag.Diagnostic.Builder d =
             a.err(
                     Code.CAPTURED_NOT_FINAL,
                     span,
                     "cannot assign to '"
                         + name
                         + "' inside a lambda, local function or local class")
-                .note("captured variables must be effectively final, as in Java"));
+                .note("captured variables must be effectively final, as in Java");
+        if (v.kind() == VarSymbol.Kind.LOCAL) {
+          d.help(
+              "declare it 'atomic var "
+                  + name
+                  + " = ...;' to update it here (safe from any thread)");
+        }
+        a.report(d);
         return new BLValue.LocalLV(v);
       }
       boolean definitelyAssigned = env.flow.assigned.get(v.id());
@@ -1105,10 +1129,49 @@ final class Ops {
     return errorLV();
   }
 
+  /** Suggests the atomic form of {@code x = x op e}: {@code x op= e}. */
+  private String oneStepUpdate(Expr value, VarSymbol v) {
+    String n = v.name();
+    if (value instanceof Expr.Binary b
+        && b.left() instanceof Expr.Name ln
+        && ln.name().equals(n)
+        && compoundable(b.op())) {
+      String rhs = a.file().content().substring(b.right().span().start(), b.right().span().end());
+      return "update it in one step: '" + n + " " + b.op().symbol() + "= " + rhs + "'";
+    }
+    return "update it in one step with a compound assignment, e.g. '"
+        + n
+        + " += 1' or '"
+        + n
+        + "++'";
+  }
+
+  private static boolean compoundable(Expr.BinaryOp op) {
+    return switch (op) {
+      case ADD, SUB, MUL, DIV, REM, BIT_AND, BIT_OR, BIT_XOR, SHL, SHR, USHR -> true;
+      default -> false;
+    };
+  }
+
+  /** True if {@code e} reads the local {@code v} by name (not inside a lambda). */
+  private static boolean mentions(Expr e, VarSymbol v) {
+    boolean[] found = {false};
+    io.github.matrixidot.jsharp.compiler.ast.AstWalk.walk(
+        e,
+        n -> {
+          if (n instanceof Expr.Name nm && nm.name().equals(v.name())) {
+            found[0] = true;
+          }
+          return !(n instanceof Expr.Lambda);
+        });
+    return found[0];
+  }
+
   /** A compound assignment or increment reads the local first: it must be definitely assigned. */
   void requireAssigned(BLValue lv, Span span) {
     if (lv instanceof BLValue.LocalLV l
         && l.var().id() >= 0
+        && !l.var().isAtomic() // always initialized (D084)
         && !a.env.flow.assigned.get(l.var().id())
         && a.env.flow.alive
         && (l.var().kind() == VarSymbol.Kind.LOCAL || l.var().kind() == VarSymbol.Kind.PATTERN)) {

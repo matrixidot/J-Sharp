@@ -174,13 +174,49 @@ final class Stmts {
       a.error(Code.INVALID_VOID, lv.type().span(), "a variable cannot have type void");
       declared = Type.ErrorType.INSTANCE;
     }
+    boolean atomic = lv.modifiers().has(Modifier.ATOMIC);
+    if (atomic && isVal) {
+      a.report(
+          a.err(
+                  Code.INVALID_MODIFIER,
+                  lv.modifiers().list().stream()
+                      .filter(i -> i.modifier() == Modifier.ATOMIC)
+                      .findFirst()
+                      .orElseThrow()
+                      .span(),
+                  "a 'val' never changes, so it cannot be atomic")
+              .help("write 'atomic var' for a variable that lambdas may update"));
+      atomic = false;
+    }
     for (VarDeclarator d : lv.vars()) {
-      out.add(declareLocal(d, declared, lv.kind(), isVal));
+      out.add(declareLocal(d, declared, lv.kind(), isVal, atomic));
     }
     return out.size() == 1 ? out.getFirst() : new BStmt.Block(out, lv.span());
   }
 
   BStmt.LocalDecl declareLocal(VarDeclarator d, Type declared, LocalKind kind, boolean isVal) {
+    return declareLocal(d, declared, kind, isVal, false);
+  }
+
+  /** The cell holding an atomic local of type {@code t} (D084). */
+  private Type atomicCellType(Type t) {
+    String cls =
+        t == PrimType.INT
+            ? "java/util/concurrent/atomic/AtomicInteger"
+            : t == PrimType.LONG
+                ? "java/util/concurrent/atomic/AtomicLong"
+                : t == PrimType.BOOLEAN ? "java/util/concurrent/atomic/AtomicBoolean" : null;
+    if (cls != null) {
+      return a.syms.wellKnown(cls);
+    }
+    io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol ref =
+        a.syms.lookup("java/util/concurrent/atomic/AtomicReference");
+    Type elem = t instanceof PrimType p ? a.syms.boxed(p) : t;
+    return new Type.ClassType(ref, List.of(elem), Nullness.NON_NULL);
+  }
+
+  private BStmt.LocalDecl declareLocal(
+      VarDeclarator d, Type declared, LocalKind kind, boolean isVal, boolean atomic) {
     BExpr init = null;
     Type type = declared;
     if (d.init() != null) {
@@ -207,10 +243,38 @@ final class Stmts {
       type = Type.ErrorType.INSTANCE;
     }
     VarSymbol v =
-        declare(d.name(), type, isVal ? Flags.FINAL : 0, VarSymbol.Kind.LOCAL, d.nameSpan());
+        declare(
+            d.name(),
+            type,
+            (isVal ? Flags.FINAL : 0) | (atomic ? Flags.ATOMIC : 0),
+            VarSymbol.Kind.LOCAL,
+            d.nameSpan());
+    if (atomic) {
+      if (init == null) {
+        a.error(
+            Code.UNINITIALIZED_VARIABLE,
+            d.nameSpan(),
+            "atomic variable '" + d.name() + "' needs an initial value");
+      }
+      if (!type.isError()) {
+        v.setCell(
+            env()
+                .newVar(
+                    d.name(),
+                    atomicCellType(type),
+                    Flags.FINAL,
+                    VarSymbol.Kind.LOCAL,
+                    d.nameSpan()));
+        if (!a.isSpeculative()) {
+          a.atomicVars.add(v);
+          a.atomicFiles.put(v, a.file());
+        }
+      }
+    }
     if (init != null) {
       env().flow.assigned.set(v.id());
-      if (type.isReference()
+      if (!atomic
+          && type.isReference()
           && type.nullness() != Nullness.NON_NULL
           && init.type().isReference()
           && init.type().nullness() == Nullness.NON_NULL

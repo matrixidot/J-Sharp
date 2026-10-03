@@ -80,6 +80,9 @@ public final class Flags {
   /** A user-defined operator method (D077). */
   public static final long OPERATOR = 1L << 41;
 
+  /** An {@code atomic} local (D084): stored in an atomic cell that lambdas may update. */
+  public static final long ATOMIC = 1L << 42;
+
   public static boolean is(long flags, long flag) {
     return (flags & flag) != 0;
   }

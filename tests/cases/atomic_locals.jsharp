@@ -1,0 +1,54 @@
+// Atomic locals (D084): updated from lambdas, threads, local functions and local classes.
+import java.util.*;
+import java.util.concurrent.*;
+
+// Counting from a lambda.
+atomic var count = 0;
+["a", "bb", "ccc"].forEach(w => count += w.length());
+println(count);
+
+// Many threads, no lost updates.
+atomic var hits = 0;
+atomic long total = 0;
+using (var pool = Executors.newVirtualThreadPerTaskExecutor()) {
+    for (var i = 0; i < 1000; i++) {
+        pool.submit(() => { hits++; total += 2; });
+    }
+}
+println($"{hits} {total}");
+
+// Other types and operators.
+atomic var best = "";
+atomic var product = 1.0;
+atomic var flag = false;
+atomic String? name = null;
+List<String> words = ["pear", "fig", "banana"];
+words.forEach(w => {
+    if (w.length() > best.length()) best = w;
+    product *= 2;
+    flag = true;
+    name ??= w;
+});
+println($"{best} {product} {flag} {name}");
+
+// Local functions, prefix/postfix, compound ops in a CAS loop.
+int steps() {
+    atomic var n = 10;
+    void halve() { n /= 2; }
+    halve();
+    val before = n++;
+    val after = ++n;
+    n <<= 1;
+    return before * 1000 + after * 10 + n;
+}
+println(steps());
+
+// Local classes.
+int fromClass() {
+    atomic var seen = 0;
+    class Counter { void tick() { seen++; } }
+    var c = new Counter();
+    c.tick(); c.tick();
+    return seen;
+}
+println(fromClass());

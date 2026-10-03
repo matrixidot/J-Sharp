@@ -122,3 +122,7 @@
 ## Post-v0.1: functions as values, local functions
 - `xs.select(twice)`, `xs.forEach(println)`, `Math.abs` and `list.add` as values, plus local functions with captures and recursion (D083). Also `sum()`/`average()`/`min()`/`max()` on collections of numbers without a selector.
 - Tests: e2e `function_references` and `local_functions` (under `-Xverify:all`), checker files for every error case, and a tour section.
+
+## Post-v0.1: atomic locals
+- `atomic var count = 0;` lets lambdas, local functions and local classes update a local, atomically (D084). Uses java.util.concurrent.atomic cells, single atomic operations for `++`/`+=`/`-=`, compare-and-set loops otherwise, and warnings for two-step updates and needless `atomic`.
+- Tests: e2e `atomic_locals` (1000 virtual threads, no lost updates, under `-Xverify:all`), checker files for each diagnostic, and a tour example.

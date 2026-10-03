@@ -199,12 +199,16 @@ public final class Parser extends StmtParser {
   /**
    * At the top level, a declaration starts with modifiers/annotations, a type keyword, or {@code
    * Type name(} / {@code Type name<} (a function). Variable declarations without modifiers are
-   * statements (locals of the implicit entry point).
+   * statements (locals of the implicit entry point), and so are {@code atomic} ones: only locals
+   * can be atomic (D084).
    */
   private boolean isTopLevelDeclarationAhead() {
     TokenKind k = tok().kind();
     if (k == CLASS || k == INTERFACE || k == ENUM || k == OPERATOR) {
       return true;
+    }
+    if (atContextual("atomic") && isContextualModifierAt(pos)) {
+      return false;
     }
     if (isModifierStart(pos)) {
       return true;
