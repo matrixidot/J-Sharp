@@ -381,7 +381,16 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
       ClassSymbol c, MethodModel mm, Map<String, TypeVarSymbol> classScope, Nullness unannotated) {
     long flags = mm.flags().flagsMask();
     String name = mm.methodName().stringValue();
-    if (Flags.is(flags, Flags.SYNTHETIC)
+    // J# `init` accessors are synthetic setters (javac must not call them, D030) but J# object
+    // initializers may: keep them for classes compiled by J#.
+    boolean initSetter =
+        Flags.is(flags, Flags.SYNTHETIC)
+            && !Flags.is(flags, Flags.BRIDGE)
+            && c.has(Flags.JSHARP)
+            && name.startsWith("set")
+            && name.length() > 3
+            && mm.methodTypeSymbol().parameterCount() == 1;
+    if ((Flags.is(flags, Flags.SYNTHETIC) && !initSetter)
         || Flags.is(flags, Flags.BRIDGE)
         || name.equals("<clinit>")) {
       return;
@@ -394,6 +403,9 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
         .ifPresent(a -> anns.addAll(a.annotations()));
     if (hasAnnotation(anns, JSHARP_EXTENSION)) {
       ms.addFlags(Flags.EXTENSION);
+    }
+    if (hasAnnotation(anns, "Ljsharp/lang/Operator;")) {
+      ms.addFlags(Flags.OPERATOR);
     }
     if (hasAnnotation(anns, "Ljava/lang/Deprecated;")) {
       ms.addFlags(Flags.DEPRECATED);

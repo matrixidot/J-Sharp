@@ -1,0 +1,4 @@
+Vec[x=7, y=10]
+true
+Vec[x=5, y=5]
+square: 4.0

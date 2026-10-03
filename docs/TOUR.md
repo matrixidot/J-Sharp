@@ -16,6 +16,7 @@ show its output.
 - [Classes and properties](#classes-and-properties)
 - [Records, enums and sealed types](#records-enums-and-sealed-types)
 - [Pattern matching](#pattern-matching)
+- [Operators](#operators)
 - [Generics](#generics)
 - [Lambdas and sequences](#lambdas-and-sequences)
 - [Async and await](#async-and-await)
@@ -320,6 +321,38 @@ if (o is int n and > 0) println($"positive int {n}");   // prints: positive int 
 Patterns: type (`String s`), positional (`Add(var l, var r)`), property (`{ value: 0 }`),
 constants, relational (`> 0`), `and`/`or`/`not`, discards (`_`) and guards (`when`). Leaving out
 a case of a sealed type or enum is a compile-time error.
+
+## Operators
+
+A type can define what operators mean for it. An operator is a `static` method written with the
+`operator` keyword, and `a + b` simply calls it. At least one operand must be the declaring type,
+and comparisons come in pairs (`<` with `>`, `<=` with `>=`). Built-in meanings never change:
+`+` on strings still concatenates, numbers keep their arithmetic, and `==` always means
+`equals`.
+
+```jsharp
+public record Vec(double x, double y) {
+    public static Vec operator +(Vec a, Vec b) => new Vec(a.x + b.x, a.y + b.y);
+    public static Vec operator *(Vec v, double k) => new Vec(v.x * k, v.y * k);
+    public static Vec operator -(Vec v) => new Vec(-v.x, -v.y);
+    public double length => Math.sqrt(x * x + y * y);
+    public static boolean operator <(Vec a, Vec b) => a.length < b.length;
+    public static boolean operator >(Vec a, Vec b) => a.length > b.length;
+}
+
+var a = new Vec(1, 2);
+var b = new Vec(3, 4);
+println(a + b * 2);      // prints: Vec[x=7.0, y=10.0]
+println(-a);             // prints: Vec[x=-1.0, y=-2.0]
+println(a < b);          // prints: true
+var sum = new Vec(0, 0);
+sum += a;                // compound assignment uses the + operator
+println(sum);            // prints: Vec[x=1.0, y=2.0]
+```
+
+Overloadable: `+ - * / % & | ^ << >> >>>`, the comparisons `< > <= >=`, and the unary
+`- + ! ~`. Java code sees ordinary static methods with readable names: `Vec.plus(a, b)`,
+`Vec.times(v, k)`, `Vec.lessThan(a, b)`, `Vec.unaryMinus(v)`.
 
 ## Generics
 

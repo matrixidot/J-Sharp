@@ -1,0 +1,22 @@
+Vec[x=4.0, y=6.0]
+Vec[x=2.0, y=2.0]
+Vec[x=2.0, y=4.0]
+Vec[x=3.0, y=6.0]
+Vec[x=-1.0, y=-2.0]
+true
+false
+Vec[x=6.0, y=8.0]
+Vec[x=5.0, y=8.0]
+Vec[x=4.0, y=6.0] 1
+sum: Vec[x=4.0, y=6.0]
+Flags[bits=3]
+2
+252
+true false
+8
+7
+$16.49
+$0.04
+true
+false
+true

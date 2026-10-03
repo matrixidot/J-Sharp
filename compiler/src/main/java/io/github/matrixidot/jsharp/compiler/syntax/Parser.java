@@ -14,6 +14,7 @@ import io.github.matrixidot.jsharp.compiler.ast.ImportDecl;
 import io.github.matrixidot.jsharp.compiler.ast.LocalKind;
 import io.github.matrixidot.jsharp.compiler.ast.Modifier;
 import io.github.matrixidot.jsharp.compiler.ast.Modifiers;
+import io.github.matrixidot.jsharp.compiler.ast.Operators;
 import io.github.matrixidot.jsharp.compiler.ast.PackageDecl;
 import io.github.matrixidot.jsharp.compiler.ast.Param;
 import io.github.matrixidot.jsharp.compiler.ast.Stmt;
@@ -482,23 +483,7 @@ public final class Parser extends StmtParser {
       }
     }
     if (t.is(OPERATOR) || (startsType(t.kind()) && kind(scanType(pos, true)) == OPERATOR)) {
-      if (!t.is(OPERATOR)) {
-        parseType();
-      }
-      Token op = advance();
-      errorAt(
-          Code.UNSUPPORTED_SYNTAX,
-          op.span(),
-          "operator overloading is reserved for J# v0.2",
-          "declare a named method instead");
-      skipUntil(Set.of(LBRACE, ARROW), true);
-      if (at(LBRACE)) {
-        parseBlock();
-      } else if (accept(ARROW)) {
-        parseExpr();
-        expect(SEMI);
-      }
-      return null;
+      return parseOperator(mods, declStart);
     }
     List<TypeParam> javaStyleTypeParams = List.of();
     if (t.is(LT)) {
@@ -605,6 +590,98 @@ public final class Parser extends StmtParser {
     Body body = parseMethodBody(mods, false);
     return new Decl.Method(
         mods, tps, returnType, name, nameSpan, params, body, spanFrom(declStart));
+  }
+
+  /**
+   * {@code static R operator <op>(params) body}: a user-defined operator (D077), represented as a
+   * method named after the operator ({@code plus}, {@code lessThan}, ...) with the {@code operator}
+   * modifier.
+   */
+  private Decl parseOperator(Modifiers mods, int declStart) {
+    TypeNode ret = null;
+    if (!at(OPERATOR)) {
+      ret = parseType();
+    } else {
+      errorAt(Code.UNEXPECTED_TOKEN, tok().span(), "an operator needs a return type", null);
+    }
+    Token kw = advance();
+    int symStart = pos;
+    String symbol = operatorSymbol();
+    Span symSpan = new Span(tokAt(symStart).start(), tokAt(Math.max(symStart, pos - 1)).end());
+    List<Param> params = at(LPAREN) ? parseParams() : List.of();
+    List<Modifiers.Item> items = new ArrayList<>(mods.list());
+    items.add(new Modifiers.Item(Modifier.OPERATOR, kw.span()));
+    Modifiers withOp = new Modifiers(items, mods.annotations(), mods.span());
+    Body body = parseMethodBody(withOp, false);
+    if (symbol == null) {
+      return null;
+    }
+    String jvm = Operators.jvmName(symbol, params.size());
+    if (jvm == null) {
+      errorAt(
+          Code.UNEXPECTED_TOKEN,
+          symSpan,
+          "operator "
+              + symbol
+              + " cannot take "
+              + params.size()
+              + " operand"
+              + (params.size() == 1 ? "" : "s"),
+          Operators.isUnary(symbol) && Operators.isBinary(symbol)
+              ? "'" + symbol + "' takes one operand (unary) or two (binary)"
+              : Operators.isUnary(symbol)
+                  ? "'" + symbol + "' is a unary operator: one parameter"
+                  : "'" + symbol + "' is a binary operator: two parameters");
+      return null;
+    }
+    return new Decl.Method(withOp, List.of(), ret, jvm, symSpan, params, body, spanFrom(declStart));
+  }
+
+  /** Reads an overloadable operator after {@code operator}; reports and returns null otherwise. */
+  private String operatorSymbol() {
+    Token t = tok();
+    switch (t.kind()) {
+      case PLUS, MINUS, STAR, SLASH, PERCENT, AMP, BAR, CARET, TILDE, BANG, LT, LE, LTLT -> {
+        advance();
+        return t.text();
+      }
+      case GT -> {
+        advance();
+        if (at(GT) && adjacent(pos - 1)) {
+          advance();
+          if (at(GT) && adjacent(pos - 1)) {
+            advance();
+            return ">>>";
+          }
+          return ">>";
+        }
+        if (at(EQ) && adjacent(pos - 1)) {
+          advance();
+          return ">=";
+        }
+        return ">";
+      }
+      case EQEQ, BANG_EQ, EQEQEQ, BANG_EQEQ -> {
+        advance();
+        errorAt(
+            Code.UNEXPECTED_TOKEN,
+            t.span(),
+            "'" + t.text() + "' cannot be overloaded",
+            "'==' calls equals(): override equals (and hashCode) instead");
+        return null;
+      }
+      default -> {
+        errorAt(
+            Code.UNEXPECTED_TOKEN,
+            t.span(),
+            "expected an overloadable operator after 'operator', found " + t.describe(),
+            "overloadable: + - * / % & | ^ << >> >>> < > <= >= and unary - + ! ~");
+        if (!at(LPAREN)) {
+          advance();
+        }
+        return null;
+      }
+    }
   }
 
   /** Parses {@code { ... }}, {@code => expr;} or {@code ;} (returns null). */

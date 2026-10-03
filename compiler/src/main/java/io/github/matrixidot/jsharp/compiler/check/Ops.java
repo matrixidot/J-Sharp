@@ -39,6 +39,18 @@ final class Ops {
     Span span = u.span();
     switch (u.op()) {
       case NOT -> {
+        // `!x` on a type with a user-defined `!` operator.
+        Attr.Speculation<BExpr> probe = a.speculate(() -> a.value(u.operand(), null));
+        if (!probe.hasErrors()
+            && probe.result() != null
+            && userOperand(probe.result().type())
+            && !operatorMethods("not", 1, probe.result().type()).isEmpty()) {
+          BExpr operand = a.value(u.operand(), null);
+          BExpr user = userUnary("!", operand, span);
+          if (user != null) {
+            return user;
+          }
+        }
         BExpr r = a.condition(u);
         FlowState j = a.whenTrue.copy();
         j.join(a.whenFalse);
@@ -55,6 +67,10 @@ final class Ops {
         BExpr e = a.value(u.operand(), null);
         if (e.type().isError()) {
           return e;
+        }
+        BExpr user = userUnary(u.op().symbol(), e, span);
+        if (user != null) {
+          return user;
         }
         PrimType p = types().primitiveView(e.type());
         boolean ok =
@@ -221,8 +237,127 @@ final class Ops {
     return t instanceof ClassType c && c.sym().binaryName().equals("java/lang/String");
   }
 
+  // ------------------------------------------------------------------ user-defined operators
+
+  private static String symbolOf(Expr.BinaryOp op) {
+    return switch (op) {
+      case ADD -> "+";
+      case SUB -> "-";
+      case MUL -> "*";
+      case DIV -> "/";
+      case REM -> "%";
+      case SHL -> "<<";
+      case SHR -> ">>";
+      case USHR -> ">>>";
+      case BIT_AND -> "&";
+      case BIT_OR -> "|";
+      case BIT_XOR -> "^";
+      case LT -> "<";
+      case GT -> ">";
+      case LE -> "<=";
+      case GE -> ">=";
+      default -> null;
+    };
+  }
+
+  /**
+   * True if {@code t} can carry user-defined operators: a class type without a built-in meaning for
+   * operators (not String, not a boxed primitive).
+   */
+  private boolean userOperand(Type t) {
+    return t.erasure() instanceof ClassType ct
+        && types().primitiveView(t) == null
+        && !ct.sym().binaryName().equals("java/lang/String");
+  }
+
+  /** Operator methods named {@code jvmName} in the classes (and superclasses) of {@code types}. */
+  private List<MethodSymbol> operatorMethods(String jvmName, int arity, Type... operandTypes) {
+    List<MethodSymbol> out = new ArrayList<>();
+    for (Type t : operandTypes) {
+      if (!(t.erasure() instanceof ClassType ct)) {
+        continue;
+      }
+      for (ClassSymbol c = ct.sym();
+          c != null;
+          c = c.superclass() == null ? null : c.superclass().sym()) {
+        for (MethodSymbol m : c.methods(jvmName)) {
+          if (m.has(Flags.OPERATOR)
+              && m.isStatic()
+              && m.params().size() == arity
+              && !out.contains(m)) {
+            out.add(m);
+          }
+        }
+      }
+    }
+    return out;
+  }
+
+  private static Calls.ArgInfo operand(BExpr e) {
+    return new Calls.ArgInfo(null, null, e, e.type(), false, e.span());
+  }
+
+  /**
+   * {@code left op right} through a user-defined operator, or null when no operand type declares
+   * one (built-in rules apply then). D077.
+   */
+  private BExpr userBinary(Expr.BinaryOp syntaxOp, BExpr left, BExpr right, Span span) {
+    String symbol = symbolOf(syntaxOp);
+    if (symbol == null || !(userOperand(left.type()) || userOperand(right.type()))) {
+      return null;
+    }
+    if (syntaxOp == Expr.BinaryOp.ADD && (isString(left.type()) || isString(right.type()))) {
+      return null; // string concatenation keeps its meaning
+    }
+    String jvm = io.github.matrixidot.jsharp.compiler.ast.Operators.jvmName(symbol, 2);
+    List<MethodSymbol> cands = operatorMethods(jvm, 2, left.type(), right.type());
+    if (cands.isEmpty()) {
+      return null;
+    }
+    List<Calls.ArgInfo> infos = List.of(operand(left), operand(right));
+    ClassType site = cands.getFirst().owner().thisType();
+    Calls.Selected sel =
+        a.calls.select(cands, site, infos, null, null, null, span, "operator " + symbol, true);
+    if (sel == null) {
+      return new BExpr.Error(Type.ErrorType.INSTANCE, span);
+    }
+    return a.calls.finish(sel, null, sel.method.owner().thisType(), infos, span, false);
+  }
+
+  /** {@code op e} through a user-defined unary operator, or null. */
+  private BExpr userUnary(String symbol, BExpr e, Span span) {
+    if (!userOperand(e.type())) {
+      return null;
+    }
+    String jvm = io.github.matrixidot.jsharp.compiler.ast.Operators.jvmName(symbol, 1);
+    List<MethodSymbol> cands = operatorMethods(jvm, 1, e.type());
+    if (cands.isEmpty()) {
+      return null;
+    }
+    List<Calls.ArgInfo> infos = List.of(operand(e));
+    Calls.Selected sel =
+        a.calls.select(
+            cands,
+            cands.getFirst().owner().thisType(),
+            infos,
+            null,
+            null,
+            null,
+            span,
+            "operator " + symbol,
+            true);
+    if (sel == null) {
+      return new BExpr.Error(Type.ErrorType.INSTANCE, span);
+    }
+    return a.calls.finish(sel, null, sel.method.owner().thisType(), infos, span, false);
+  }
+
   /** Arithmetic, shift, bitwise, relational and string-concatenation operators. */
   BExpr arithmetic(Expr.BinaryOp syntaxOp, BExpr left, BExpr right, Span span, Span ls, Span rs) {
+    BExpr user = userBinary(syntaxOp, left, right, span);
+    if (user != null) {
+      return user;
+    }
     BinOp op = binOp(syntaxOp);
     Type lt = left.type();
     Type rt = right.type();
@@ -581,6 +716,10 @@ final class Ops {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
     BinOp op = binOp(as.op().op());
+    BExpr userCompound = userCompoundAssign(as, lv, t, rhs, op, span);
+    if (userCompound != null) {
+      return userCompound;
+    }
     if (op == BinOp.ADD && isString(t)) {
       afterAssign(lv, null);
       return new BExpr.CompoundAssign(lv, op, rhs, t, t, false, span);
@@ -640,6 +779,56 @@ final class Ops {
             && (opType == PrimType.INT || opType == PrimType.LONG)
             && (op == BinOp.ADD || op == BinOp.SUB || op == BinOp.MUL);
     return new BExpr.CompoundAssign(lv, op, rhs, opType, t, checked, span);
+  }
+
+  /** {@code x op= v} with a user-defined operator: {@code x = op(x, v)} (null if none applies). */
+  private BExpr userCompoundAssign(
+      Expr.Assign as, BLValue lv, Type t, BExpr rhs, BinOp op, Span span) {
+    String symbol = symbolOf(as.op().op());
+    if (symbol == null || !(userOperand(t) || userOperand(rhs.type()))) {
+      return null;
+    }
+    if (op == BinOp.ADD && isString(t)) {
+      return null;
+    }
+    String jvm = io.github.matrixidot.jsharp.compiler.ast.Operators.jvmName(symbol, 2);
+    List<MethodSymbol> cands = operatorMethods(jvm, 2, t, rhs.type());
+    if (cands.isEmpty()) {
+      return null;
+    }
+    BExpr current = new BExpr.Error(t, as.target().span()); // stands for the target's value
+    List<Calls.ArgInfo> infos =
+        List.of(new Calls.ArgInfo(null, null, current, t, false, as.target().span()), operand(rhs));
+    Calls.Selected sel =
+        a.calls.select(
+            cands,
+            cands.getFirst().owner().thisType(),
+            infos,
+            null,
+            null,
+            null,
+            span,
+            "operator " + symbol,
+            true);
+    if (sel == null) {
+      return new BExpr.Error(Type.ErrorType.INSTANCE, span);
+    }
+    MethodSymbol m = sel.method;
+    if (types().assignConversion(m.returnType(), t, null) == Types.Conv.NONE) {
+      a.error(
+          Code.TYPE_MISMATCH,
+          span,
+          "operator "
+              + symbol
+              + " returns "
+              + m.returnType().display()
+              + ", which cannot be assigned to "
+              + t.display());
+      return new BExpr.Error(Type.ErrorType.INSTANCE, span);
+    }
+    BExpr value = a.coerce(rhs, m.params().get(1).type(), as.value().span());
+    afterAssign(lv, null);
+    return new BExpr.CompoundAssign(lv, op, value, t, t, false, span, m);
   }
 
   /** {@code x ??= v}: assigns only when {@code x} is null; the result is non-null. */
@@ -1127,6 +1316,18 @@ final class Ops {
   }
 
   private BLValue beanLValue(BExpr recv, Type site, MethodSymbol setter, String name, Span span) {
+    if (setter.has(Flags.SYNTHETIC)) {
+      // The init accessor of a property compiled by J#.
+      a.report(
+          a.err(
+                  Code.INIT_ONLY_ASSIGNMENT,
+                  span,
+                  "init-only property '"
+                      + name
+                      + "' can only be set in an object initializer or constructor")
+              .help("use 'new " + setter.owner().name() + "(...) { " + name + " = ... }'"));
+      return errorLV();
+    }
     a.checkAccess(setter, setter.owner(), recv == null ? null : site, span);
     MethodSymbol getter = a.lookup.findGetter(site, name);
     Type t = a.memberType(a.captureSite(site), setter.owner(), setter.params().getFirst().type());

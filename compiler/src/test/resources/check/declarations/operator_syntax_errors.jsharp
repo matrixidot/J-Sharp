@@ -1,0 +1,6 @@
+// Operator declarations rejected by the parser (D077).
+public record Point(int x, int y) {
+    public static Point operator ==(Point a, Point b) => a;              //~ JS0113
+    public static Point operator +(Point a, Point b, Point c) => a;      //~ JS0113
+    public static T operator %<T>(Point a, T b) => b;                    //~ JS0100
+}

@@ -77,6 +77,9 @@ public final class Flags {
   /** Method or property declared with an omitted return type (inferred). */
   public static final long INFERRED_TYPE = 1L << 40;
 
+  /** A user-defined operator method (D077). */
+  public static final long OPERATOR = 1L << 41;
+
   public static boolean is(long flags, long flag) {
     return (flags & flag) != 0;
   }

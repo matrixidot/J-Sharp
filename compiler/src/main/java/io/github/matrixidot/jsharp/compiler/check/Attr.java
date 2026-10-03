@@ -2042,6 +2042,9 @@ public final class Attr {
         continue;
       }
       FieldSymbol f = lookup.findField(site, fi.name());
+      if (f != null && hiddenByAccessor(f, site, lookup.findSetter(site, fi.name()))) {
+        f = null; // a property of a compiled J# class: its private field yields to the setter
+      }
       if (f != null && !f.isStatic()) {
         checkAccess(f, f.owner(), site, fi.nameSpan());
         if (f.has(Flags.FINAL)) {

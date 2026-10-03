@@ -302,3 +302,20 @@ Format: **decision** — reason. *Rejected:* alternatives.
   reassign the component parameters. In a class, it is an instance initializer that runs in
   every constructor, like Kotlin's `init`. `init` blocks take no modifiers; `init` stays
   contextual (it is also the init-only property accessor).
+- **D077: Operator overloading** (owner's request, ahead of the spec's v0.2): `public static R
+  operator <op>(params) body`. Overloadable: binary `+ - * / % & | ^ << >> >>>`, comparisons
+  `< > <= >=` (must return `boolean`, declared in pairs `<`/`>` and `<=`/`>=`) and unary `- + ! ~`.
+  Not overloadable: `==`/`!=`/`===` (those mean `equals`/identity), `&& || ??`, assignment and
+  `++`/`--`. An operator must be `static`, non-generic, declared in a class (not at file top
+  level), and take at least one operand of its declaring type. `a op b` looks for operator
+  methods in the classes (and superclasses) of both operands when either operand is a class
+  type without a built-in meaning (not String and not a boxed number), then picks one with
+  normal overload resolution. String `+` and numeric operators never change meaning.
+  `x op= y` is `x = op(x, y)` with `x` evaluated once. Each operator compiles to a static
+  method with a readable JVM name (`plus`, `minus`, `times`, `div`, `rem`, `and`, `or`, `xor`,
+  `shl`, `shr`, `ushr`, `lessThan`, `greaterThan`, `lessOrEqual`, `greaterOrEqual`, `unaryMinus`,
+  `unaryPlus`, `not`, `inv`) annotated `@jsharp.lang.Operator("+")`, so Java calls
+  `Vec.plus(a, b)` and other J# compilations recognize it. Diagnostics show `Vec.operator +(...)`.
+- **D078: `init` accessors of compiled J# classes** (synthetic setters, D030) are loaded from
+  class files of `@Metadata` classes, so J# object initializers work across compilations, while
+  ordinary assignments through them are rejected (JS0628), as for source properties.

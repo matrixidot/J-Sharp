@@ -158,7 +158,13 @@ public final class MethodSymbol implements Symbol {
   /** Human-readable signature, e.g. {@code List.add(E)}. */
   public String signature() {
     StringBuilder sb = new StringBuilder();
-    if (owner instanceof ClassSymbol c && c.has(Flags.MODULE) && !isConstructor()) {
+    String operator =
+        has(Flags.OPERATOR)
+            ? io.github.matrixidot.jsharp.compiler.ast.Operators.symbolOf(name, params.size())
+            : null;
+    if (operator != null) {
+      sb.append(owner.displayName()).append(".operator ").append(operator); // not plus/times
+    } else if (owner instanceof ClassSymbol c && c.has(Flags.MODULE) && !isConstructor()) {
       sb.append(name); // top-level function: its synthetic module class is not user-visible
     } else {
       sb.append(owner.displayName());

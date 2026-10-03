@@ -64,6 +64,7 @@ public final class ClassGen {
   private static final ClassDesc NULLABLE = ClassDesc.of("org.jspecify.annotations.Nullable");
   private static final ClassDesc METADATA = ClassDesc.of("jsharp.lang.Metadata");
   private static final ClassDesc EXTENSION = ClassDesc.of("jsharp.lang.Extension");
+  private static final ClassDesc OPERATOR = ClassDesc.of("jsharp.lang.Operator");
   private static final ClassDesc DEFAULT_VALUE = ClassDesc.of("jsharp.lang.DefaultValue");
 
   private final Types types;
@@ -401,8 +402,20 @@ public final class ClassGen {
             }
             mb.with(MethodParametersAttribute.of(infos));
           }
+          List<Annotation> methodAnns = new ArrayList<>();
           if (m.isExtension()) {
-            mb.with(RuntimeVisibleAnnotationsAttribute.of(Annotation.of(EXTENSION)));
+            methodAnns.add(Annotation.of(EXTENSION));
+          }
+          if (m.has(Flags.OPERATOR)) {
+            String symbol =
+                io.github.matrixidot.jsharp.compiler.ast.Operators.symbolOf(
+                    m.name(), m.params().size());
+            methodAnns.add(
+                Annotation.of(
+                    OPERATOR, AnnotationElement.ofString("value", String.valueOf(symbol))));
+          }
+          if (!methodAnns.isEmpty()) {
+            mb.with(RuntimeVisibleAnnotationsAttribute.of(methodAnns));
           }
           nullnessAnnotations(mb, m);
           defaultValues(mb, m);

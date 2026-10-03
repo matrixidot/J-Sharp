@@ -6,7 +6,9 @@ public enum Category(String label) {
     Tool("tools"), Food("food");
 }
 
-public record Item(String name, Category category, int quantity);
+public record Item(String name, Category category, int quantity) {
+    public static Item operator +(Item a, int more) => new Item(a.name, a.category, a.quantity + more);
+}
 
 public sealed interface Event permits Added, Removed;
 public record Added(Item item) : Event;

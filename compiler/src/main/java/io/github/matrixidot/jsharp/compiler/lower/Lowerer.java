@@ -2014,6 +2014,7 @@ public final class Lowerer {
     Span span = ca.span();
     if (ca.target() instanceof BLValue.LocalLV l
         && ca.op() != null
+        && ca.userOp() == null
         && !ca.checked()
         && capturedAccess(l.var(), span) == null) {
       return new BExpr.CompoundAssign(
@@ -2050,7 +2051,18 @@ public final class Lowerer {
     } else {
       BExpr cur = read(lv, span);
       BExpr computed;
-      if (ca.op() == BinOp.ADD && ca.opType() instanceof ClassType) {
+      if (ca.userOp() != null) {
+        // x op= v with a user-defined operator: x = op(x, v), x read and written once.
+        MethodSymbol m = ca.userOp();
+        computed =
+            new BExpr.Call(
+                null,
+                m,
+                List.of(adapt(cur, m.params().get(0).type()), adapt(v, m.params().get(1).type())),
+                CallKind.STATIC,
+                m.returnType(),
+                span);
+      } else if (ca.op() == BinOp.ADD && ca.opType() instanceof ClassType) {
         computed = new BExpr.Concat(List.of(cur, v), syms.stringType(), span);
       } else if (ca.checked()
           && (ca.op() == BinOp.ADD || ca.op() == BinOp.SUB || ca.op() == BinOp.MUL)) {

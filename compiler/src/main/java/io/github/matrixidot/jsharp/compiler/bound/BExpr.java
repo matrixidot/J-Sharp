@@ -140,10 +140,24 @@ public sealed interface BExpr {
    * {@code op} means {@code ??=} (assign only if the target is null).
    *
    * @param opType the operation type (after promotion)
+   * @param userOp the user-defined operator method when the operator is overloaded (then {@code
+   *     target = userOp(target, value)}), else null
    */
   record CompoundAssign(
-      BLValue target, BinOp op, BExpr value, Type opType, Type type, boolean checked, Span span)
-      implements BExpr {}
+      BLValue target,
+      BinOp op,
+      BExpr value,
+      Type opType,
+      Type type,
+      boolean checked,
+      Span span,
+      MethodSymbol userOp)
+      implements BExpr {
+    public CompoundAssign(
+        BLValue target, BinOp op, BExpr value, Type opType, Type type, boolean checked, Span span) {
+      this(target, op, value, opType, type, checked, span, null);
+    }
+  }
 
   /** {@code ++x}, {@code x--}, ... */
   record IncDec(

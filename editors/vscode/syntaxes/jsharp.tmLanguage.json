@@ -125,7 +125,7 @@
         },
         {
           "name": "keyword.operator.word.jsharp",
-          "match": "\\b(is|as|new|with|and|or|not|typeof|nameof|checked)\\b"
+          "match": "\\b(is|as|new|with|and|or|not|typeof|nameof|checked|operator)\\b"
         },
         { "name": "constant.language.jsharp", "match": "\\b(true|false|null)\\b" },
         { "name": "variable.language.jsharp", "match": "\\b(this|super|value)\\b" }

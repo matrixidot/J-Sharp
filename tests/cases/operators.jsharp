@@ -1,0 +1,71 @@
+// User-defined operators (D077): static methods declared with `operator`.
+public record Vec(double x, double y) {
+    public static Vec operator +(Vec a, Vec b) => new Vec(a.x + b.x, a.y + b.y);
+    public static Vec operator -(Vec a, Vec b) => new Vec(a.x - b.x, a.y - b.y);
+    public static Vec operator *(Vec v, double k) => new Vec(v.x * k, v.y * k);
+    public static Vec operator *(double k, Vec v) => v * k;
+    public static Vec operator -(Vec v) => new Vec(-v.x, -v.y);
+    public double length => Math.sqrt(x * x + y * y);
+    public static boolean operator <(Vec a, Vec b) => a.length < b.length;
+    public static boolean operator >(Vec a, Vec b) => a.length > b.length;
+}
+
+public record Flags(int bits) {
+    public static Flags operator |(Flags a, Flags b) => new Flags(a.bits | b.bits);
+    public static Flags operator &(Flags a, Flags b) => new Flags(a.bits & b.bits);
+    public static Flags operator ~(Flags a) => new Flags(~a.bits & 0xFF);
+    public static boolean operator !(Flags a) => a.bits == 0;
+    public static Flags operator <<(Flags a, int n) => new Flags(a.bits << n);
+}
+
+public class Money {
+    public final long cents;
+    public Money(long cents) { this.cents = cents; }
+    public static Money operator +(Money a, Money b) => new Money(a.cents + b.cents);
+    public static Money operator %(Money a, int parts) => new Money(a.cents % parts);
+    public static boolean operator <=(Money a, Money b) => a.cents <= b.cents;
+    public static boolean operator >=(Money a, Money b) => a.cents >= b.cents;
+    public override String toString() => $"${cents / 100}.{cents % 100:D2}";
+}
+
+var a = new Vec(1, 2);
+var b = new Vec(3, 4);
+println(a + b);
+println(b - a);
+println(a * 2);
+println(3 * a);
+println(-a);
+println(a < b);
+println(a > b);
+println(a + b * 2 - a);                     // usual precedence: a + (b * 2) - a
+
+var total = new Vec(0, 0);
+foreach (var v in new Vec[] { a, b, a }) total += v;
+println(total);
+
+var arr = new Vec[] { a };
+var i = 0;
+arr[i++] += b;                              // the index is evaluated once
+println(arr[0] + " " + i);
+println("sum: " + (a + b));                 // string + stays concatenation
+
+val read = new Flags(1);
+val write = new Flags(2);
+var perms = read | write;
+println(perms);
+println((perms & write).bits);
+println((~perms).bits);
+println(!new Flags(0) + " " + !perms);
+println((read << 3).bits);
+perms |= new Flags(4);
+println(perms.bits);
+
+var wallet = new Money(1250);
+wallet += new Money(399);
+println(wallet);
+println(wallet % 7);
+println(new Money(5) <= wallet);
+println(new Money(5) >= wallet);
+
+// Java callers see readable static methods.
+println(Vec.plus(a, b) == a + b);

@@ -101,3 +101,8 @@
 ## Post-v0.1: Gradle plugin
 - Works: `plugins { id("io.github.matrixidot.jsharp") }` compiles `src/main/jsharp` and `src/test/jsharp` with the project's dependencies (D073). A TestKit functional test builds and runs a two-module project (J# using a Java library module, Java calling J# in the same module), checks the second compile is up to date, and checks that J# errors fail the build with full diagnostics. `compiler`, `runtime` and the plugin publish as Maven artifacts (verified into `build/repo`).
 - Not yet: joint compilation with same-module Java sources, incremental compilation, publication to Maven Central and the Gradle plugin portal.
+
+## Post-v0.1: language changes requested by the owner
+- `base` replaces `open` (D075), `init { }` replaces the compact record constructor and adds instance initializers (D076), and more than one entry point is an error (D074).
+- Operator overloading (D077) with readable JVM names for Java callers. Tested by an e2e program, checker files (declaration rules, syntax, use), and interop in both directions (Java calls `Item.plus`; a J# library's operators are used from another J# compilation).
+- Fixed along the way: object initializers on `init` properties of compiled J# classes (D078).

@@ -1,0 +1,15 @@
+package geometry;
+
+public record Vec(int x, int y) {
+    public static Vec operator +(Vec a, Vec b) => new Vec(a.x + b.x, a.y + b.y);
+    public static Vec operator *(Vec a, int k) => new Vec(a.x * k, a.y * k);
+    public static boolean operator <(Vec a, Vec b) => a.x * a.x + a.y * a.y < b.x * b.x + b.y * b.y;
+    public static boolean operator >(Vec a, Vec b) => b < a;
+}
+
+public base class Shape {
+    public String name { get; init; } = "shape";
+    public base double area() => 0;
+}
+
+public static String describe(this Shape s) => $"{s.name}: {s.area():F1}";

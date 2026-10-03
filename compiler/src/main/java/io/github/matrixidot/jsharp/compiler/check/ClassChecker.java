@@ -372,6 +372,7 @@ public final class ClassChecker {
       computeConstants(a, c);
       if (!c.has(Flags.MODULE)) {
         checkOverrides(a, c, bridges);
+        checkOperatorPairs(a, c);
         checkAbstractImplemented(a, c);
         checkVariance(a, c);
         checkDefaultArgs(a, c);
@@ -748,6 +749,38 @@ public final class ClassChecker {
       erased.add(t == null ? Type.ErrorType.INSTANCE : t.erasure());
     }
     return Descriptors.params(erased);
+  }
+
+  /** Comparison operators come in pairs: {@code <} with {@code >}, {@code <=} with {@code >=}. */
+  private static void checkOperatorPairs(Attr a, ClassSymbol c) {
+    for (MethodSymbol m : c.allMethods()) {
+      if (!m.has(Flags.OPERATOR) || m.decl() == null || m.params().size() != 2) {
+        continue;
+      }
+      String symbol = io.github.matrixidot.jsharp.compiler.ast.Operators.symbolOf(m.name(), 2);
+      String pair = io.github.matrixidot.jsharp.compiler.ast.Operators.pairOf(symbol);
+      if (pair == null) {
+        continue;
+      }
+      String pairName = io.github.matrixidot.jsharp.compiler.ast.Operators.jvmName(pair, 2);
+      boolean found = false;
+      for (MethodSymbol o : c.methods(pairName)) {
+        if (o.has(Flags.OPERATOR)
+            && o.params().size() == 2
+            && a.types.isSameType(o.params().get(0).type(), m.params().get(0).type())
+            && a.types.isSameType(o.params().get(1).type(), m.params().get(1).type())) {
+          found = true;
+        }
+      }
+      if (!found && nameSpan(m) != null) {
+        a.report(
+            a.err(
+                    Code.INVALID_MODIFIER,
+                    nameSpan(m),
+                    "operator " + symbol + " needs a matching operator " + pair)
+                .help("declare 'operator " + pair + "' with the same parameter types"));
+      }
+    }
   }
 
   private static void checkOverrides(Attr a, ClassSymbol c, List<BClass.Bridge> bridges) {

@@ -1,0 +1,15 @@
+import geometry.*;
+
+class Square : Shape {
+    public Square() { }
+    public override double area() => 4;
+}
+
+val v = new Vec(1, 2) + new Vec(3, 4) * 2;
+println(v);
+println(new Vec(1, 1) < v);
+var acc = new Vec(0, 0);
+acc += new Vec(5, 5);
+println(acc);
+println(new Square { name = "square" }.describe());
+// (init-only properties of compiled classes stay init-only: `sq.name = "x"` is an error)

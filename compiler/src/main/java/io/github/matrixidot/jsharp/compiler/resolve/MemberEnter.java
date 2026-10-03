@@ -470,7 +470,8 @@ public final class MemberEnter implements ClassSymbol.Completer {
         Modifier.ASYNC,
         Modifier.DEFAULT,
         Modifier.SYNCHRONIZED,
-        Modifier.NATIVE);
+        Modifier.NATIVE,
+        Modifier.OPERATOR);
     long flags = ModifierRules.accessFlags(ctx, mods, file, !topLevel, c.isInterface());
     boolean isStatic = mods.has(Modifier.STATIC) || topLevel;
     if (isStatic) {
@@ -597,7 +598,68 @@ public final class MemberEnter implements ClassSymbol.Completer {
         m.setReturnType(Type.ErrorType.INSTANCE);
       }
     }
+    if (mods.has(Modifier.OPERATOR)) {
+      checkOperator(c, md, m, topLevel, file);
+    }
     c.addMethod(m);
+  }
+
+  /** Declaration rules for {@code static R operator op(...)} (D077). */
+  private void checkOperator(
+      ClassSymbol c, Decl.Method md, MethodSymbol m, boolean topLevel, SourceFile file) {
+    String symbol =
+        io.github.matrixidot.jsharp.compiler.ast.Operators.symbolOf(md.name(), md.params().size());
+    m.addFlags(Flags.OPERATOR);
+    if (!md.typeParams().isEmpty()) {
+      ctx.report(Code.INVALID_MODIFIER, file, md.nameSpan(), "operators cannot be generic");
+    }
+    if (topLevel) {
+      ctx.error(
+              Code.INVALID_MODIFIER,
+              file,
+              md.nameSpan(),
+              "operator " + symbol + " must be declared in the class of one of its operands")
+          .report(ctx.diags);
+      return;
+    }
+    if (!m.isStatic()) {
+      ctx.error(
+              Code.INVALID_MODIFIER, file, md.nameSpan(), "operator " + symbol + " must be static")
+          .help(
+              "operators are static methods: 'public static "
+                  + c.name()
+                  + " operator "
+                  + symbol
+                  + "(...)'")
+          .report(ctx.diags);
+    }
+    boolean ownOperand = false;
+    for (MethodSymbol.Param p : m.params()) {
+      if (p.type() != null && p.type().erasure() instanceof Type.ClassType ct && ct.sym() == c) {
+        ownOperand = true;
+      }
+    }
+    if (!ownOperand) {
+      ctx.error(
+              Code.INVALID_MODIFIER,
+              file,
+              md.nameSpan(),
+              "an operator declared in " + c.name() + " needs an operand of type " + c.name())
+          .report(ctx.diags);
+    }
+    Type ret = m.returnType();
+    if (ret == PrimType.VOID) {
+      ctx.report(Code.INVALID_MODIFIER, file, md.nameSpan(), "an operator must return a value");
+    } else if (io.github.matrixidot.jsharp.compiler.ast.Operators.isComparison(symbol)
+        && ret != null
+        && !ret.isError()
+        && ret != PrimType.BOOLEAN) {
+      ctx.report(
+          Code.INVALID_MODIFIER,
+          file,
+          md.nameSpan(),
+          "comparison operator " + symbol + " must return boolean");
+    }
   }
 
   /** Adds FINAL to overridable-looking instance methods of base classes that are not base. */

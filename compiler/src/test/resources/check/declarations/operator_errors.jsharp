@@ -1,0 +1,9 @@
+// Declaration rules for user-defined operators (D077).
+public record Point(int x, int y) {
+    public static Point operator +(Point a, Point b) => new Point(a.x + b.x, a.y + b.y);
+    public Point operator -(Point a, Point b) => a;                       //~ JS0410
+    public static Point operator *(int a, int b) => new Point(a, b);      //~ JS0410
+    public static int operator <(Point a, Point b) => 0;                 //~ JS0410
+    public static void operator /(Point a, Point b) { }                  //~ JS0410
+}
+public static Point operator -(Point a) => a;                             //~ JS0410

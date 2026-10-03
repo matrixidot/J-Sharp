@@ -36,5 +36,6 @@ public class Main {
     System.out.println(Event.class.isSealed() + " " + Event.class.getPermittedSubclasses().length);
     System.out.println(new Item("a", Category.Food, 1).equals(new Item("a", Category.Food, 1)));
     System.out.println(Category.valueOf("Food").ordinal());
+    System.out.println(Item.plus(h, 3).quantity());
   }
 }

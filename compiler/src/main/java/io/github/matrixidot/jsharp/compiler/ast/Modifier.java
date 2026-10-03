@@ -18,7 +18,9 @@ public enum Modifier {
   SYNCHRONIZED,
   VOLATILE,
   TRANSIENT,
-  NATIVE;
+  NATIVE,
+  /** Marks a user-defined operator method (implicit; written as the `operator` keyword). */
+  OPERATOR;
 
   public String keyword() {
     return name().toLowerCase(java.util.Locale.ROOT);
