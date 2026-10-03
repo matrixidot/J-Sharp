@@ -380,7 +380,11 @@ public final class ClassGen {
         desc,
         flags,
         mb -> {
-          if (!m.name().equals("<clinit>") && Descs.methodNeedsSignature(m)) {
+          // Synthetic methods (lambda bodies, bridges) get no Signature, like javac: theirs could
+          // mention type variables of the enclosing generic method.
+          if (!m.name().equals("<clinit>")
+              && !m.has(Flags.SYNTHETIC)
+              && Descs.methodNeedsSignature(m)) {
             mb.with(SignatureAttribute.of(MethodSignature.parseFrom(Descs.methodSignature(m))));
           }
           if (!m.params().isEmpty() && !m.name().equals("<clinit>")) {

@@ -21,7 +21,11 @@ public abstract class Sequence<T> : Iterable<T> {
 
     public abstract override Iterator<T> iterator();
 
-    public override void forEach(Consumer<T> action) {
+    /**
+     * Pushes every element into {@code action}: the non-cancellable traversal used by terminal
+     * operations that consume everything (stages override it without per-element stop checks).
+     */
+    public open override void forEach(Consumer<T> action) {
         forEachWhile(x => { action.accept(x); return true; });
     }
 
@@ -77,51 +81,51 @@ public abstract class Sequence<T> : Iterable<T> {
 
     // ---------------------------------------------------------------- terminal operations
 
+    /** The exact number of elements if known without traversing (collections), else -1. */
+    public open int sizeHint() => -1;
+
     public ArrayList<T> toList() {
-        var out = new ArrayList<T>();
-        forEachWhile(x => out.add(x));
+        val n = sizeHint();
+        val out = n >= 0 ? new ArrayList<T>(n) : new ArrayList<T>();
+        forEach(x => out.add(x));
         return out;
     }
 
     public LinkedHashSet<T> toSet() {
-        var out = new LinkedHashSet<T>();
-        forEachWhile(x => { out.add(x); return true; });
+        val out = new LinkedHashSet<T>();
+        forEach(x => out.add(x));
         return out;
     }
 
     /** A map in encounter order; a duplicate key is an error. */
     public LinkedHashMap<K, V> toMap<K, V>(Function<T, K> key, Function<T, V> value) {
-        var out = new LinkedHashMap<K, V>();
-        forEachWhile(x => {
+        val out = new LinkedHashMap<K, V>();
+        forEach(x => {
             val k = key.apply(x);
             if (out.containsKey(k)) {
                 throw new IllegalStateException("duplicate key " + k);
             }
             out.put(k, value.apply(x));
-            return true;
         });
         return out;
     }
 
     /** Groups elements by key, preserving encounter order of keys and of elements. */
     public LinkedHashMap<K, List<T>> groupBy<K>(Function<T, K> key) {
-        var out = new LinkedHashMap<K, List<T>>();
-        forEachWhile(x => {
-            out.computeIfAbsent(key.apply(x), k => new ArrayList<T>()).add(x);
-            return true;
-        });
+        val out = new LinkedHashMap<K, List<T>>();
+        forEach(x => out.computeIfAbsent(key.apply(x), k => new ArrayList<T>()).add(x));
         return out;
     }
 
     public int count() {
         val c = new Counter();
-        forEachWhile(x => { c.n++; return true; });
+        forEach(x => c.n++);
         return c.n;
     }
 
     public int count(Predicate<T> predicate) {
         val c = new Counter();
-        forEachWhile(x => { if (predicate.test(x)) c.n++; return true; });
+        forEach(x => { if (predicate.test(x)) c.n++; });
         return c.n;
     }
 
@@ -187,7 +191,7 @@ public abstract class Sequence<T> : Iterable<T> {
     public A aggregate<A>(A seed, BiFunction<A, T, A> combine) {
         val box = new Box<A>();
         box.value = seed;
-        forEachWhile(x => { box.value = combine.apply(box.value!, x); return true; });
+        forEach(x => box.value = combine.apply(box.value!, x));
         return box.value!;
     }
 
@@ -331,6 +335,12 @@ final class IterableSource<T> : Sequence<T> {
     }
 
     public override Iterator<T> iterator() => source.iterator();
+
+    // A spliterator's forEachRemaining is the tightest loop collections offer (ArrayList's checks
+    // for concurrent modification once at the end, unlike its forEach).
+    public override void forEach(Consumer<T> action) => source.spliterator().forEachRemaining(action);
+
+    public override int sizeHint() => source is Collection<T> c ? c.size() : -1;
 }
 
 final class ArraySource<T> : Sequence<T> {
@@ -346,6 +356,12 @@ final class ArraySource<T> : Sequence<T> {
     }
 
     public override Iterator<T> iterator() => Arrays.asList(array).iterator();
+
+    public override int sizeHint() => array.length;
+
+    public override void forEach(Consumer<T> action) {
+        foreach (var x in array) action.accept(x);
+    }
 }
 
 final class DeferredSource<T> : Sequence<T> {
@@ -404,6 +420,9 @@ final class GenerateIterator<T> : Iterator<T> {
 
 // -------------------------------------------------------------------- stages
 
+// Intermediate stages push through small named sink classes rather than lambdas, which the JIT
+// inlines much better (see PipelineBench).
+
 final class WhereStage<T> : Sequence<T> {
     private final Sequence<T> source;
     private final Predicate<T> predicate;
@@ -413,10 +432,25 @@ final class WhereStage<T> : Sequence<T> {
         this.predicate = predicate;
     }
 
-    public override boolean forEachWhile(Predicate<T> sink) =>
-        source.forEachWhile(x => !predicate.test(x) || sink.test(x));
+    public override boolean forEachWhile(Predicate<T> sink) => source.forEachWhile(new WhereWhileSink<T>(predicate, sink));
 
     public override Iterator<T> iterator() => new WhereIterator<T>(source.iterator(), predicate);
+
+    public override void forEach(Consumer<T> action) => source.forEach(new WhereSink<T>(predicate, action));
+}
+
+final class WhereSink<T> : Consumer<T> {
+    private final Predicate<T> predicate;
+    private final Consumer<T> down;
+    WhereSink(Predicate<T> predicate, Consumer<T> down) { this.predicate = predicate; this.down = down; }
+    public override void accept(T x) { if (predicate.test(x)) down.accept(x); }
+}
+
+final class WhereWhileSink<T> : Predicate<T> {
+    private final Predicate<T> predicate;
+    private final Predicate<T> down;
+    WhereWhileSink(Predicate<T> predicate, Predicate<T> down) { this.predicate = predicate; this.down = down; }
+    public override boolean test(T x) => !predicate.test(x) || down.test(x);
 }
 
 final class WhereIterator<T> : Iterator<T> {
@@ -459,10 +493,27 @@ final class SelectStage<T, R> : Sequence<R> {
         this.selector = selector;
     }
 
-    public override boolean forEachWhile(Predicate<R> sink) =>
-        source.forEachWhile(x => sink.test(selector.apply(x)));
+    public override boolean forEachWhile(Predicate<R> sink) => source.forEachWhile(new SelectWhileSink<T, R>(selector, sink));
 
     public override Iterator<R> iterator() => new SelectIterator<T, R>(source.iterator(), selector);
+
+    public override int sizeHint() => source.sizeHint();
+
+    public override void forEach(Consumer<R> action) => source.forEach(new SelectSink<T, R>(selector, action));
+}
+
+final class SelectSink<T, R> : Consumer<T> {
+    private final Function<T, R> selector;
+    private final Consumer<R> down;
+    SelectSink(Function<T, R> selector, Consumer<R> down) { this.selector = selector; this.down = down; }
+    public override void accept(T x) => down.accept(selector.apply(x));
+}
+
+final class SelectWhileSink<T, R> : Predicate<T> {
+    private final Function<T, R> selector;
+    private final Predicate<R> down;
+    SelectWhileSink(Function<T, R> selector, Predicate<R> down) { this.selector = selector; this.down = down; }
+    public override boolean test(T x) => down.test(selector.apply(x));
 }
 
 final class SelectIterator<T, R> : Iterator<R> {
@@ -701,6 +752,8 @@ final class SelectIntStage<T> : IntSequence {
 
     public override boolean forEachWhileInt(IntPredicate sink) =>
         source.forEachWhile(x => sink.test(selector.applyAsInt(x)));
+
+    public override void forEachInt(IntConsumer sink) => source.forEach(new ToIntSink<T>(selector, sink));
 }
 
 final class SelectLongStage<T> : LongSequence {
@@ -714,6 +767,8 @@ final class SelectLongStage<T> : LongSequence {
 
     public override boolean forEachWhileLong(LongPredicate sink) =>
         source.forEachWhile(x => sink.test(selector.applyAsLong(x)));
+
+    public override void forEachLong(LongConsumer sink) => source.forEach(new ToLongSink<T>(selector, sink));
 }
 
 final class SelectDoubleStage<T> : DoubleSequence {
@@ -727,4 +782,27 @@ final class SelectDoubleStage<T> : DoubleSequence {
 
     public override boolean forEachWhileDouble(DoublePredicate sink) =>
         source.forEachWhile(x => sink.test(selector.applyAsDouble(x)));
+
+    public override void forEachDouble(DoubleConsumer sink) => source.forEach(new ToDoubleSink<T>(selector, sink));
+}
+
+final class ToIntSink<T> : Consumer<T> {
+    private final ToIntFunction<T> selector;
+    private final IntConsumer down;
+    ToIntSink(ToIntFunction<T> selector, IntConsumer down) { this.selector = selector; this.down = down; }
+    public override void accept(T x) => down.accept(selector.applyAsInt(x));
+}
+
+final class ToLongSink<T> : Consumer<T> {
+    private final ToLongFunction<T> selector;
+    private final LongConsumer down;
+    ToLongSink(ToLongFunction<T> selector, LongConsumer down) { this.selector = selector; this.down = down; }
+    public override void accept(T x) => down.accept(selector.applyAsLong(x));
+}
+
+final class ToDoubleSink<T> : Consumer<T> {
+    private final ToDoubleFunction<T> selector;
+    private final DoubleConsumer down;
+    ToDoubleSink(ToDoubleFunction<T> selector, DoubleConsumer down) { this.selector = selector; this.down = down; }
+    public override void accept(T x) => down.accept(selector.applyAsDouble(x));
 }

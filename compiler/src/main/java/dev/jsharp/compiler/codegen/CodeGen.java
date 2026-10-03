@@ -1310,8 +1310,23 @@ final class CodeGen {
     if (t instanceof PrimType) {
       return Descs.of(t);
     }
+    // Like javac: String and the java.lang wrappers keep their static type so the factory can
+    // specialize (e.g. Integer), other references go through Object (always accessible).
     ClassDesc d = Descs.of(t);
-    return d.equals(ConstantDescs.CD_String) ? d : ConstantDescs.CD_Object;
+    String n = d.descriptorString();
+    return switch (n) {
+      case "Ljava/lang/String;",
+          "Ljava/lang/Integer;",
+          "Ljava/lang/Long;",
+          "Ljava/lang/Short;",
+          "Ljava/lang/Byte;",
+          "Ljava/lang/Character;",
+          "Ljava/lang/Boolean;",
+          "Ljava/lang/Double;",
+          "Ljava/lang/Float;" ->
+          d;
+      default -> ConstantDescs.CD_Object;
+    };
   }
 
   private static final DirectMethodHandleDesc LMF =

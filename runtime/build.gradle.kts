@@ -35,3 +35,14 @@ val compileJSharp by tasks.registering(JavaExec::class) {
 sourceSets.main {
     output.dir(mapOf("builtBy" to compileJSharp), jsharpOut)
 }
+
+// Java consumers in this build compile against the classes-directory variant: include the J#
+// half there too (the jar already contains both).
+configurations.named("apiElements") {
+    outgoing.variants.named("classes") {
+        artifact(jsharpOut) {
+            type = "java-classes-directory"
+            builtBy(compileJSharp)
+        }
+    }
+}

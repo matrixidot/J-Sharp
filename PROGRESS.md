@@ -40,3 +40,10 @@
 - Tests: 127 e2e programs, 121 checker files incl. sealed-exhaustiveness negatives (JS0650), 3 interop cases.
 - Deferred: list patterns (v0.2, parsed only), `SwitchBootstraps.typeSwitch` evaluation (M7).
 - Known issues: exception filters run after inner `finally` blocks (JVM has no filter pass; D050).
+
+## M6 — Stdlib & LINQ-style sequences (done)
+- Works: `jsharp.collections` (lazy `Sequence<T>` with where/select/selectMany/orderBy/thenBy/groupBy/take/skip/zip/distinct/aggregate/first/any/all/sum/minBy/toList/toMap/joinToString/..., primitive `IntSequence`/`LongSequence`/`DoubleSequence`, `range`, `generate`, extensions on `Iterable`, arrays and streams) and `jsharp.text` string extensions, all written in J# and compiled into the runtime jar by the J# compiler.
+- Benchmarks: `PipelineBench` vs `java.util.stream`: primitive/array pipelines allocate 0 B/op and run 2–28% faster; boxed, groupBy, firstMatch faster; topTen at parity; mapFilterCollect +9% within error bars. KernelBench unchanged from M4 (no regressions).
+- Fixed along the way: synthetic lambda methods no longer carry generic signatures (javac rejected J# classes using them), J# tuple types round-trip through class files, StringConcat passes wrapper types like javac.
+- Deferred: `foreach` over primitive sequences without boxing, query syntax (v0.3).
+- Known issues: the machine's JMH runs are noisy (bimodal JIT on some Java baselines); see BENCHMARKS.md.

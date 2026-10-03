@@ -212,3 +212,17 @@ Format: **decision** — reason. *Rejected:* alternatives.
   and switch-expression arms on an enum selector may name constants unqualified (`case North`).
   In a switch expression, an unguarded `null =>` arm makes the selector local non-null in the
   arms after it.
+- **D063: Sequences are lazy, push-based pipelines with two traversal paths** (like
+  `java.util.stream`): `forEach`/`forEachInt` (no early exit) for terminals that consume everything,
+  and `forEachWhile`/`forEachWhileInt` (sink returns false to stop) for short-circuiting ones
+  (`first`, `any`, `take`). Intermediate stages push through small named sink classes, because
+  lambda sinks inline worse (measured in `docs/BENCHMARKS.md`). `foreach` over a sequence uses
+  pull iterators. C# LINQ semantics: nothing runs before a terminal operation, and a sequence can
+  be traversed again if its source can. `groupBy`/`toMap`/`toSet` return insertion-ordered
+  `LinkedHashMap`/`LinkedHashSet`. Numeric sums over `T` are `sum` (int), `sumLong`, `sumDouble`,
+  because implicit lambdas cannot choose between overloads that differ only in functional
+  interface type (Java rule).
+- **D064: The stdlib is written in J#** (`runtime/src/main/jsharp`), except what must exist before
+  J# code can run: `jsharp.core` (Prelude, Task, tuples, Result) and the `jsharp.lang` metadata
+  annotations. The runtime build compiles the J# half with the compiler's batch entry point, so
+  the compiler never depends on the CLI or on itself.

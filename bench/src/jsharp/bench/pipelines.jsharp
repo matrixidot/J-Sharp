@@ -1,0 +1,19 @@
+// Sequence pipelines benchmarked against java.util.stream (PipelineBench).
+package bench;
+
+import java.util.*;
+
+public static int primitivePipeline(int n) => range(0, n).where(i => i % 3 == 0).select(i => i * i).sum();
+
+public static int arrayPipeline(int[] xs) => xs.where(x => x > 500).select(x => x * 2).sum();
+
+public static long boxedPipeline(List<Integer> xs) => xs.where(x => x % 2 == 0).selectLong(x => (long) x * x).sum();
+
+public static int groupCount(List<String> words) => words.groupBy(w => w.charAt(0)).size();
+
+public static List<Integer> topTen(List<Integer> xs) => xs.orderByDescending(x => x).take(10).toList();
+
+public static int firstMatch(List<Integer> xs) => xs.first(x => x > 990);
+
+public static List<String> mapFilterCollect(List<Integer> xs) =>
+    xs.where(x => x % 7 == 0).select(x => "n" + x).toList();
