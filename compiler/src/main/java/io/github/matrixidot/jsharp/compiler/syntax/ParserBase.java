@@ -45,6 +45,77 @@ abstract class ParserBase {
    */
   boolean asyncContext;
 
+  /**
+   * At a declarator after ',': {@code int x, float y = f()} gives each variable its own type, which
+   * Java syntax does not allow. Reports it with the tuple-unpacking form as the fix, skips the
+   * stray type and returns true; returns false if no type precedes the name.
+   *
+   * @param firstType source text of the declaration's type (null if inferred)
+   * @param earlier names declared before the comma
+   */
+  final boolean typedDeclaratorAhead(String firstType, List<String> earlier) {
+    if (!at(IDENTIFIER) && !isPrimitiveKind(tok().kind())) {
+      return false;
+    }
+    int j = scanType(pos, true);
+    if (j <= pos || kind(j) != IDENTIFIER) {
+      return false;
+    }
+    Span typeSpan = new Span(tok().span().start(), tokAt(j - 1).span().end());
+    String type = file.text(typeSpan);
+    StringBuilder tuple = new StringBuilder("(");
+    for (String n : earlier) {
+      tuple.append(firstType == null ? "var" : firstType).append(' ').append(n).append(", ");
+    }
+    tuple.append(type).append(' ').append(tokAt(j).text()).append(')');
+    errorAlways(
+        Code.UNEXPECTED_TOKEN,
+        typeSpan,
+        "all variables of a declaration share its type",
+        "to unpack a tuple, write '" + tuple + " = ...;'");
+    pos = j; // continue with the name
+    return true;
+  }
+
+  /**
+   * At {@code out}/{@code ref} used as a C# parameter or argument mode: J# has neither (D079).
+   * Reports it with the alternatives and consumes the word; false if this is just a name.
+   */
+  final boolean refOutModeAhead(boolean argument) {
+    if (!(atContextual("out") || atContextual("ref"))) {
+      return false;
+    }
+    TokenKind next = kind(pos + 1);
+    boolean looksLikeMode =
+        next == IDENTIFIER
+            || isPrimitiveKind(next)
+            || (argument && tokAt(pos + 1).isContextual("var"));
+    if (!looksLikeMode) {
+      return false;
+    }
+    Token word = advance();
+    errorAlways(
+        Code.UNEXPECTED_TOKEN,
+        word.span(),
+        "J# has no '" + word.text() + "' " + (argument ? "arguments" : "parameters"),
+        word.text().equals("out")
+            ? "return a tuple ('(boolean, int) tryParse(String s)', then 'var (ok, n) = "
+                + "tryParse(s);') or a nullable value checked with 'is' ('if (parse(s) is int n)')"
+            : "return the new value (or a tuple of values) and assign it at the call site");
+    if (argument) {
+      // `out var e` / `out int e`: skip the declaration part, keep the name as the argument.
+      if (atContextual("var") && kind(pos + 1) == IDENTIFIER) {
+        advance();
+      } else {
+        int j = scanType(pos, true);
+        if (j > pos && kind(j) == IDENTIFIER) {
+          pos = j;
+        }
+      }
+    }
+    return true;
+  }
+
   /** Thrown when nesting exceeds {@link #MAX_DEPTH}; caught by the entry point. */
   static final class TooDeep extends RuntimeException {
     private static final long serialVersionUID = 1L;

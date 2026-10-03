@@ -487,6 +487,7 @@ abstract class ExprParser extends ParserBase {
         name = advance().text();
         advance();
       }
+      refOutModeAhead(true);
       Expr value = parseExpr();
       args.add(new Arg(name, value, spanFrom(start)));
       if (!accept(COMMA) || pos == before) {

@@ -360,6 +360,11 @@ abstract class StmtParser extends ExprParser {
     }
     List<VarDeclarator> vars = new ArrayList<>();
     do {
+      if (!vars.isEmpty()) {
+        typedDeclaratorAhead(
+            type == null ? null : file.text(type.span()),
+            vars.stream().map(VarDeclarator::name).toList());
+      }
       int ds = startOffset();
       Span nameSpan = tok().span();
       String name = expectIdent("variable name");

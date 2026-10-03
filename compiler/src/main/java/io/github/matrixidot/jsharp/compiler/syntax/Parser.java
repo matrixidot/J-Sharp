@@ -539,6 +539,7 @@ public final class Parser extends StmtParser {
     }
     vars.add(new VarDeclarator(name, nameSpan, init, spanFrom(nameSpan.start())));
     if (accept(COMMA)) {
+      typedDeclaratorAhead(file.text(type.span()), List.of(name));
       vars.addAll(parseDeclarators());
     }
     expect(SEMI);
@@ -726,6 +727,7 @@ public final class Parser extends StmtParser {
               "modifier '" + item.modifier().keyword() + "' is not allowed on a parameter");
         }
       }
+      refOutModeAhead(false);
       boolean isThis = accept(THIS);
       boolean isParams = acceptContextual("params") && startsType(tok().kind());
       TypeNode type = parseType();

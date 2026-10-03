@@ -319,3 +319,12 @@ Format: **decision** — reason. *Rejected:* alternatives.
 - **D078: `init` accessors of compiled J# classes** (synthetic setters, D030) are loaded from
   class files of `@Metadata` classes, so J# object initializers work across compilations, while
   ordinary assignments through them are rejected (JS0628), as for source properties.
+- **D079: No `out` or `ref` parameters** (decided with the owner). Their C# uses are covered
+  better in J#: try-patterns by nullable returns with `is` patterns
+  (`if (map.get(k) is V v)`, `if (s.toIntOrNull() is int n)`), multiple results by tuples
+  (`(boolean, int) tryParse(...)` with `var (ok, n) = tryParse(s);`). On the JVM they would need
+  hidden cell objects anyway (no performance gain) and give Java callers awkward `Ref<T>`
+  parameters. Writing `out`/`ref` as a parameter or argument mode is a syntax error that points
+  to these alternatives; both words remain ordinary identifiers. Likewise `int x, float y = f();`
+  (a declarator with its own type) reports "all variables of a declaration share its type" and
+  suggests `(int x, float y) = f();`.
