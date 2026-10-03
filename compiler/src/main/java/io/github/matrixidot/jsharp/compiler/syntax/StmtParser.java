@@ -450,10 +450,12 @@ abstract class StmtParser extends ExprParser {
     if (j > 0
         && kind(j) == IDENTIFIER
         && (kind(j + 1) == COLON || tokAt(j + 1).isContextual("in"))) {
+      String variable = file.text(new Span(tok().span().start(), tokAt(j).span().end()));
       errorAlways(
           Code.UNEXPECTED_TOKEN,
           tokAt(pos - 2).span(),
-          "enhanced for loops are written with 'foreach'");
+          "enhanced for loops are written with 'foreach'",
+          "write 'foreach (" + variable + " in ...)'");
       pos--; // re-parse as foreach starting at '('
       return parseForeachRest(start, true);
     }

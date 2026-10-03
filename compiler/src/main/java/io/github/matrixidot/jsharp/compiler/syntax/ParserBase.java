@@ -180,8 +180,12 @@ abstract class ParserBase {
 
   /** Reports an error that is not subject to cascade suppression (e.g. semantic-ish checks). */
   final void errorAlways(Code code, Span span, String message) {
+    errorAlways(code, span, message, null);
+  }
+
+  final void errorAlways(Code code, Span span, String message, String help) {
     errorCount++;
-    sink.report(Diagnostic.error(code, file, span, message).build());
+    sink.report(Diagnostic.error(code, file, span, message).help(help).build());
   }
 
   /** Consumes a token of kind {@code k} or reports "expected k". Never advances on failure. */

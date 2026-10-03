@@ -282,7 +282,19 @@ public final class Attr {
       reportMismatch(b, target, span, what);
       return new BExpr.Error(target, span);
     }
-    if (!types.nullnessCompatible(from, target)) {
+    if (!types.nullnessCompatible(from, target) && from instanceof Type.NullType) {
+      report(
+          err(
+                  Code.NULLABILITY_MISMATCH,
+                  span,
+                  (what == null ? "" : what + ": ")
+                      + "'null' is not a value of the non-null type "
+                      + target.display())
+              .help(
+                  target.isReference() && !(target instanceof Type.TypeVar)
+                      ? "declare the type as '" + target.display() + "?' to allow null"
+                      : null));
+    } else if (!types.nullnessCompatible(from, target)) {
       report(
           err(
                   Code.NULLABILITY_MISMATCH,
