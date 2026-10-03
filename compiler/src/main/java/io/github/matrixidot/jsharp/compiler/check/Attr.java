@@ -817,6 +817,13 @@ public final class Attr {
   void reportUnresolvedName(String name, Span span) {
     Diagnostic.Builder d =
         err(Code.UNRESOLVED_NAME, span, "cannot find '" + name + "' in this scope");
+    String importable =
+        io.github.matrixidot.jsharp.compiler.resolve.TypeResolver.importable(ctx, name);
+    if (importable != null) {
+      // `List.of(...)` without `import java.util.List;`
+      report(d.help("add 'import " + importable + ";'"));
+      return;
+    }
     Set<String> names = new LinkedHashSet<>();
     env.scope.collectNames(names);
     for (ClassSymbol c = env.cls; c != null; c = c.outer()) {

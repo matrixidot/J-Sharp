@@ -174,6 +174,23 @@ public final class TypeResolver {
     };
   }
 
+  /**
+   * The qualified name of a public class called {@code simpleName} in one of the commonly used
+   * packages ({@code java.util} and friends), for "add 'import ...'" hints; null if none.
+   */
+  public static String importable(Context ctx, String simpleName) {
+    if (simpleName.isEmpty() || !Character.isUpperCase(simpleName.charAt(0))) {
+      return null;
+    }
+    for (String p : COMMON_PACKAGES) {
+      ClassSymbol c = ctx.syms.lookup(p.replace('.', '/') + "/" + simpleName);
+      if (c != null && c.has(Flags.PUBLIC)) {
+        return p + "." + simpleName;
+      }
+    }
+    return null;
+  }
+
   private Type resolveTuple(TypeNode.Tuple t, TypeScope scope, RawMode raw) {
     List<Type> elems = new ArrayList<>();
     List<String> names = new ArrayList<>();
@@ -497,14 +514,7 @@ public final class TypeResolver {
           new io.github.matrixidot.jsharp.compiler.source.Span(
               seg0.span().start(), seg0.span().start() + name.length());
       b = ctx.error(Code.UNRESOLVED_TYPE, file, nameSpan, "cannot find type '" + name + "'");
-      String importable = null;
-      for (String p : COMMON_PACKAGES) {
-        ClassSymbol c = ctx.syms.lookup(p.replace('.', '/') + "/" + name);
-        if (c != null && c.has(Flags.PUBLIC)) {
-          importable = p + "." + name;
-          break;
-        }
-      }
+      String importable = importable(ctx, name);
       if (importable != null) {
         b.help("add 'import " + importable + ";'");
       } else {

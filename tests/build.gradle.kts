@@ -9,6 +9,8 @@ tasks.test {
     inputs.dir("cases")
     inputs.dir("interop")
     inputs.dir(rootProject.file("examples"))
+    inputs.file(rootProject.file("docs/TOUR.md"))
+    systemProperty("jsharp.docs", rootProject.file("docs").absolutePath)
     systemProperty("jsharp.examples", rootProject.file("examples").absolutePath)
     systemProperty("jsharp.cases", file("cases").absolutePath)
     systemProperty("jsharp.interop", file("interop").absolutePath)
