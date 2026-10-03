@@ -87,6 +87,27 @@ class MainTest {
   }
 
   @Test
+  void runTakesSeveralSourcesThenArguments(@TempDir Path dir) throws IOException {
+    Path main = Files.writeString(dir.resolve("main.jsharp"), "println(greet(args[0]));\n");
+    Path greet =
+        Files.writeString(
+            dir.resolve("greet.jsharp"), "public String greet(String n) => $\"Hi, {n}\";\n");
+    // The program runs in this JVM and prints to System.out.
+    PrintStream saved = System.out;
+    var printed = new ByteArrayOutputStream();
+    System.setOut(new PrintStream(printed, true, StandardCharsets.UTF_8));
+    try {
+      Outcome o = run("run", main.toString(), greet.toString(), "Ada");
+      assertThat(o.code()).as(o.err()).isZero();
+      o = run("run", main.toString(), greet.toString(), "--", "x.jsharp");
+      assertThat(o.code()).as(o.err()).isZero();
+    } finally {
+      System.setOut(saved);
+    }
+    assertThat(printed.toString(StandardCharsets.UTF_8)).isEqualTo("Hi, Ada\nHi, x.jsharp\n");
+  }
+
+  @Test
   void cdsTrainingProgramCompiles() {
     assertThat(run("--cds-train").code()).isZero();
   }

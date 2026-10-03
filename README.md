@@ -39,8 +39,8 @@ Then read the [language tour](docs/TOUR.md) (about 15 minutes) and try the demo 
 ## The `jsharp` command
 
 ```
-jsharp run <file|dir> [args...]                  compile in memory and run
-jsharp run <src...> -- [args...]                 several sources (e.g. a script and its helpers)
+jsharp run <files...|dir> [args...]              compile in memory and run
+jsharp run <src...> -- [args...]                 `--` ends the sources explicitly
 jsharp build <src...> -d out                     compile to class files
 jsharp build <src...> --jar app.jar --include-runtime
                                                  a self-contained jar for `java -jar app.jar`

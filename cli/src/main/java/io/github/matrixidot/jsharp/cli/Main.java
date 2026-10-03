@@ -95,9 +95,9 @@ public final class Main {
   }
 
   /**
-   * Parses options. For {@code run}, everything after the first source file is program args, unless
-   * {@code --} separates several sources from the program args ({@code run a.jsharp b.jsharp --
-   * x}).
+   * Parses options. For {@code run}, the leading source files ({@code .jsharp}/{@code .java}) or a
+   * directory are compiled and the rest are program args; {@code --} separates them explicitly
+   * ({@code run a.jsharp b.jsharp -- x}).
    */
   private static Options parseOptions(String[] args, boolean isRun) {
     int dashes = isRun ? Arrays.asList(args).indexOf("--") : -1;
@@ -123,6 +123,10 @@ public final class Main {
           }
           o.inputs.add(Path.of(a));
           if (isRun) {
+            // Further .jsharp/.java files are sources too; program args start after them.
+            while (i + 1 < args.length && isSourceFile(args[i + 1])) {
+              o.inputs.add(Path.of(args[++i]));
+            }
             o.programArgs = List.of(Arrays.copyOfRange(args, i + 1, args.length));
             return o;
           }
@@ -130,6 +134,10 @@ public final class Main {
       }
     }
     return o;
+  }
+
+  private static boolean isSourceFile(String arg) {
+    return arg.endsWith(LanguageInfo.FILE_EXTENSION) || arg.endsWith(".java");
   }
 
   private static String need(String[] args, int i, String opt) {
@@ -359,8 +367,8 @@ public final class Main {
     out.println("usage: " + LanguageInfo.ID + " <command> [options]");
     out.println();
     out.println("commands:");
-    out.println("  run <file|dir> [args...]            compile in memory and run the entry point");
-    out.println("  run <src...> -- [args...]            the same, with several sources");
+    out.println("  run <files...|dir> [args...]        compile in memory and run the entry point");
+    out.println("  run <src...> -- [args...]            '--' ends the sources explicitly");
     out.println(
         "  build <src...> [-d dir] [--jar f]    compile to class files (default ./out) or a jar");
     out.println(
