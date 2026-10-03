@@ -29,7 +29,12 @@ public final class FileScope {
 
   /** Classes whose static members (and extension methods) every file imports implicitly. */
   public static final List<String> IMPLICIT_STATIC =
-      List.of("jsharp/core/Prelude", "jsharp/collections/Sequences", "jsharp/text/Strings");
+      List.of(
+          "jsharp/core/Prelude",
+          "jsharp/collections/Sequences",
+          "jsharp/collections/LongSums",
+          "jsharp/collections/DoubleSums",
+          "jsharp/text/Strings");
 
   /** A static import of a single member name from a class. */
   public record StaticImport(ClassSymbol owner, String member, String alias) {}

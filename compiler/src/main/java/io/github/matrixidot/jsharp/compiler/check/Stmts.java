@@ -46,6 +46,11 @@ final class Stmts {
   BStmt.Block block(Stmt.Block b) {
     Scope saved = env().scope;
     env().scope = saved.child();
+    for (Stmt s : b.stmts()) {
+      if (s instanceof Stmt.LocalFunction lf) {
+        env().scope.laterFunctions.add(lf.decl().name());
+      }
+    }
     try {
       return new BStmt.Block(statements(b.stmts(), 0), b.span());
     } finally {
@@ -84,6 +89,7 @@ final class Stmts {
       case Stmt.LocalVar lv -> localVar(lv);
       case Stmt.Deconstruct d -> a.patterns.deconstruct(d);
       case Stmt.LocalType lt -> a.patterns.localClass(lt);
+      case Stmt.LocalFunction lf -> a.localFunctions.declare(lf);
       case Stmt.ExprStmt es -> exprStmt(es);
       case Stmt.If i -> ifStmt(i);
       case Stmt.While w -> whileStmt(w, null);

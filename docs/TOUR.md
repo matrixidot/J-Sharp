@@ -153,6 +153,39 @@ extensions, and extensions must be in scope: `import my.pkg.*` brings in the top
 functions and extensions of a package. The standard library's extensions (`jsharp.collections`,
 `jsharp.text`) are always available.
 
+A project can have any number of files holding only functions, like a `mathutils.jsharp` of
+helpers. Files in the same package call each other's functions by name, and other packages
+`import` them. Only one file may contain top-level statements: that is the program's entry point.
+
+A function's name without a call is a function value, wherever a function type is expected.
+This works for top-level functions, methods (`Math.abs`, `list.add`) and local functions.
+Local functions are declared inside a block, can read the variables around them that are never
+reassigned (like lambdas), and can call themselves.
+
+```jsharp
+import java.util.*;
+
+boolean isEven(int n) => n % 2 == 0;
+String label(int n) => $"#{n}";
+
+List<int> nums = [1, 2, 3, 4];
+println(nums.where(isEven).select(label).toList());  // prints: [#2, #4]
+println(nums.select(Math.negateExact).toList());     // prints: [-1, -2, -3, -4]
+println(nums.sum());                                 // prints: 10
+
+String describe(List<int> xs, String unit) {
+    String one(int x) => $"{x} {unit}";              // reads `unit`
+    return xs.select(one).joinToString(", ");
+}
+println(describe([1, 2], "kg"));                     // prints: 1 kg, 2 kg
+
+long factorial(int n) {
+    long go(int k, long acc) => k <= 1 ? acc : go(k - 1, acc * k);
+    return go(n, 1);
+}
+println(factorial(10));                              // prints: 3628800
+```
+
 ## Control flow
 
 `if`, `while`, `do`, `for` and `switch` work as in Java. `foreach` iterates, `if` and `switch`

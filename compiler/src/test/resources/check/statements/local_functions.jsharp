@@ -1,0 +1,29 @@
+// Local functions (D083): visibility, captures, duplicates and unsupported forms.
+void a() {
+    early(1);                                                          //~ JS0602
+    int early(int x) => x;
+}
+void b() {
+    var count = 0;
+    void bump() { count++; }                                           //~ JS0631
+    bump();
+}
+void c() {
+    int f(int x) => x;
+    int f(String s) => 1;                                              //~ JS0909
+}
+void d() {
+    <T> T id(T x) => x;                                                //~ JS0658
+}
+void e() {
+    int g(int x) { if (x > 0) return 1; }                              //~ JS0902
+}
+void f2() {
+    int h(int x) => x;
+    var v = h;                                                         //~ JS0615
+    int w = h;                                                         //~ JS0615
+    class L { int k() => h(1); }                                       //~ JS0602
+}
+void g2() {
+    int dflt(int x = 1) => x;                                          //~ JS0658
+}

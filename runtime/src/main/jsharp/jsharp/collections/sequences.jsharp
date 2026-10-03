@@ -119,6 +119,30 @@ public static double sumDouble<T>(this Iterable<T> xs, ToDoubleFunction<T> selec
 
 public static double average<T>(this Iterable<T> xs, ToDoubleFunction<T> selector) => asSequence(xs).average(selector);
 
+/** The sum of the numbers ({@code long} and {@code double} sums live in LongSums/DoubleSums). */
+public static int sum(this Iterable<Integer> xs) {
+    var total = 0;
+    foreach (var x in xs) total += x;
+    return total;
+}
+
+/** The mean of the numbers; NaN when there are none. */
+public static double average<T : Number>(this Iterable<T> xs) {
+    var total = 0.0;
+    var count = 0;
+    foreach (var x in xs) {
+        total += x.doubleValue();
+        count++;
+    }
+    return count == 0 ? Double.NaN : total / count;
+}
+
+/** The smallest element; throws NoSuchElementException when there are none. */
+public static T min<T : Comparable<T>>(this Iterable<T> xs) => asSequence(xs).minBy(x => x);
+
+/** The largest element; throws NoSuchElementException when there are none. */
+public static T max<T : Comparable<T>>(this Iterable<T> xs) => asSequence(xs).maxBy(x => x);
+
 public static T minBy<T, K : Comparable<K>>(this Iterable<T> xs, Function<T, K> key) => asSequence(xs).minBy(key);
 
 public static T maxBy<T, K : Comparable<K>>(this Iterable<T> xs, Function<T, K> key) => asSequence(xs).maxBy(key);

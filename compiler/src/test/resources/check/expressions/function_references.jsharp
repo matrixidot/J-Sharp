@@ -1,0 +1,16 @@
+// Functions used as values (D083): what needs a function type, and what wins over a function.
+import java.util.*;
+import java.util.function.*;
+
+int twice(int x) => x * 2;
+String greet(String s) => "hi " + s;
+var xs = [1, 2, 3];
+var f = twice;                                                         //~ JS0615
+int y = twice;                                                         //~ JS0615
+println(xs.select(greet).toList());                                    //~ JS0615
+Supplier<int> g = twice;                                               //~ JS0615
+class C {
+    void inst(int x) { }
+    static void s(List<int> ys) { ys.forEach(inst); }                  //~ JS0612
+}
+println(nope);                                                         //~ JS0602

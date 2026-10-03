@@ -135,7 +135,8 @@ final class Calls {
   List<ArgInfo> prepare(List<Arg> args) {
     List<ArgInfo> out = new ArrayList<>();
     for (Arg arg : args) {
-      Expr e = arg.value();
+      Expr fv = a.asFunctionValue(arg.value());
+      Expr e = fv != null ? fv : arg.value(); // a function passed by name (D083)
       if (isDeferred(e)) {
         out.add(new ArgInfo(arg.name(), e, null, null, true, arg.span()));
       } else if (isPolyCandidate(e)) {
@@ -249,6 +250,117 @@ final class Calls {
     return out;
   }
 
+  /** Top-level functions an unqualified name can call, by priority. */
+  record Tiers(
+      List<MethodSymbol> module, List<MethodSymbol> imported, List<MethodSymbol> onDemand) {}
+
+  /**
+   * Top-level functions named {@code name}: this file's module, then the package's other modules;
+   * static single imports; static on-demand imports (including the Prelude).
+   */
+  Tiers functionTiers(String name) {
+    Env env = a.env;
+    List<MethodSymbol> moduleCands = new ArrayList<>();
+    ClassSymbol module = a.moduleOf(env.cls);
+    if (module != null) {
+      moduleCands.addAll(module.methods(name));
+    }
+    for (ClassSymbol m : a.packageModules.getOrDefault(env.cls.packageName(), List.of())) {
+      if (m != module) {
+        for (MethodSymbol ms : m.methods(name)) {
+          if (!ms.has(Flags.PRIVATE)) {
+            moduleCands.add(ms);
+          }
+        }
+      }
+    }
+    moduleCands.removeIf(ms -> ms.has(Flags.ENTRY_POINT));
+    List<MethodSymbol> imported = new ArrayList<>();
+    FileScope fs = a.fileScope();
+    for (FileScope.StaticImport si : fs.staticSingleImports()) {
+      String visible = si.alias() != null ? si.alias() : si.member();
+      if (visible.equals(name)) {
+        for (MethodSymbol ms : si.owner().methods(si.member())) {
+          if (ms.isStatic()) {
+            imported.add(ms);
+          }
+        }
+      }
+    }
+    List<MethodSymbol> onDemand = new ArrayList<>();
+    for (ClassSymbol c : fs.staticOnDemandImports()) {
+      for (MethodSymbol ms : a.lookup.findMethods(c.thisType(), name)) {
+        if (ms.isStatic() && a.lookup.isAccessible(ms, ms.owner(), null, env.cls)) {
+          onDemand.add(ms);
+        }
+      }
+    }
+    return new Tiers(moduleCands, imported, onDemand);
+  }
+
+  /**
+   * The methods an unqualified name denotes when used as a function value (D083), found as for an
+   * unqualified call: the first enclosing class declaring a method of that name, else the first
+   * non-empty tier of top-level functions. Null if there is none.
+   *
+   * @param owner the enclosing class whose methods these are, or null for top-level functions
+   * @param staticOnly instance methods of {@code owner} cannot be used from here
+   * @param current {@code owner} is the innermost class (receiver {@code this}, not an outer one)
+   */
+  record FunctionGroup(
+      List<MethodSymbol> methods, ClassSymbol owner, boolean staticOnly, boolean current) {}
+
+  FunctionGroup functionGroup(String name) {
+    Env env = a.env;
+    boolean staticOnly = env.isStatic;
+    boolean first = true;
+    for (ClassSymbol c = env.cls; c != null; c = c.outer()) {
+      if (a.lookup.hasMethodNamed(c.thisType(), name)) {
+        return new FunctionGroup(a.lookup.findMethods(c.thisType(), name), c, staticOnly, first);
+      }
+      if (!c.has(Flags.LOCAL) && !c.has(Flags.ANONYMOUS) || c.has(Flags.STATIC)) {
+        staticOnly = true;
+      }
+      first = false;
+    }
+    Tiers t = functionTiers(name);
+    for (List<MethodSymbol> tier : List.of(t.module(), t.imported(), t.onDemand())) {
+      if (!tier.isEmpty()) {
+        return new FunctionGroup(tier, null, true, false);
+      }
+    }
+    return null;
+  }
+
+  /** A call of a local function: its captured locals, then the arguments (D083). */
+  private BExpr localFunctionCall(
+      LocalFunctions.Fn fn,
+      List<TypeNode> typeArgs,
+      Span nameSpan,
+      List<Arg> args,
+      Type pt,
+      Span span) {
+    if (!typeArgs.isEmpty()) {
+      a.error(
+          Code.WRONG_TYPE_ARG_COUNT,
+          nameSpan,
+          "local function '" + fn.sym.name() + "' is not generic");
+    }
+    List<ArgInfo> infos = prepare(args);
+    Selected sel = select(List.of(fn.sym), null, infos, null, pt, null, span, fn.sym.name(), true);
+    if (sel == null) {
+      return new BExpr.Error(Type.ErrorType.INSTANCE, span);
+    }
+    BExpr recv = fn.capturesThis ? a.thisValue(span) : null;
+    BExpr r = finish(sel, recv, fn.capturesThis ? a.env.cls.thisType() : null, infos, span, false);
+    if (!(r instanceof BExpr.Call c)) {
+      return r;
+    }
+    List<BExpr> all = new ArrayList<>(a.localFunctions.captureArgs(fn, span));
+    all.addAll(c.args());
+    return new BExpr.Call(c.receiver(), fn.impl, all, c.kind(), c.type(), c.span());
+  }
+
   /** {@code name(args)}: local functional values, enclosing classes, module functions, imports. */
   private BExpr simpleCall(
       String name, List<TypeNode> typeArgs, Span nameSpan, List<Arg> args, Type pt, Span span) {
@@ -257,6 +369,10 @@ final class Calls {
     if (local != null) {
       BExpr f = a.asValue(a.target(new Expr.Name(name, List.of(), nameSpan), true), nameSpan);
       return invokeFunctional(f, args, span);
+    }
+    LocalFunctions.Fn localFn = env.scope.lookupFunction(name);
+    if (localFn != null) {
+      return localFunctionCall(localFn, typeArgs, nameSpan, args, pt, span);
     }
     // Enclosing classes, innermost first: the first class with a method of this name wins.
     boolean staticOnly = env.isStatic;
@@ -299,43 +415,11 @@ final class Calls {
       }
       first = false;
     }
-    // Top-level functions: this file's module, then the package's other modules.
-    List<MethodSymbol> moduleCands = new ArrayList<>();
+    Tiers tiers = functionTiers(name);
     ClassSymbol module = a.moduleOf(env.cls);
-    if (module != null) {
-      moduleCands.addAll(module.methods(name));
-    }
-    for (ClassSymbol m : a.packageModules.getOrDefault(env.cls.packageName(), List.of())) {
-      if (m != module) {
-        for (MethodSymbol ms : m.methods(name)) {
-          if (!ms.has(Flags.PRIVATE)) {
-            moduleCands.add(ms);
-          }
-        }
-      }
-    }
-    moduleCands.removeIf(ms -> ms.has(Flags.ENTRY_POINT));
-    // Static imports (explicit single imports first, then on-demand including the Prelude).
-    List<MethodSymbol> imported = new ArrayList<>();
-    FileScope fs = a.fileScope();
-    for (FileScope.StaticImport si : fs.staticSingleImports()) {
-      String visible = si.alias() != null ? si.alias() : si.member();
-      if (visible.equals(name)) {
-        for (MethodSymbol ms : si.owner().methods(si.member())) {
-          if (ms.isStatic()) {
-            imported.add(ms);
-          }
-        }
-      }
-    }
-    List<MethodSymbol> onDemand = new ArrayList<>();
-    for (ClassSymbol c : fs.staticOnDemandImports()) {
-      for (MethodSymbol ms : a.lookup.findMethods(c.thisType(), name)) {
-        if (ms.isStatic() && a.lookup.isAccessible(ms, ms.owner(), null, env.cls)) {
-          onDemand.add(ms);
-        }
-      }
-    }
+    List<MethodSymbol> moduleCands = tiers.module();
+    List<MethodSymbol> imported = tiers.imported();
+    List<MethodSymbol> onDemand = tiers.onDemand();
     for (List<MethodSymbol> tier : List.of(moduleCands, imported, onDemand)) {
       if (!tier.isEmpty()) {
         List<ArgInfo> infos = prepare(args);
@@ -400,11 +484,14 @@ final class Calls {
     if (module != null) {
       module.allMethods().forEach(m -> names.add(m.name()));
     }
-    for (ClassSymbol c : fs.staticOnDemandImports()) {
+    for (ClassSymbol c : a.fileScope().staticOnDemandImports()) {
       c.allMethods().forEach(m -> names.add(m.name()));
     }
+    String hidden = env.scope.hiddenFunctionNote(name);
     String guess = Suggestions.closest(name, names);
-    if (guess != null) {
+    if (hidden != null) {
+      d.help(hidden);
+    } else if (guess != null) {
       d.help("did you mean '" + guess + "'?");
     }
     a.report(d.label("not found"));
@@ -1319,6 +1406,10 @@ final class Calls {
               });
       return s.result() == null || s.result();
     }
+    if (mr.target() == null && mr.typeTarget() == null) {
+      FunctionGroup g = functionGroup(mr.name());
+      return g == null || g.methods().stream().anyMatch(m -> arityAccepts(m, n));
+    }
     if (mr.target() == null) {
       return true;
     }
@@ -1406,6 +1497,18 @@ final class Calls {
   private record ExactRef(MethodSymbol method, Type qualifier, boolean unbound) {}
 
   private ExactRef exactMethodRef(Expr.MethodRef mr) {
+    if (mr.target() == null && mr.typeTarget() == null) {
+      FunctionGroup g = functionGroup(mr.name());
+      if (g == null || g.methods().size() != 1) {
+        return null;
+      }
+      MethodSymbol m = g.methods().getFirst();
+      if (m.isVarargs() || !m.typeParams().isEmpty() || m.returnType() == null) {
+        return null;
+      }
+      return new ExactRef(
+          m, g.owner() == null ? m.owner().thisType() : g.owner().thisType(), false);
+    }
     if (mr.name().equals("new") || mr.target() == null) {
       return null;
     }
@@ -2398,6 +2501,9 @@ final class Calls {
     for (Type p : ft.params()) {
       argTypes.add(ArgInfo.ofType(p, span));
     }
+    if (mr.target() == null && mr.typeTarget() == null) {
+      return functionRef(mr, fi, ft, sam, argTypes);
+    }
     if (mr.typeTarget() != null || mr.name().equals("new")) {
       Type t = mr.typeTarget() != null ? a.resolveType(mr.typeTarget()) : typeOfTarget(mr.target());
       if (t.isError()) {
@@ -2556,6 +2662,69 @@ final class Calls {
     }
   }
 
+  /**
+   * A function used by its bare name as a value ({@code xs.select(twice)}, D083): a method of an
+   * enclosing class (bound to {@code this} when it is an instance method) or a top-level function.
+   */
+  private BExpr functionRef(
+      Expr.MethodRef mr,
+      ClassType fi,
+      Types.MethodType ft,
+      MethodSymbol sam,
+      List<ArgInfo> argTypes) {
+    Span span = mr.span();
+    FunctionGroup g = functionGroup(mr.name());
+    if (g == null) {
+      a.reportUnresolvedName(mr.name(), mr.nameSpan());
+      return new BExpr.Error(fi, span);
+    }
+    Type site = g.owner() == null ? null : g.owner().thisType();
+    Selected sel = select(g.methods(), site, argTypes, null, null, null, span, mr.name(), false);
+    if (sel == null) {
+      reportFunctionMismatch(mr.name(), ft, span);
+      return new BExpr.Error(fi, span);
+    }
+    Type ret = sel.method.returnType();
+    if (site != null) {
+      ret = Types.subst(ret, siteSubst(site, sel.method));
+    }
+    ret = types().uncapture(Types.subst(ret, sel.solution));
+    checkRefReturn(ret, ft, span);
+    if (sel.method.isStatic()) {
+      return new BExpr.MethodRef(fi, sam, sel.method, BExpr.RefKind.STATIC, null, ret, span);
+    }
+    if (g.staticOnly()) {
+      a.error(
+          Code.STATIC_CONTEXT,
+          mr.nameSpan(),
+          "instance method '" + mr.name() + "' cannot be used from a static context");
+      return new BExpr.Error(fi, span);
+    }
+    BExpr recv;
+    if (g.current()) {
+      recv = a.thisValue(span);
+    } else {
+      a.noteThisUse();
+      recv = new BExpr.OuterThis(g.owner(), g.owner().thisType(), span);
+    }
+    return new BExpr.MethodRef(fi, sam, sel.method, BExpr.RefKind.BOUND, recv, ret, span);
+  }
+
+  private void reportFunctionMismatch(String name, Types.MethodType ft, Span span) {
+    StringBuilder sb = new StringBuilder("(");
+    for (int i = 0; i < ft.params().size(); i++) {
+      if (i > 0) {
+        sb.append(", ");
+      }
+      sb.append(ft.params().get(i).display());
+    }
+    sb.append(')');
+    a.error(
+        Code.LAMBDA_MISMATCH,
+        span,
+        "no function '" + name + "' is compatible with " + sb + " -> " + ft.ret().display());
+  }
+
   private Type typeOfTarget(Expr e) {
     Attr.Target t = a.target(e, true);
     if (t instanceof Attr.TypeTarget tt) {
@@ -2625,6 +2794,24 @@ final class Calls {
               List<ArgInfo> argTypes = new ArrayList<>();
               for (Type p : ps) {
                 argTypes.add(ArgInfo.ofType(p, mr.span()));
+              }
+              if (mr.target() == null && mr.typeTarget() == null) {
+                FunctionGroup g = functionGroup(mr.name());
+                if (g == null) {
+                  return null;
+                }
+                Type site = g.owner() == null ? null : g.owner().thisType();
+                Selected sel =
+                    select(
+                        g.methods(), site, argTypes, null, null, null, mr.span(), mr.name(), false);
+                if (sel == null) {
+                  return null;
+                }
+                Type ret = sel.method.returnType();
+                if (site != null) {
+                  ret = Types.subst(ret, siteSubst(site, sel.method));
+                }
+                return Types.subst(ret, sel.solution);
               }
               if (mr.name().equals("new")) {
                 Type t =

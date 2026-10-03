@@ -561,6 +561,12 @@ public final class Parser extends StmtParser {
     return vars;
   }
 
+  @Override
+  Decl.Method parseLocalFunction(int start, List<TypeParam> typeParams) {
+    TypeNode ret = parseType();
+    return (Decl.Method) parseMethodRest(Modifiers.empty(start), start, typeParams, ret);
+  }
+
   private Decl parseMethodRest(
       Modifiers mods, int declStart, List<TypeParam> tps, TypeNode returnType) {
     Span nameSpan = tok().span();

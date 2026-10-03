@@ -101,6 +101,7 @@ public final class AstWalk {
         walk(d.init(), v);
       }
       case Stmt.LocalType t -> walk(t.decl(), v);
+      case Stmt.LocalFunction f -> walk(f.decl(), v);
       case Stmt.ExprStmt e -> walk(e.expr(), v);
       case Stmt.If i -> {
         walk(i.cond(), v);

@@ -13,6 +13,7 @@ import io.github.matrixidot.jsharp.compiler.ast.Pattern;
 import io.github.matrixidot.jsharp.compiler.ast.Stmt;
 import io.github.matrixidot.jsharp.compiler.ast.SwitchSection;
 import io.github.matrixidot.jsharp.compiler.ast.TypeNode;
+import io.github.matrixidot.jsharp.compiler.ast.TypeParam;
 import io.github.matrixidot.jsharp.compiler.ast.VarDeclarator;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.diag.DiagnosticSink;
@@ -30,6 +31,9 @@ abstract class StmtParser extends ExprParser {
 
   /** Parses a local (or nested) type declaration with already-parsed modifiers. */
   abstract Decl.TypeDecl parseTypeDecl(Modifiers mods);
+
+  /** {@code R name(params) body} in a block (D083). */
+  abstract Decl.Method parseLocalFunction(int start, List<TypeParam> typeParams);
 
   private static final Set<TokenKind> STATEMENT_KEYWORDS =
       Set.of(
@@ -236,23 +240,15 @@ abstract class StmtParser extends ExprParser {
       expect(SEMI);
       return decl;
     }
+    if (at(LT)) {
+      // `<T> T id(T x) => x;`: no statement starts with '<' otherwise.
+      List<TypeParam> tps = parseTypeParams();
+      Decl.Method m = parseLocalFunction(start, tps);
+      return new Stmt.LocalFunction(m, m.span());
+    }
     if (isLocalFunctionAhead()) {
-      int s = startOffset();
-      errorAt(
-          Code.UNSUPPORTED_SYNTAX,
-          tok().span(),
-          "local functions are not supported",
-          "declare the function as a private method or top-level function, or use a lambda");
-      parseType();
-      advance();
-      skipUntil(Set.of(LBRACE, ARROW), true);
-      if (at(LBRACE)) {
-        parseBlock();
-      } else if (accept(ARROW)) {
-        parseExpr();
-        expect(SEMI);
-      }
-      return new Stmt.Empty(spanFrom(s));
+      Decl.Method m = parseLocalFunction(start, List.of());
+      return new Stmt.LocalFunction(m, m.span());
     }
     Expr e = parseExpr();
     if (e instanceof Expr.Error && !at(SEMI)) {

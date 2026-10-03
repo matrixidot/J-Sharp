@@ -1,0 +1,11 @@
+// `sum()` for collections of longs. A separate class from Sequences because
+// sum(Iterable<Long>) and sum(Iterable<Integer>) have the same JVM erasure.
+@file:ClassName("LongSums")
+package jsharp.collections;
+
+/** The sum of the numbers. */
+public static long sum(this Iterable<Long> xs) {
+    var total = 0L;
+    foreach (var x in xs) total += x;
+    return total;
+}

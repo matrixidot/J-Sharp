@@ -1041,7 +1041,9 @@ final class Ops {
             a.err(
                     Code.CAPTURED_NOT_FINAL,
                     span,
-                    "cannot assign to '" + name + "' inside a lambda or local class")
+                    "cannot assign to '"
+                        + name
+                        + "' inside a lambda, local function or local class")
                 .note("captured variables must be effectively final, as in Java"));
         return new BLValue.LocalLV(v);
       }

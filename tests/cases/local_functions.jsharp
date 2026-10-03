@@ -1,0 +1,66 @@
+// Local functions (D083): captures, recursion, use in lambdas and as values, `this`.
+import java.util.*;
+
+int sumOfSquares(List<int> xs) {
+    int sq(int x) => x * x;
+    var total = 0;
+    foreach (var x in xs) total += sq(x);
+    return total;
+}
+println(sumOfSquares([1, 2, 3]));
+
+String report(String title, List<int> xs) {
+    val prefix = title + ": ";
+    String line(int x) => prefix + x;            // captures `prefix`
+    return xs.select(line).joinToString(", ");   // used as a value
+}
+println(report("n", [1, 2]));
+
+long fact(int n) {
+    long go(int k, long acc) => k <= 1 ? acc : go(k - 1, acc * k);   // recursion
+    return go(n, 1);
+}
+println(fact(20));
+
+int fib(int n) {
+    val memo = new HashMap<int, int>();
+    int f(int k) {
+        if (k < 2) return k;
+        var hit = memo.get(k);
+        if (hit != null) return hit;
+        val r = f(k - 1) + f(k - 2);
+        memo.put(k, r);
+        return r;
+    }
+    return f(n);
+}
+println(fib(40));
+
+class Greeter {
+    private String name = "J#";
+    String greetAll(List<String> who) {
+        String one(String w) => $"{name} greets {w}";   // uses `this`
+        return who.select(one).joinToString("; ");
+    }
+}
+println(new Greeter().greetAll(["Ann", "Bob"]));
+
+int nested(int base) {
+    var fs = new ArrayList<java.util.function.IntUnaryOperator>();
+    for (var i = 0; i < 3; i++) {
+        val step = i;
+        int add(int x) => x + step + base;
+        fs.add(x => add(x));
+    }
+    var acc = 0;
+    foreach (var f in fs) acc += f.applyAsInt(10);
+    return acc;
+}
+println(nested(100));
+
+void log(String s) {
+    void emit(String t) { println("> " + t); }
+    emit(s);
+    [1, 2].forEach(n => emit($"{s}{n}"));
+}
+log("x");

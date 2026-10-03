@@ -20,6 +20,10 @@ final class Scope {
   final Boundary boundary;
   final Map<String, VarSymbol> vars = new LinkedHashMap<>();
   final Map<String, ClassSymbol> classes = new LinkedHashMap<>();
+  final Map<String, LocalFunctions.Fn> functions = new LinkedHashMap<>();
+
+  /** Local functions declared further down this block (for "declared later" hints). */
+  final java.util.Set<String> laterFunctions = new java.util.HashSet<>();
 
   /** For LAMBDA boundaries: the lambda frame collecting captures. */
   final LambdaFrame lambda;
@@ -83,9 +87,43 @@ final class Scope {
     return null;
   }
 
+  /** A local function visible here: not across local class bodies (D083). */
+  LocalFunctions.Fn lookupFunction(String name) {
+    for (Scope s = this; s != null; s = s.parent) {
+      LocalFunctions.Fn f = s.functions.get(name);
+      if (f != null) {
+        return f;
+      }
+      if (s.boundary == Boundary.CLASS) {
+        return null;
+      }
+    }
+    return null;
+  }
+
+  /** Why a local function named {@code name} is not visible here, or null (D083). */
+  String hiddenFunctionNote(String name) {
+    boolean crossedClass = false;
+    for (Scope s = this; s != null; s = s.parent) {
+      if (s.functions.containsKey(name)) {
+        return crossedClass
+            ? "local functions of the enclosing method are not visible inside a local class"
+            : null;
+      }
+      if (s.laterFunctions.contains(name) && !crossedClass) {
+        return "'" + name + "' is declared later in this block; move the call after it";
+      }
+      if (s.boundary == Boundary.CLASS) {
+        crossedClass = true;
+      }
+    }
+    return null;
+  }
+
   void collectNames(java.util.Set<String> out) {
     for (Scope s = this; s != null; s = s.parent) {
       out.addAll(s.vars.keySet());
+      out.addAll(s.functions.keySet());
     }
   }
 }

@@ -323,6 +323,7 @@ public final class AstPrinter {
         yield r.add(toS(d.init()));
       }
       case Stmt.LocalType t -> s("local-type", declS(t.decl()));
+      case Stmt.LocalFunction f -> s("local-function", declS(f.decl()));
       case Stmt.ExprStmt e -> s("expr", toS(e.expr()));
       case Stmt.If i -> s("if", toS(i.cond()), toS(i.then()), opt(i.otherwise()));
       case Stmt.While w -> s("while", toS(w.cond()), toS(w.body()));

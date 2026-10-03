@@ -393,6 +393,10 @@ public final class ClassChecker {
     } finally {
       a.env = saved;
     }
+    List<BClass.Method> localFns = a.localFunctions.methods.remove(c);
+    if (localFns != null) {
+      methods.addAll(localFns); // hoisted local functions (D083)
+    }
     List<VarSymbol> captures = new ArrayList<>(a.localClassCaptures.getOrDefault(c, Set.of()));
     boolean outerThis = (c.has(Flags.LOCAL) || c.has(Flags.ANONYMOUS)) && !c.has(Flags.STATIC);
     return new BClass(c, methods, instanceInit, staticInit, nested, bridges, captures, outerThis);

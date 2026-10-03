@@ -1,0 +1,10 @@
+// `sum()` for collections of doubles (see long_sums.jsharp for why this is its own class).
+@file:ClassName("DoubleSums")
+package jsharp.collections;
+
+/** The sum of the numbers. */
+public static double sum(this Iterable<Double> xs) {
+    var total = 0.0;
+    foreach (var x in xs) total += x;
+    return total;
+}

@@ -68,6 +68,7 @@ public final class Attr {
   final Stmts stmts;
   final Patterns patterns;
   final CollectionLiterals literals;
+  final LocalFunctions localFunctions;
 
   private DiagnosticSink sink;
   Env env;
@@ -119,6 +120,7 @@ public final class Attr {
     this.stmts = new Stmts(this);
     this.patterns = new Patterns(this);
     this.literals = new CollectionLiterals(this);
+    this.localFunctions = new LocalFunctions(this);
   }
 
   public Types types() {
@@ -458,8 +460,21 @@ public final class Attr {
     return switch (e) {
       case Expr.Literal l -> literal(l);
       case Expr.Interpolated i -> interpolated(i);
-      case Expr.Name n -> nameExpr(n);
-      case Expr.Member m -> memberExpr(m);
+      case Expr.Name n -> {
+        Expr fv = asFunctionValue(n);
+        yield switch (fv) {
+          case Expr.MethodRef fr -> methodRef(fr, pt);
+          case Expr.Lambda l -> {
+            BExpr mismatch = functionValueMismatch(n.name(), pt, n.span());
+            yield mismatch != null ? mismatch : lambda(l, pt);
+          }
+          case null, default -> nameExpr(n);
+        };
+      }
+      case Expr.Member m -> {
+        Expr.MethodRef fr = asFunctionRef(m);
+        yield fr != null ? methodRef(fr, pt) : memberExpr(m);
+      }
       case Expr.Call c -> calls.call(c, pt);
       case Expr.Index i -> index(i);
       case Expr.New n -> newExpr(n, pt);
@@ -861,9 +876,145 @@ public final class Attr {
     return new ValueTarget(new BExpr.Error(Type.ErrorType.INSTANCE, span));
   }
 
+  /**
+   * A name that denotes only methods, used as a value, is a method reference (D083): {@code twice}
+   * is like a reference to the function {@code twice}, {@code Math.abs} like {@code Math::abs} and
+   * {@code list.add} like {@code list::add}. Variables, fields, properties, types and packages of
+   * the same name take precedence. Returns the equivalent reference, or null.
+   */
+  Expr.MethodRef asFunctionRef(Expr e) {
+    if (e instanceof Expr.Name n
+        && env.scope.lookup(n.name()) == null
+        && env.scope.lookupFunction(n.name()) != null) {
+      return null; // a local function: see asFunctionValue
+    }
+    return switch (e) {
+      case Expr.Name n when n.typeArgs().isEmpty() && denotesOnlyFunctions(n.name()) ->
+          new Expr.MethodRef(null, null, n.name(), n.span(), n.span());
+      case Expr.Member m
+          when !m.nullSafe()
+              && m.typeArgs().isEmpty()
+              && isNameChain(m.target())
+              && memberDenotesOnlyMethods(m) ->
+          new Expr.MethodRef(m.target(), null, m.name(), m.nameSpan(), m.span());
+      default -> null;
+    };
+  }
+
+  /**
+   * {@link #asFunctionRef}, or for a local function used by name the lambda {@code ($0, ...) =>
+   * f($0, ...)} (D083). Null if {@code e} is not a function used as a value.
+   */
+  Expr asFunctionValue(Expr e) {
+    if (e instanceof Expr.Name n && n.typeArgs().isEmpty() && env.scope.lookup(n.name()) == null) {
+      LocalFunctions.Fn fn = env.scope.lookupFunction(n.name());
+      if (fn != null) {
+        List<io.github.matrixidot.jsharp.compiler.ast.Param> ps = new ArrayList<>();
+        List<io.github.matrixidot.jsharp.compiler.ast.Arg> args = new ArrayList<>();
+        for (int i = 0; i < fn.sym.params().size(); i++) {
+          String p = "$" + i;
+          ps.add(
+              new io.github.matrixidot.jsharp.compiler.ast.Param(
+                  io.github.matrixidot.jsharp.compiler.ast.Modifiers.empty(n.span().start()),
+                  false,
+                  false,
+                  null,
+                  p,
+                  n.span(),
+                  null,
+                  n.span()));
+          args.add(
+              new io.github.matrixidot.jsharp.compiler.ast.Arg(
+                  null, new Expr.Name(p, List.of(), n.span()), n.span()));
+        }
+        Expr call = new Expr.Call(new Expr.Name(n.name(), List.of(), n.span()), args, n.span());
+        return new Expr.Lambda(
+            ps, false, new io.github.matrixidot.jsharp.compiler.ast.Body.ExprBody(call), n.span());
+      }
+    }
+    return asFunctionRef(e);
+  }
+
+  private boolean denotesOnlyFunctions(String name) {
+    if (env.scope.lookup(name) != null || name.equals("field") && env.backingField != null) {
+      return false;
+    }
+    for (ClassSymbol c = env.cls; c != null; c = c.outer()) {
+      ClassType site = c.thisType();
+      if (lookup.findProperty(site, name) != null
+          || lookup.findField(site, name) != null
+          || !c.has(Flags.MODULE) && lookup.findGetter(site, name) != null) {
+        return false;
+      }
+    }
+    ClassSymbol module = moduleOf(env.cls);
+    if (module != null && module.field(name) != null) {
+      return false;
+    }
+    for (ClassSymbol m : packageModules.getOrDefault(env.cls.packageName(), List.of())) {
+      if (m.field(name) != null) {
+        return false;
+      }
+    }
+    FileScope fs = fileScope();
+    for (FileScope.StaticImport si : fs.staticSingleImports()) {
+      String visible = si.alias() != null ? si.alias() : si.member();
+      if (visible.equals(name) && si.owner().field(si.member()) != null) {
+        return false;
+      }
+    }
+    for (ClassSymbol c : fs.staticOnDemandImports()) {
+      FieldSymbol f = lookup.findField(c.thisType(), name);
+      if (f != null && f.isStatic()) {
+        return false;
+      }
+    }
+    if (typeScope().find(name) != null || syms.packageExists(name)) {
+      return false;
+    }
+    return calls.functionGroup(name) != null;
+  }
+
+  /** {@code a}, {@code this}, {@code a.b.c}: qualifiers cheap to attribute speculatively. */
+  private static boolean isNameChain(Expr e) {
+    return switch (e) {
+      case Expr.Name n -> true;
+      case Expr.This t -> true;
+      case Expr.Member m -> !m.nullSafe() && isNameChain(m.target());
+      default -> false;
+    };
+  }
+
+  private boolean memberDenotesOnlyMethods(Expr.Member m) {
+    Speculation<Boolean> s =
+        speculate(
+            () -> {
+              Type site =
+                  switch (target(m.target(), true)) {
+                    case TypeTarget tt -> tt.type();
+                    case ValueTarget vt -> vt.expr().type();
+                    default -> null;
+                  };
+              if (site == null || site.isError() || site instanceof PrimType) {
+                return false;
+              }
+              String name = m.name();
+              return lookup.findProperty(site, name) == null
+                  && lookup.findField(site, name) == null
+                  && lookup.findGetter(site, name) == null
+                  && lookup.hasMethodNamed(site, name);
+            });
+    return !s.hasErrors() && Boolean.TRUE.equals(s.result());
+  }
+
   void reportUnresolvedName(String name, Span span) {
     Diagnostic.Builder d =
         err(Code.UNRESOLVED_NAME, span, "cannot find '" + name + "' in this scope");
+    String hidden = env.scope.hiddenFunctionNote(name);
+    if (hidden != null) {
+      report(d.help(hidden));
+      return;
+    }
     String importable =
         io.github.matrixidot.jsharp.compiler.resolve.TypeResolver.importable(ctx, name);
     if (importable != null) {
@@ -969,6 +1120,20 @@ public final class Attr {
       return new BExpr.Conv(ref, needsCast ? ConvKind.CHECKCAST : ConvKind.RETYPE, narrowed, span);
     }
     return ref;
+  }
+
+  /**
+   * Reads local {@code v} at the current point for a call of a local function that captured it
+   * (D083): noted as a capture by enclosing lambdas, checked for definite assignment.
+   */
+  BExpr captureValue(VarSymbol v, Span span) {
+    Scope.Found f = env.scope.lookup(v.name());
+    if (f == null || f.var() != v) {
+      return new BExpr.Local(v, span);
+    }
+    BExpr ref = localRef(f, span);
+    // The function's parameter has the variable's declared type, not a narrowed one.
+    return ref instanceof BExpr.Conv c && c.expr() instanceof BExpr.Local l ? l : ref;
   }
 
   /** {@code this} of the current class, noting the capture for lambdas. */
@@ -2384,11 +2549,52 @@ public final class Attr {
   // ------------------------------------------------------------------ method references
 
   BExpr methodRef(Expr.MethodRef m, Type pt) {
+    if (m.target() == null && m.typeTarget() == null) {
+      BExpr mismatch = functionValueMismatch(m.name(), pt, m.span());
+      if (mismatch != null) {
+        return mismatch;
+      }
+    }
     ClassType fi = functionalTarget(pt, m.span(), "method reference");
     if (fi == null) {
       return new BExpr.Error(pt == null ? Type.ErrorType.INSTANCE : pt, m.span());
     }
     return calls.methodRef(m, types.nonWildcard(fi));
+  }
+
+  /**
+   * The error for a function named without a call (D083) where no function type is expected, or
+   * null when {@code pt} is a functional interface.
+   */
+  BExpr functionValueMismatch(String name, Type pt, Span span) {
+    boolean functional =
+        pt instanceof ClassType pct && types.findSam(pct.sym()) != null
+            || pt != null && pt.isError();
+    if (!functional) {
+      Expr.MethodRef m = new Expr.MethodRef(null, null, name, span, span);
+      if (pt == null) {
+        report(
+            err(
+                    Code.LAMBDA_MISMATCH,
+                    m.span(),
+                    "function '" + m.name() + "' is used as a value, but no function type is known")
+                .help(
+                    "call it with '"
+                        + m.name()
+                        + "(...)', or declare the type, e.g. 'Function<int, int> f = "
+                        + m.name()
+                        + ";'"));
+      } else {
+        report(
+            err(
+                    Code.LAMBDA_MISMATCH,
+                    m.span(),
+                    "function '" + m.name() + "' is not a value of type " + pt.display())
+                .help("call it with '" + m.name() + "(...)'"));
+      }
+      return new BExpr.Error(pt == null ? Type.ErrorType.INSTANCE : pt, m.span());
+    }
+    return null;
   }
 
   // ------------------------------------------------------------------ inferred member types

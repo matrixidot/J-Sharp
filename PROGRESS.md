@@ -118,3 +118,7 @@
   - an interop program under `-Xverify:all` with a Java sealed interface, records, enums, generics, inner classes, a Java class extending a J# class, and J# implementing Java interfaces;
   - checker modules for JS1000/JS1001, duplicate classes, and access, nullness, sealed and abstract rules on Java sources;
   - plugin, CLI and LSP tests.
+
+## Post-v0.1: functions as values, local functions
+- `xs.select(twice)`, `xs.forEach(println)`, `Math.abs` and `list.add` as values, plus local functions with captures and recursion (D083). Also `sum()`/`average()`/`min()`/`max()` on collections of numbers without a selector.
+- Tests: e2e `function_references` and `local_functions` (under `-Xverify:all`), checker files for every error case, and a tour section.

@@ -1,0 +1,42 @@
+// Functions used as values by name (D083): top-level functions, class methods,
+// qualified methods (Math.abs, out.add) and the Prelude.
+import java.util.*;
+import java.util.function.*;
+
+int twice(int x) => x * 2;
+boolean isEven(int x) => x % 2 == 0;
+String label(int x) => $"#{x}";
+
+var xs = [1, 2, 3, 4];
+println(xs.select(twice).toList());
+println(xs.where(isEven).select(label).toList());
+Function<int, int> f = twice;
+println(f.apply(21));
+println(xs.select(Math.abs).toList());
+var out = new ArrayList<String>();
+xs.select(label).forEach(out.add);
+println(out);
+xs.forEach(println);
+
+class Counter {
+    private int total;
+    void add(int x) { total += x; }
+    int run(List<int> ys) { ys.forEach(add); return total; }
+    static int sq(int x) => x * x;
+    List<int> squares(List<int> ys) => ys.select(sq).toList();
+}
+println(new Counter().run(xs));
+println(new Counter().squares(xs));
+
+// A local variable of the same name wins over the function.
+var twice = 5;
+println(twice + 1);
+
+// Numeric aggregates without a selector.
+List<int> ns = [3, 1, 2];
+println($"{ns.sum()} {ns.average()} {ns.min()} {ns.max()}");
+List<long> ls = [10000000000L, 1L];
+println(ls.sum());
+List<double> ds = [1.5, 2.5];
+println($"{ds.sum()} {ds.average()}");
+println(["pear", "apple"].min());
