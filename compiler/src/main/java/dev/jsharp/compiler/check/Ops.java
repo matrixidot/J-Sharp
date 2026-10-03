@@ -93,7 +93,17 @@ final class Ops {
       case PRE_INC, PRE_DEC, POST_INC, POST_DEC -> {
         BLValue lv = lvalue(u.operand());
         requireAssigned(lv, u.operand().span());
+        // A nullable local narrowed to non-null (int? n = 9; n++) may be incremented, and stays
+        // non-null afterwards.
+        boolean narrowedNonNull =
+            lv instanceof BLValue.LocalLV l
+                && a.env.flow.narrowed.get(l.var()) instanceof Type nt
+                && nt.nullness() == Nullness.NON_NULL;
         afterAssign(lv, null);
+        if (narrowedNonNull) {
+          VarSymbol nv = ((BLValue.LocalLV) lv).var();
+          a.env.flow.narrowed.put(nv, nv.type().withNullness(Nullness.NON_NULL));
+        }
         Type t = lv.type();
         if (t.isError()) {
           return new BExpr.Error(t, span);
@@ -106,7 +116,7 @@ final class Ops {
               "operator '" + u.op().symbol() + "' cannot be applied to " + t.display());
           return new BExpr.Error(Type.ErrorType.INSTANCE, span);
         }
-        if (t.nullness() == Nullness.NULLABLE) {
+        if (t.nullness() == Nullness.NULLABLE && !narrowedNonNull) {
           a.error(Code.NULLABILITY_MISMATCH, span, "cannot increment nullable " + t.display());
         }
         boolean inc = u.op() == Expr.UnaryOp.PRE_INC || u.op() == Expr.UnaryOp.POST_INC;

@@ -676,6 +676,7 @@ abstract class ParserBase {
         || next == INTERFACE
         || next == ENUM
         || next == AT
+        || (next == DEFAULT && startsType(kind(i + 2))) // override default String f()
         || (next == LPAREN && t.text().equals("async") == false && scanType(i + 1, true) > 0);
   }
 

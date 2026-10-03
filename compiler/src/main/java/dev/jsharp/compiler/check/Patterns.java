@@ -248,6 +248,18 @@ final class Patterns {
 
   private BPattern constantPattern(Pattern.Constant c, Type input, List<VarSymbol> bindings) {
     Expr e = c.value();
+    // `case North:` on an enum selector names the constant without qualification (Java rule).
+    if (e instanceof Expr.Name n
+        && n.typeArgs().isEmpty()
+        && input instanceof ClassType ict
+        && ict.sym().isEnum()) {
+      for (FieldSymbol f : ict.sym().fields()) {
+        if (f.has(Flags.ENUM_CONSTANT) && f.name().equals(n.name())) {
+          return new BPattern.Constant(
+              a.fieldGet(null, ict.withNullness(Nullness.NON_NULL), f, e.span()), c.span());
+        }
+      }
+    }
     // A bare (qualified) name may denote a type: `case Circle:` / `is Circle`.
     if (e instanceof Expr.Name || e instanceof Expr.Member) {
       Attr.Speculation<Attr.Target> s = a.speculate(() -> a.target(e, true));
@@ -617,6 +629,14 @@ final class Patterns {
         values.add(value);
         ends.add(env().flow.copy());
         cases.add(new BSwitch.Case(p, guard, List.of(), value));
+        // After an unguarded `null =>` arm the selector local is non-null in later arms.
+        VarSymbol selLocal = Attr.localOf(sel);
+        if (selLocal != null
+            && arm.guard() == null
+            && p instanceof BPattern.Constant pc
+            && pc.value().type() instanceof Type.NullType) {
+          start.narrowed.put(selLocal, selLocal.type().withNullness(Nullness.NON_NULL));
+        }
       } finally {
         env().scope = saved;
       }
@@ -756,7 +776,12 @@ final class Patterns {
       env().jumps.pop();
     }
     checkDominance(cases, caseSpans, input);
-    boolean exhaustive = hasDefault || checkExhaustive(cases, input, sw.span(), false);
+    // Java rule: only an "enhanced" switch statement (type/record patterns or `case null`) must be
+    // and is treated as exhaustive; a classic constant switch (case North:) without default is
+    // not, so the code after it stays reachable.
+    boolean enhanced =
+        cases.stream().anyMatch(c -> c.pattern() != null && isEnhancedLabel(c.pattern()));
+    boolean exhaustive = hasDefault || enhanced && checkExhaustive(cases, input, sw.span(), false);
     env().flow.set(exhaustive ? FlowState.dead() : start.copy());
     for (FlowState f : ends) {
       env().flow.join(f);
@@ -766,6 +791,14 @@ final class Patterns {
     }
     return new BStmt.Switch(
         new BSwitch(sel, selVar, input, cases, exhaustive), jump.label, sw.span());
+  }
+
+  private static boolean isEnhancedLabel(BPattern p) {
+    return switch (p) {
+      case BPattern.Constant c -> c.value().type() instanceof Type.NullType;
+      case BPattern.Or or -> isEnhancedLabel(or.left()) || isEnhancedLabel(or.right());
+      default -> true;
+    };
   }
 
   // ------------------------------------------------------------------ exhaustiveness

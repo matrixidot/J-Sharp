@@ -205,3 +205,10 @@ Format: **decision** — reason. *Rejected:* alternatives.
 - **D061: Patterns on generic types** use the parameterization implied by the input's static type:
   `Res<Integer> r` matched by `Ok(var v)` infers `Ok<Integer>` (JLS 18.5.5), and testing
   `Ok<Integer>` is allowed because it is fully determined (a checked narrowing, JLS 5.1.6.1).
+- **D062: Switch statements follow Java's exhaustiveness rule.** Only an "enhanced" switch
+  statement (type/record patterns or `case null`) is checked for exhaustiveness and ends the flow
+  when exhaustive; a classic constant switch (`case North:`) without `default` is not
+  exhaustive, so code after it is reachable (and a trailing `return` is required). Case labels
+  and switch-expression arms on an enum selector may name constants unqualified (`case North`).
+  In a switch expression, an unguarded `null =>` arm makes the selector local non-null in the
+  arms after it.

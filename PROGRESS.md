@@ -27,3 +27,10 @@
 - Tests: 114 checker files (~600 inline assertions: positive and negative) plus resolution goldens; every diagnostic code has a test (enforced by `DiagnosticCoverageTest`).
 - Deferred: list patterns (v0.2), `super::m` references, Java inner (non-static) class instantiation.
 - Known issues: inference is a pragmatic subset of JLS 18 (complex nested generic lambdas may need explicit types); smart casts do not apply to fields.
+
+## M4 — Codegen: real programs (done)
+- Works: lowering (lambdas → `invokedynamic`, local/anonymous captures, enums, records via `ObjectMethods`, properties, foreach/using/switch/patterns, async, checked arithmetic, exception filters) and ClassFile-API codegen with generated stack maps, reachability-aware emission, qualifying-type member refs, Signature/InnerClasses/NestMembers/PermittedSubclasses/Record/MethodParameters/nullness attributes; `jsharp build` (dirs or `--jar`) and `jsharp run` (in-memory).
+- Tests: 124 golden e2e programs (single and multi-file, args/stdin/exit codes) run on a fresh JVM with `-Xverify:all` plus the ClassFile verifier; 3 Java⇄J# interop cases in both directions (javac against J# output and J# against javac output); 121 checker files.
+- Benchmarks: 7 J#-vs-Java JMH kernels, all within noise (ratios 0.97–1.02; `docs/BENCHMARKS.md`, raw data in `bench/results/m4.json`).
+- Deferred: J#-written stdlib (`jsharp.collections`, `jsharp.text`) and `where/select` (M5/M6), `tableswitch` for dense int switches (M7).
+- Known issues: inference still a subset of JLS 18; `typeSwitch` not yet benchmarked against `instanceof` chains.
