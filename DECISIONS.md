@@ -504,3 +504,16 @@ Format: **decision** — reason. *Rejected:* alternatives.
     The LSP code lens is disabled in IntelliJ, since the gutter icon replaces it.
   - Verified with JetBrains' Plugin Verifier and with headless-IDE tests. The IDE's light-test
     project lives in an in-memory file system, so the tests start the server directly.
+- **D088: Semantic highlighting comes from the language server.** The lexer cannot tell a class
+  from a method or a parameter, so the server answers `textDocument/semanticTokens/full`.
+  - It uses standard token types (class, interface, enum, typeParameter, method, function for
+    top-level and local functions, property for properties and fields, variable, parameter,
+    enumMember) and modifiers (declaration, static, readonly). Editors map them onto their
+    color schemes.
+  - Type names are indexed too: the type resolver records each resolved name (and Attr records
+    static qualifiers such as `Math`) into `Context.typeRefs` when editor recording is on. This
+    also gives hover and go to definition on type names.
+  - Pattern bindings are indexed by their name, not the whole pattern.
+  - IntelliJ asks for semantic tokens only for plain-text and TextMate files by default, so the
+    plugin opts in for J# files. VS Code registers a semantic tokens provider with the same
+    legend.

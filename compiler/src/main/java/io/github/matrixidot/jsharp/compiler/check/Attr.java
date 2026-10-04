@@ -856,6 +856,7 @@ public final class Attr {
     // 4. type names
     TypeScope.Found tf = typeScope().find(name);
     if (tf instanceof TypeScope.FoundClass(ClassSymbol c)) {
+      ctx.recordTypeRef(file(), span, c); // a static qualifier such as Math in Math.PI
       return new TypeTarget(ClassType.of(c), span);
     }
     if (tf instanceof TypeScope.FoundVar(TypeVarSymbol tv)) {

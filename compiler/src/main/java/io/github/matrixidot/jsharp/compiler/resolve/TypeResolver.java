@@ -6,6 +6,7 @@ import io.github.matrixidot.jsharp.compiler.ast.TypeParam;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
+import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
@@ -221,6 +222,11 @@ public final class TypeResolver {
     return n >= 2 && n <= 8 ? ctx.syms.lookup("jsharp/core/Tuple" + n) : null;
   }
 
+  /** The name part of a segment ({@code List} in {@code List<String>}). */
+  private static Span nameSpan(TypeNode.Segment s) {
+    return new Span(s.span().start(), s.span().start() + s.name().length());
+  }
+
   private Type resolveNamed(TypeNode.Named n, TypeScope scope, RawMode raw) {
     SourceFile file = scope.file().unit().file();
     List<TypeNode.Segment> segs = n.segments();
@@ -243,6 +249,7 @@ public final class TypeResolver {
     int next;
     switch (found) {
       case TypeScope.FoundVar(TypeVarSymbol tv) -> {
+        ctx.recordTypeRef(file, nameSpan(first), tv);
         if (segs.size() > 1 || !first.typeArgs().isEmpty()) {
           ctx.report(
               Code.NOT_A_TYPE,
@@ -270,6 +277,7 @@ public final class TypeResolver {
       case TypeScope.FoundClass(ClassSymbol c) -> {
         cls = c;
         next = 1;
+        ctx.recordTypeRef(file, nameSpan(first), c);
       }
       case null -> {
         // Qualified name: find the longest package prefix that names a class.
@@ -285,6 +293,7 @@ public final class TypeResolver {
           if (c != null) {
             cls = c;
             next = i + 1;
+            ctx.recordTypeRef(file, nameSpan(segs.get(i)), c);
             for (int j = 0; j < i; j++) {
               if (!segs.get(j).typeArgs().isEmpty()) {
                 ctx.report(
@@ -324,6 +333,7 @@ public final class TypeResolver {
       }
       cls = m;
       seg = s;
+      ctx.recordTypeRef(file, nameSpan(s), m);
     }
     if (!checkAccessible(cls, scope, file, seg)) {
       return Type.ErrorType.INSTANCE;

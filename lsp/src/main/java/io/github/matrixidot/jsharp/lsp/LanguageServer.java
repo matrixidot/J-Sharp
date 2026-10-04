@@ -215,6 +215,7 @@ public final class LanguageServer {
       case "textDocument/rename" -> rename(uri(p), map(p, "position"), (String) p.get("newName"));
       case "textDocument/signatureHelp" -> signatureHelp(uri(p), map(p, "position"));
       case "textDocument/codeLens" -> codeLenses(uri(p));
+      case "textDocument/semanticTokens/full" -> semanticTokens(uri(p));
       case "jsharp/programFiles" -> programFiles(uri(p));
       default -> {
         if (method.startsWith("$/")) {
@@ -255,7 +256,13 @@ public final class LanguageServer {
             "signatureHelpProvider",
             Json.obj("triggerCharacters", List.of("(", ","), "retriggerCharacters", List.of(",")),
             "codeLensProvider",
-            Json.obj("resolveProvider", false));
+            Json.obj("resolveProvider", false),
+            "semanticTokensProvider",
+            Json.obj(
+                "legend",
+                Json.obj("tokenTypes", TOKEN_TYPES, "tokenModifiers", TOKEN_MODIFIERS),
+                "full",
+                true));
     return Json.obj(
         "capabilities",
         capabilities,
@@ -341,6 +348,8 @@ public final class LanguageServer {
       case null -> r.type() == null ? null : r.type().display();
       case VarSymbol v when v.kind() == VarSymbol.Kind.PARAM ->
           "(parameter) " + v.name() + ": " + show(v.type());
+      case io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol tv ->
+          "(type parameter) " + tv.name();
       case VarSymbol v ->
           (v.isAtomic() ? "atomic " : "")
               + (v.has(Flags.FINAL) ? "val " : "var ")
@@ -821,6 +830,102 @@ public final class LanguageServer {
       }
     }
     return out;
+  }
+
+  // ------------------------------------------------------------------ semantic tokens
+
+  /** Standard LSP token types, by index (editors map them onto their color schemes). */
+  static final List<String> TOKEN_TYPES =
+      List.of(
+          "class",
+          "interface",
+          "enum",
+          "typeParameter",
+          "method",
+          "function",
+          "property",
+          "variable",
+          "parameter",
+          "enumMember");
+
+  static final List<String> TOKEN_MODIFIERS = List.of("declaration", "static", "readonly");
+
+  /**
+   * What each name in the file is (class, method, property, parameter, ...), so editors can color
+   * them like Java. Encoded as LSP relative 5-tuples: line delta, start delta, length, type,
+   * modifier bits.
+   */
+  private Object semanticTokens(URI uri) {
+    Workspace.Unit unit = workspace().unit(uri);
+    SourceFile f = unit.file(uri);
+    String text = f.content();
+    java.util.TreeMap<Integer, int[]> byStart =
+        new java.util.TreeMap<>(); // start -> {len, type, mods}
+    for (SourceIndex.Ref r : unit.comp.index().refs(f)) {
+      Span n = r.nameSpan();
+      if (r.symbol() == null || n == null || n.end() <= n.start()) {
+        continue;
+      }
+      int type = tokenType(r.symbol());
+      if (type < 0
+          || byStart.containsKey(n.start())
+          || r.symbol() instanceof MethodSymbol op && op.has(Flags.OPERATOR)) {
+        continue; // operators keep their operator color
+      }
+      int mods = r.declaration() ? 1 : 0;
+      if (r.symbol().isStatic()
+          && !(r.symbol() instanceof ClassSymbol)
+          && !(r.symbol() instanceof MethodSymbol m && m.owner().has(Flags.MODULE))) {
+        mods |= 2;
+      }
+      if (r.symbol() instanceof VarSymbol v && v.isFinal()
+          || r.symbol() instanceof FieldSymbol fs && fs.has(Flags.FINAL)) {
+        mods |= 4;
+      }
+      byStart.put(n.start(), new int[] {n.end() - n.start(), type, mods});
+    }
+    List<Object> data = new ArrayList<>();
+    int line = 0;
+    int lineStart = 0;
+    int prevLine = 0;
+    int prevChar = 0;
+    int scanned = 0;
+    for (var e : byStart.entrySet()) {
+      int start = e.getKey();
+      for (; scanned < start && scanned < text.length(); scanned++) {
+        if (text.charAt(scanned) == '\n') {
+          line++;
+          lineStart = scanned + 1;
+        }
+      }
+      int ch = start - lineStart;
+      data.add(line - prevLine);
+      data.add(line == prevLine ? ch - prevChar : ch);
+      data.add(e.getValue()[0]);
+      data.add(e.getValue()[1]);
+      data.add(e.getValue()[2]);
+      prevLine = line;
+      prevChar = ch;
+    }
+    return Json.obj("data", data);
+  }
+
+  private static int tokenType(Symbol s) {
+    String t =
+        switch (s) {
+          case ClassSymbol c -> c.isInterface() ? "interface" : c.isEnum() ? "enum" : "class";
+          case io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol tv -> "typeParameter";
+          case MethodSymbol m when m.isConstructor() -> "class";
+          case MethodSymbol m when m.owner().has(Flags.MODULE) || m.has(Flags.LOCAL) -> "function";
+          case MethodSymbol m -> "method";
+          case PropertySymbol p -> "property";
+          case FieldSymbol f when f.has(Flags.ENUM_CONSTANT) -> "enumMember";
+          case FieldSymbol f -> "property";
+          case VarSymbol v when v.kind() == VarSymbol.Kind.PARAM -> "parameter";
+          case VarSymbol v -> "variable";
+          default -> null;
+        };
+    return t == null ? -1 : TOKEN_TYPES.indexOf(t);
   }
 
   // ------------------------------------------------------------------ run

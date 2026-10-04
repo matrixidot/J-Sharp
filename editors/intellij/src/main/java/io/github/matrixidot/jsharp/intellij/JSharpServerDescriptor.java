@@ -7,6 +7,9 @@ import com.intellij.platform.lsp.api.ProjectWideLspClientDescriptor;
 import com.intellij.platform.lsp.api.customization.LspCodeLensCustomizer;
 import com.intellij.platform.lsp.api.customization.LspCodeLensDisabled;
 import com.intellij.platform.lsp.api.customization.LspCustomization;
+import com.intellij.platform.lsp.api.customization.LspSemanticTokensCustomizer;
+import com.intellij.platform.lsp.api.customization.LspSemanticTokensSupport;
+import com.intellij.psi.PsiFile;
 import java.util.List;
 import org.eclipse.lsp4j.services.LanguageServer;
 
@@ -40,6 +43,18 @@ final class JSharpServerDescriptor extends ProjectWideLspClientDescriptor {
       @Override
       public LspCodeLensCustomizer getCodeLensCustomizer() {
         return LspCodeLensDisabled.INSTANCE; // the gutter ▶ and run configurations replace it
+      }
+
+      @Override
+      public LspSemanticTokensCustomizer getSemanticTokensCustomizer() {
+        // By default the IDE asks only for plain-text and TextMate files: J# names (classes,
+        // methods, properties, parameters, ...) are colored from the server's semantic tokens.
+        return new LspSemanticTokensSupport() {
+          @Override
+          public boolean shouldAskServerForSemanticTokens(PsiFile file) {
+            return file instanceof JSharpFile;
+          }
+        };
       }
     };
   }

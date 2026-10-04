@@ -378,7 +378,41 @@ class LanguageServerTest {
       assertThat(sig.get("activeParameter")).isEqualTo(Long.parseLong(k[2]));
     }
 
-    // A Run lens on the program, and the files it needs.
+    // Semantic tokens: what each name is (decoded from LSP's relative 5-tuples).
+    notifyServer(
+        "textDocument/didChange",
+        Json.obj(
+            "textDocument", Json.obj("uri", uri.toString(), "version", version++),
+            "contentChanges", List.of(Json.obj("text", text))));
+    nextDiagnostics(uri);
+    Map<String, Object> tokens =
+        (Map<String, Object>)
+            request(
+                "textDocument/semanticTokens/full",
+                Json.obj("textDocument", Json.obj("uri", uri.toString())));
+    List<Object> data = (List<Object>) tokens.get("data");
+    List<String> kinds = new ArrayList<>();
+    String[] lines = text.split("\n", -1);
+    int line = 0;
+    int ch = 0;
+    for (int i = 0; i < data.size(); i += 5) {
+      int dl = ((Number) data.get(i)).intValue();
+      int dc = ((Number) data.get(i + 1)).intValue();
+      line += dl;
+      ch = dl == 0 ? ch + dc : dc;
+      String name = lines[line].substring(ch, ch + ((Number) data.get(i + 2)).intValue());
+      kinds.add(name + ":" + LanguageServer.TOKEN_TYPES.get(((Number) data.get(i + 3)).intValue()));
+    }
+    assertThat(kinds)
+        .contains(
+            "List:interface",
+            "xs:parameter",
+            "sum:variable",
+            "sq:function",
+            "total:function",
+            "Counter:class",
+            "bump:method",
+            "forEach:method");
     List<Object> lenses =
         (List<Object>)
             request(

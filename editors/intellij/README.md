@@ -1,7 +1,8 @@
 # J# for IntelliJ IDEA (and other JetBrains IDEs)
 
-- A J# file type with an icon, and syntax highlighting from the J# compiler's own lexer
-  (interpolation holes are highlighted as code).
+- A J# file type with an icon, syntax highlighting from the J# compiler's own lexer
+  (interpolation holes are highlighted as code), and semantic colors from the compiler: classes,
+  methods, fields and properties, parameters and locals look the way they do in Java.
 - Errors as you type, completion, hover, go to definition, find usages, rename and parameter
   hints, from the J# language server through the IDE's built-in LSP client.
 - Braces: Enter between `{` and `}` puts the `}` on its own line with the cursor on an indented

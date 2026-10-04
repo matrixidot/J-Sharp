@@ -121,6 +121,9 @@ public final class Compilation {
             return;
           }
           ctx = new Context(new Symtab(classPath), diags, options);
+          if (recordTypes) {
+            ctx.typeRefs = new java.util.IdentityHashMap<>();
+          }
           javaLoader = new JavaSourceLoader(ctx.syms, diags);
           javaClasses = javaLoader.load(javaSources());
           if (diags.hasErrors()) {
@@ -418,7 +421,9 @@ public final class Compilation {
     if (index == null) {
       index =
           io.github.matrixidot.jsharp.compiler.ide.SourceIndex.build(
-              checked == null ? List.of() : checked, recordedTypes);
+              checked == null ? List.of() : checked,
+              recordedTypes,
+              ctx == null || ctx.typeRefs == null ? java.util.Map.of() : ctx.typeRefs);
     }
     return index;
   }

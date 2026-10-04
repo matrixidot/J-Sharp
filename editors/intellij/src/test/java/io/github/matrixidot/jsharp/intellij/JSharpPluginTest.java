@@ -192,4 +192,38 @@ public class JSharpPluginTest extends BasePlatformTestCase {
         hover.getContents().getRight().getValue(),
         hover.getContents().getRight().getValue().contains("var y: int"));
   }
+
+  /** Names are colored from the server's semantic tokens: classes, properties, parameters. */
+  public void testSemanticHighlighting() throws Exception {
+    myFixture.configureByText(
+        "colors.jsharp",
+        "public record Point(int x, int y);\nint sum(Point p) => p.x + p.y;\nprintln(sum(new Point(1, 2)));\n");
+    var file = myFixture.getFile().getVirtualFile();
+    new JSharpLspProvider()
+        .fileOpened(
+            getProject(),
+            file,
+            d ->
+                LspClientManager.getInstance(getProject())
+                    .ensureClientStarted(JSharpLspProvider.class, d));
+    String text = myFixture.getFile().getText();
+    java.util.Map<String, String> colors = new java.util.TreeMap<>();
+    String pointDecl = "Point@" + text.indexOf("Point");
+    String param = "p@" + text.indexOf("p)");
+    for (int i = 0; i < 300 && !colors.containsKey(pointDecl); i++) {
+      Thread.sleep(100);
+      UIUtil.dispatchAllInvocationEvents();
+      for (var h : myFixture.doHighlighting()) {
+        if (h.forcedTextAttributesKey != null) {
+          colors.put(
+              text.substring(h.getStartOffset(), h.getEndOffset()) + "@" + h.getStartOffset(),
+              h.forcedTextAttributesKey.getExternalName());
+        }
+      }
+    }
+    assertEquals(colors.toString(), "DEFAULT_CLASS_NAME", colors.get(pointDecl));
+    assertEquals(colors.toString(), "DEFAULT_PARAMETER", colors.get(param));
+    assertEquals(
+        colors.toString(), "DEFAULT_INSTANCE_FIELD", colors.get("x@" + text.indexOf("x +")));
+  }
 }

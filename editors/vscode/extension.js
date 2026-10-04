@@ -273,6 +273,12 @@ async function ask(method, doc, params) {
 
 // ---------------------------------------------------------------------- language features
 
+// The server's semantic token legend (LanguageServer.TOKEN_TYPES / TOKEN_MODIFIERS).
+const SEMANTIC_LEGEND = new vscode.SemanticTokensLegend(
+  ["class", "interface", "enum", "typeParameter", "method", "function", "property", "variable", "parameter", "enumMember"],
+  ["declaration", "static", "readonly"]
+);
+
 function registerProviders(context) {
   const selector = { language: LANGUAGE, scheme: "file" };
   const L = vscode.languages;
@@ -370,6 +376,16 @@ function registerProviders(context) {
         );
       },
     }),
+    L.registerDocumentSemanticTokensProvider(
+      selector,
+      {
+        async provideDocumentSemanticTokens(doc) {
+          const t = await ask("textDocument/semanticTokens/full", doc, { textDocument: { uri: doc.uri.toString() } });
+          return new vscode.SemanticTokens(Uint32Array.from(t?.data || []));
+        },
+      },
+      SEMANTIC_LEGEND
+    ),
     L.registerCodeLensProvider(selector, {
       async provideCodeLenses(doc) {
         const lenses = await ask("textDocument/codeLens", doc, { textDocument: { uri: doc.uri.toString() } });

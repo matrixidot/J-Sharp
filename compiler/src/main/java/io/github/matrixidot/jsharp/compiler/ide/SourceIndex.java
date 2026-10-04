@@ -71,9 +71,27 @@ public final class SourceIndex {
    * expressions; see {@code Compilation.recordExpressionTypes}).
    */
   public static SourceIndex build(List<BClass> classes, Map<SourceFile, Map<Span, Type>> recorded) {
+    return build(classes, recorded, Map.of());
+  }
+
+  /**
+   * Also indexes type names (classes and type variables in type positions and static qualifiers;
+   * see {@code Context.typeRefs}).
+   */
+  public static SourceIndex build(
+      List<BClass> classes,
+      Map<SourceFile, Map<Span, Type>> recorded,
+      Map<SourceFile, Map<Span, Symbol>> typeRefs) {
     SourceIndex idx = new SourceIndex();
     for (BClass c : classes) {
       idx.indexClass(c);
+    }
+    for (var byFile : typeRefs.entrySet()) {
+      idx.file = byFile.getKey();
+      for (var e : byFile.getValue().entrySet()) {
+        Type t = e.getValue() instanceof ClassSymbol c ? c.thisType() : null;
+        idx.add(e.getKey(), Kind.CLASS, e.getValue(), t, false, e.getKey());
+      }
     }
     for (var byFile : recorded.entrySet()) {
       idx.file = byFile.getKey();
@@ -390,8 +408,16 @@ public final class SourceIndex {
         || localDecls.containsKey(v)) {
       return; // synthetic, or a captured variable seen again as a hoisted function's parameter
     }
-    localDecls.put(v, new Location(file, v.span()));
-    add(v.span(), Kind.LOCAL, v, v.type(), true);
+    // A pattern binding's span is the whole pattern ("Circle c"): narrow it to the name.
+    Span span = v.span();
+    if (file != null && span.end() <= file.content().length()) {
+      int at = lastWordAt(file.content(), v.name(), span.start(), span.end());
+      if (at >= 0) {
+        span = new Span(at, at + v.name().length());
+      }
+    }
+    localDecls.put(v, new Location(file, span));
+    add(span, Kind.LOCAL, v, v.type(), true);
   }
 
   private void stmts(List<BStmt> ss) {

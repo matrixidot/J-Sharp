@@ -24,6 +24,20 @@ public final class Context {
   public final CompilerOptions options;
   private final Map<CompilationUnit, FileScope> fileScopes = new IdentityHashMap<>();
 
+  /**
+   * Editor tooling: the class or type variable each resolved type name denotes, by file and the
+   * span of the name; null unless recording (see {@code Compilation.recordExpressionTypes}).
+   */
+  public Map<SourceFile, Map<Span, io.github.matrixidot.jsharp.compiler.symbols.Symbol>> typeRefs;
+
+  /** Records that the name at {@code span} denotes {@code sym} (no-op unless recording). */
+  public void recordTypeRef(
+      SourceFile file, Span span, io.github.matrixidot.jsharp.compiler.symbols.Symbol sym) {
+    if (typeRefs != null && file != null && span != null && sym != null) {
+      typeRefs.computeIfAbsent(file, f -> new java.util.HashMap<>()).putIfAbsent(span, sym);
+    }
+  }
+
   public Context(Symtab syms, Diagnostics diags, CompilerOptions options) {
     this.syms = syms;
     this.diags = diags;
