@@ -569,3 +569,21 @@ Format: **decision** — reason. *Rejected:* alternatives.
     and at assignment.
   - Variables declared inside top-level blocks remain locals of the entry point, with the
     existing hint.
+- **D095: A method inherited from several interfaces returns the most specific type.** If
+  two unrelated interfaces declare the same abstract method, the one with the more specific return
+  is used, counting non-null as more specific than nullable. An implementation must keep both
+  contracts, and Kotlin does the same. Bukkit's `Player` inherits `getLocation()` as `@NotNull`
+  from `Entity` and as `@Nullable` from `OfflinePlayer`; J# used to keep whichever came first, so
+  every `player.getLocation()` needed a null check. `Lookup.findMethods`;
+  tests/interop/inherited_nullness.
+- **D096: Editors use a Gradle project's libraries.**
+  - Building with the J# Gradle plugin writes `build/jsharp/<set>.classpath`, the source set's
+    compile class path one path per line (task `writeJSharpClassPath`, run by `classes`).
+  - For a file under `<project>/src/<set>/jsharp`, the language server adds those entries to its
+    class path, and reopens them when the file changes. So completion, hover and errors know Paper,
+    Spring or any other dependency after one `./gradlew build`, without editor settings.
+  - Before the first build, only the JDK and the J# runtime are known.
+- **examples/paper-plugin:** a Minecraft (Paper 26.x) plugin in J#. Paper 26.1+ runs on Java 25,
+  J#'s class file version, so the plugins load unchanged. The jar includes the J# runtime, since
+  servers load only the plugin jar. It is a separate Gradle build (`./gradlew -p
+  examples/paper-plugin jar`), not part of `./gradlew build`, because it downloads Paper's API.

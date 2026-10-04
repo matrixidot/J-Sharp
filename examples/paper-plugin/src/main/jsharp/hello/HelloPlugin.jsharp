@@ -1,0 +1,37 @@
+package hello;
+
+import java.util.*;
+import net.kyori.adventure.text.Component;
+import net.kyori.adventure.text.format.NamedTextColor;
+import org.bukkit.command.*;
+import org.bukkit.entity.Player;
+import org.bukkit.event.*;
+import org.bukkit.event.player.PlayerJoinEvent;
+import org.bukkit.plugin.java.JavaPlugin;
+
+public class HelloPlugin : JavaPlugin, Listener {
+    private val joins = new HashMap<UUID, int>();
+
+    public override void onEnable() {
+        getServer().getPluginManager().registerEvents(this, this);
+        getLogger().info("Hello from J#!");
+    }
+
+    @EventHandler
+    public void onJoin(PlayerJoinEvent e) {
+        val player = e.getPlayer();
+        val count = joins.merge(player.getUniqueId(), 1, Integer::sum);
+        val message = count switch {
+            1 => $"Welcome, {player.getName()}!",
+            _ => $"Welcome back, {player.getName()} (visit {count})",
+        };
+        player.sendMessage(Component.text(message, NamedTextColor.GOLD));
+    }
+
+    public override boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        val name = args is [var first, ..] ? first : sender.getName();
+        sender.sendMessage(Component.text($"Hello, {name}!", NamedTextColor.AQUA));
+        if (sender is Player p) p.playSound(p.getLocation(), "entity.experience_orb.pickup", 1f, 1f);
+        return true;
+    }
+}

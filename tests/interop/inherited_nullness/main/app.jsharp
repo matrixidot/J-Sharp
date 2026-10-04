@@ -1,0 +1,8 @@
+// A method inherited from several interfaces returns the most specific type: Entity's
+// @NotNull wins over OfflinePlayer's @Nullable, as in Kotlin.
+import game.*;
+
+Player p = Player.at("spawn");
+println(p.location().length());
+OfflinePlayer o = p;
+println(o.location()?.length());

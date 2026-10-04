@@ -96,6 +96,7 @@ final class Lookup {
    */
   List<MethodSymbol> findMethods(Type site, String name) {
     Map<String, MethodSymbol> bySig = new LinkedHashMap<>();
+    Map<MethodSymbol, Type> returns = new java.util.HashMap<>();
     ClassSymbol siteClass = site instanceof ClassType sc ? sc.sym() : null;
     for (ClassSymbol c : hierarchy(site)) {
       for (MethodSymbol m : c.methods(name)) {
@@ -120,11 +121,36 @@ final class Lookup {
                                 : Types.subst(p.type(), subst).erasure())
                     .toList());
         // The hierarchy is ordered most-derived first (superclasses before interfaces), so the
-        // first declaration of a signature is the one that overrides the others.
-        bySig.putIfAbsent(key, m);
+        // first declaration of a signature is the one that overrides the others...
+        Type ret = m.returnType() == null ? null : Types.subst(m.returnType(), subst);
+        returns.put(m, ret);
+        MethodSymbol first = bySig.putIfAbsent(key, m);
+        // ...unless both are abstract and come from unrelated interfaces: then an implementation
+        // keeps both contracts, so the more specific return applies. Bukkit's Player inherits
+        // getLocation() as @NotNull from Entity and as @Nullable from OfflinePlayer.
+        if (first != null
+            && first.isAbstract()
+            && m.isAbstract()
+            && types.asSuper(ClassType.of(first.owner()), m.owner()) == null
+            && ret != null
+            && returns.get(first) != null
+            && moreSpecificReturn(ret, returns.get(first))) {
+          bySig.put(key, m);
+        }
       }
     }
     return new ArrayList<>(bySig.values());
+  }
+
+  /** {@code a} is a strictly more specific return than {@code b}, counting non-null over null. */
+  private boolean moreSpecificReturn(Type a, Type b) {
+    if (!types.isSubtype(a, b)) {
+      return false;
+    }
+    return !types.isSubtype(b, a)
+        || (a.isReference()
+            && a.nullness() == io.github.matrixidot.jsharp.compiler.types.Nullness.NON_NULL
+            && b.nullness() != io.github.matrixidot.jsharp.compiler.types.Nullness.NON_NULL);
   }
 
   /** True if any class in the hierarchy declares a method named {@code name}. */

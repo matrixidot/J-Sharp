@@ -1,0 +1,9 @@
+name: HelloJSharp
+version: 0.1.0
+main: hello.HelloPlugin
+api-version: '26.3'
+description: A Paper plugin written in J#
+commands:
+  greet:
+    description: Greets you (or someone else)
+    usage: /greet [name]

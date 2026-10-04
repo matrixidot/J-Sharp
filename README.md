@@ -82,6 +82,10 @@ dependencies { implementation("com.example:some-java-library:1.0") }
 application { mainClass.set("app.MainModule") }
 ```
 
+After a build, the editors also know the project's dependencies: completion and hover work for
+your libraries' classes. [`examples/paper-plugin`](examples/paper-plugin) is a complete example:
+a Minecraft server plugin for Paper.
+
 ## Mixing Java and J# in one module
 
 Java and J# sources of one module can reference each other in both directions: J# classes can

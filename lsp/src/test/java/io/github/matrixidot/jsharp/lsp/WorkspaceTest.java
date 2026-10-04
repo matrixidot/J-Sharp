@@ -53,6 +53,33 @@ class WorkspaceTest {
         .isEqualTo("Helper");
   }
 
+  /** A Gradle build records the libraries in build/jsharp/main.classpath (D095). */
+  @Test
+  void gradleProjectsUseTheRecordedClassPath(@TempDir Path dir) throws Exception {
+    Path lib = dir.resolve("lib");
+    Path libSrc = dir.resolve("libsrc/game/Server.java");
+    Files.createDirectories(libSrc.getParent());
+    Files.writeString(
+        libSrc,
+        "package game;\npublic class Server { public static String motd() { return \"hi\"; } }\n");
+    int rc =
+        javax.tools.ToolProvider.getSystemJavaCompiler()
+            .run(null, null, null, "-d", lib.toString(), libSrc.toString());
+    assertThat(rc).isZero();
+    Path js = dir.resolve("src/main/jsharp/app/plugin.jsharp");
+    Files.createDirectories(js.getParent());
+    Files.writeString(
+        js, "package app;\nimport game.Server;\npublic String motd() => Server.motd();\n");
+    Workspace ws = new Workspace(List.of());
+    assertThat(ws.unit(js.toUri()).comp.diagnostics().hasErrors()).isTrue(); // not built yet
+
+    Path listing = dir.resolve("build/jsharp/main.classpath");
+    Files.createDirectories(listing.getParent());
+    Files.writeString(listing, lib.toAbsolutePath() + "\n");
+    ws.change(js.toUri(), Files.readString(js));
+    assertThat(ws.unit(js.toUri()).comp.diagnostics().all()).isEmpty();
+  }
+
   @Test
   void detectsTopLevelStatements() {
     assertThat(Workspace.hasTopLevelStatements("println(1);")).isTrue();

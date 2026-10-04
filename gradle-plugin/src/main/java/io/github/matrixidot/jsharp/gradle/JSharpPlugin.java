@@ -22,6 +22,9 @@ import org.gradle.api.tasks.compile.JavaCompile;
  * <p>J# compiles first. It reads the declarations of the source set's Java sources, so the two
  * languages can use each other within one module; {@code compileJava} then compiles the Java
  * sources against the J# classes (D082).
+ *
+ * <p>Building also writes {@code build/jsharp/<set>.classpath}, the source set's libraries, which
+ * the language server uses for files under {@code src/<set>/jsharp} (D095).
  */
 public class JSharpPlugin implements Plugin<Project> {
   @Override
@@ -86,6 +89,25 @@ public class JSharpPlugin implements Plugin<Project> {
                         .plus(
                             project.files(
                                 compile.flatMap(JSharpCompile::getDestinationDirectory)))));
-    project.getTasks().named(sourceSet.getClassesTaskName(), t -> t.dependsOn(compile));
+    // For editors: the language server reads the libraries from build/jsharp/<set>.classpath.
+    TaskProvider<JSharpClassPathFile> classPathFile =
+        project
+            .getTasks()
+            .register(
+                sourceSet.getTaskName("write", "JSharpClassPath"),
+                JSharpClassPathFile.class,
+                t -> {
+                  t.setDescription("Records the " + name + " class path for J# editor support.");
+                  t.getClasspath().from(sourceSet.getCompileClasspath());
+                  t.getOutputFile()
+                      .convention(
+                          project
+                              .getLayout()
+                              .getBuildDirectory()
+                              .file("jsharp/" + name + ".classpath"));
+                });
+    project
+        .getTasks()
+        .named(sourceSet.getClassesTaskName(), t -> t.dependsOn(compile, classPathFile));
   }
 }

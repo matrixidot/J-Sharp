@@ -42,8 +42,17 @@ final class Workspace {
   /** The open documents: URI to current text. */
   private final Map<URI, String> open = new LinkedHashMap<>();
 
+  private final List<Path> baseClassPath;
   private final ClassPath classPath;
   private final Map<String, Unit> cache = new HashMap<>();
+
+  /**
+   * Class paths of Gradle projects (D095): {@code build/jsharp/<set>.classpath} to the class path
+   * opened from it, reopened when the file changes.
+   */
+  private final Map<Path, ProjectClassPath> projectClassPaths = new HashMap<>();
+
+  private record ProjectClassPath(java.nio.file.attribute.FileTime modified, ClassPath classPath) {}
 
   /** A finished analysis of one unit. */
   static final class Unit {
@@ -61,6 +70,7 @@ final class Workspace {
   }
 
   Workspace(List<Path> classPath) {
+    this.baseClassPath = List.copyOf(classPath);
     try {
       this.classPath =
           Compilation.openClassPath(CompilerOptions.defaults().withClassPath(classPath));
@@ -130,7 +140,8 @@ final class Workspace {
       uris.put(f, u);
     }
     Compilation comp =
-        new Compilation(files, CompilerOptions.defaults(), classPath).recordExpressionTypes();
+        new Compilation(files, CompilerOptions.defaults(), classPathFor(members.getFirst()))
+            .recordExpressionTypes();
     comp.analyze();
     Unit unit = new Unit(comp);
     for (var e : uris.entrySet()) {
@@ -146,6 +157,65 @@ final class Workspace {
     } catch (RuntimeException e) {
       return uri.toString();
     }
+  }
+
+  /**
+   * The class path for {@code uri}: in a Gradle project ({@code <project>/src/<set>/jsharp}) built
+   * with the J# plugin, the libraries it recorded in {@code build/jsharp/<set>.classpath} (D095);
+   * otherwise the server's own.
+   */
+  private ClassPath classPathFor(URI uri) {
+    Path file;
+    try {
+      file = Path.of(uri);
+    } catch (RuntimeException e) {
+      return classPath;
+    }
+    Path root = sourceRoot(file, packageOf(text(uri)));
+    if (root == null
+        || root.getFileName() == null
+        || !root.getFileName().toString().equals("jsharp")
+        || root.getParent() == null
+        || root.getParent().getParent() == null
+        || root.getParent().getParent().getFileName() == null
+        || !root.getParent().getParent().getFileName().toString().equals("src")) {
+      return classPath;
+    }
+    String set = root.getParent().getFileName().toString();
+    Path project = root.getParent().getParent().getParent();
+    Path listing = project.resolve("build").resolve("jsharp").resolve(set + ".classpath");
+    java.nio.file.attribute.FileTime modified;
+    List<Path> entries = new ArrayList<>(baseClassPath);
+    try {
+      modified = Files.getLastModifiedTime(listing);
+      ProjectClassPath known = projectClassPaths.get(listing);
+      if (known != null && known.modified().equals(modified)) {
+        return known.classPath();
+      }
+      for (String line : Files.readAllLines(listing)) {
+        if (!line.isBlank() && Files.exists(Path.of(line.strip()))) {
+          entries.add(Path.of(line.strip()));
+        }
+      }
+    } catch (IOException | RuntimeException e) {
+      return classPath; // not built yet
+    }
+    ClassPath opened;
+    try {
+      opened = Compilation.openClassPath(CompilerOptions.defaults().withClassPath(entries));
+    } catch (RuntimeException e) {
+      return classPath;
+    }
+    ProjectClassPath old = projectClassPaths.put(listing, new ProjectClassPath(modified, opened));
+    if (old != null) {
+      cache.clear(); // analyses made with the old class path go with it
+      try {
+        old.classPath().close();
+      } catch (IOException e) {
+        // nothing more to do: the old jars are no longer used
+      }
+    }
+    return opened;
   }
 
   /** The files analyzed together with {@code uri} (sorted, the document itself included). */

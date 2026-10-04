@@ -148,3 +148,7 @@
   - primitive type pattern bindings;
   - hints for C# type names.
 - Functions in a script can now use its top-level variables (D094, the owner's choice); examples/lox/main.jsharp uses them.
+
+## Post-v0.1: Minecraft plugins
+- examples/paper-plugin: a Paper 26.x plugin written in J#: an event listener and a command. Its bytecode verifies against paper-api.
+- It found: a method inherited from two interfaces with different nullness (Bukkit's `Player.getLocation()`), fixed by D095. Editors did not know Gradle dependencies, fixed by D096.
