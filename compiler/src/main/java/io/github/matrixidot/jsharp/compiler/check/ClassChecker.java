@@ -381,7 +381,10 @@ public final class ClassChecker {
       // Initializers first: constructors need to know which final fields they assign.
       initializers(a, c, instanceInit, staticInit, nested);
       Set<MethodSymbol> done = new HashSet<>();
-      for (MethodSymbol m : c.allMethods()) {
+      List<MethodSymbol> order = new ArrayList<>(c.allMethods());
+      // A script's statements first: they fix the types of its variables that functions use (D094).
+      order.sort((x, y) -> Boolean.compare(!x.has(Flags.ENTRY_POINT), !y.has(Flags.ENTRY_POINT)));
+      for (MethodSymbol m : order) {
         if (!done.add(m)) {
           continue;
         }

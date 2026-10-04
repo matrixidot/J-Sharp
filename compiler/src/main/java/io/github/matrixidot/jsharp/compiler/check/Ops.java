@@ -948,6 +948,20 @@ final class Ops {
 
   /** Updates flow facts after assigning to {@code lv}. */
   private void afterAssign(BLValue lv, BExpr value) {
+    if (lv instanceof BLValue.FieldLV fl && fl.field().has(Flags.SCRIPT_GLOBAL)) {
+      // A script variable kept in a field (D094): narrowings of it end, or restart non-null.
+      Attr.StablePath p = new Attr.StablePath(null, List.of(fl.field()));
+      a.env.flow.narrowed.remove(p);
+      if (value != null
+          && value.type().isReference()
+          && value.type().nullness() == Nullness.NON_NULL
+          && fl.field().type() != null
+          && fl.field().type().nullness() != Nullness.NON_NULL
+          && !(value.type() instanceof Type.NullType)) {
+        a.env.flow.narrowed.put(p, fl.field().type().withNullness(Nullness.NON_NULL));
+      }
+      return;
+    }
     if (lv instanceof BLValue.LocalLV l) {
       VarSymbol v = l.var();
       if (v.id() >= 0) {
@@ -1346,6 +1360,12 @@ final class Ops {
   BLValue fieldLValue(BExpr recv, Type site, FieldSymbol f, Span span, boolean onThis) {
     a.checkAccess(f, f.owner(), recv == null ? null : site, span);
     Env env = a.env;
+    if (f.has(Flags.SCRIPT_VAL)) {
+      // A script's `val` used by its functions is stored in a field (D094) but stays a val.
+      a.report(
+          a.err(Code.FINAL_REASSIGNED, span, "val '" + f.name() + "' cannot be reassigned")
+              .help("declare it with 'var' instead of 'val'"));
+    }
     if (f.has(Flags.FINAL)) {
       boolean inInit =
           f.owner() == env.cls

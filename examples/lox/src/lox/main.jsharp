@@ -5,8 +5,8 @@ import java.io.*;
 
 // jlox in J#: `lox script.lox` runs a file; `lox` alone starts a prompt.
 
-private val reporter = new Reporter();
-private val interpreter = new Interpreter(reporter);
+val reporter = new Reporter();
+val interpreter = new Interpreter(reporter);
 
 void run(String source) {
     val tokens = new Scanner(source, reporter).scanTokens();

@@ -83,6 +83,12 @@ public final class Flags {
   /** An {@code atomic} local (D084): stored in an atomic cell that lambdas may update. */
   public static final long ATOMIC = 1L << 42;
 
+  /** A script's top-level variable used by its functions, stored as a static field (D094). */
+  public static final long SCRIPT_GLOBAL = 1L << 43;
+
+  /** A {@link #SCRIPT_GLOBAL} declared {@code val}: single assignment, checked by J#. */
+  public static final long SCRIPT_VAL = 1L << 44;
+
   public static boolean is(long flags, long flag) {
     return (flags & flag) != 0;
   }

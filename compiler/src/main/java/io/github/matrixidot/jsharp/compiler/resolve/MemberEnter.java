@@ -1201,10 +1201,90 @@ public final class MemberEnter implements ClassSymbol.Completer {
 
   // ------------------------------------------------------------------ modules (top-level members)
 
+  /**
+   * A script's top-level variables that its functions use become private static fields of the
+   * module class (D094), assigned where the script declares them. Reading one before that sees its
+   * default value, as in Python. Explicitly typed ones are typed here; inferred ones when the
+   * script's declaration is checked.
+   */
+  private void hoistScriptVariables(ClassSymbol c, CompilationUnit u, TypeScope scope) {
+    java.util.Set<String> used = new java.util.HashSet<>();
+    for (Decl d : u.members()) {
+      if (d instanceof Decl.Method m) {
+        used.addAll(freeNames(m));
+      }
+    }
+    for (Decl d : u.members()) {
+      if (d instanceof Decl.TopLevelStmt t
+          && t.stmt() instanceof io.github.matrixidot.jsharp.compiler.ast.Stmt.LocalVar lv) {
+        boolean isVal =
+            lv.kind() == io.github.matrixidot.jsharp.compiler.ast.LocalKind.VAL
+                || lv.modifiers().has(io.github.matrixidot.jsharp.compiler.ast.Modifier.FINAL);
+        for (var v : lv.vars()) {
+          if (!used.contains(v.name()) || c.field(v.name()) != null) {
+            continue;
+          }
+          var type =
+              lv.kind() == io.github.matrixidot.jsharp.compiler.ast.LocalKind.TYPED
+                  ? resolver.resolve(lv.type(), scope)
+                  : null;
+          FieldSymbol f =
+              new FieldSymbol(
+                  v.name(),
+                  c,
+                  Flags.PRIVATE
+                      | Flags.STATIC
+                      | Flags.SCRIPT_GLOBAL
+                      | (isVal ? Flags.SCRIPT_VAL : 0),
+                  type);
+          c.addField(f);
+          ctx.scriptGlobals.put(v, f);
+        }
+      }
+    }
+  }
+
+  /**
+   * Names a function uses but does not declare itself (parameters, locals, loop, catch and pattern
+   * variables, lambda parameters, local functions): the candidates for script variables.
+   */
+  private static java.util.Set<String> freeNames(Decl.Method m) {
+    java.util.Set<String> uses = new java.util.HashSet<>();
+    java.util.Set<String> declared = new java.util.HashSet<>();
+    m.params().forEach(p -> declared.add(p.name()));
+    io.github.matrixidot.jsharp.compiler.ast.AstWalk.walk(
+        m,
+        n -> {
+          switch (n) {
+            case io.github.matrixidot.jsharp.compiler.ast.Expr.Name name -> uses.add(name.name());
+            case io.github.matrixidot.jsharp.compiler.ast.Param p -> declared.add(p.name());
+            case io.github.matrixidot.jsharp.compiler.ast.VarDeclarator v -> declared.add(v.name());
+            case io.github.matrixidot.jsharp.compiler.ast.DeconstructVar v ->
+                declared.add(v.name());
+            case io.github.matrixidot.jsharp.compiler.ast.CatchClause c -> declared.add(c.name());
+            case io.github.matrixidot.jsharp.compiler.ast.Stmt.Foreach f -> declared.add(f.name());
+            case io.github.matrixidot.jsharp.compiler.ast.Stmt.LocalFunction f ->
+                declared.add(f.decl().name());
+            case io.github.matrixidot.jsharp.compiler.ast.Pattern.Type t ->
+                declared.add(t.binding());
+            case io.github.matrixidot.jsharp.compiler.ast.Pattern.Var v -> declared.add(v.name());
+            case io.github.matrixidot.jsharp.compiler.ast.Pattern.Recursive r ->
+                declared.add(r.binding());
+            case io.github.matrixidot.jsharp.compiler.ast.Pattern.ListPattern l ->
+                declared.add(l.binding());
+            default -> {}
+          }
+          return true;
+        });
+    uses.removeAll(declared);
+    return uses;
+  }
+
   private void completeModule(ClassSymbol c) {
     CompilationUnit u = c.unit();
     SourceFile file = u.file();
     TypeScope scope = classScope(c);
+    hoistScriptVariables(c, u, scope);
     boolean hasStatements = false;
     Span firstStmt = null;
     for (Decl d : u.members()) {

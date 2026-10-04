@@ -10,10 +10,12 @@ import io.github.matrixidot.jsharp.compiler.ast.Stmt;
 import io.github.matrixidot.jsharp.compiler.ast.TypeNode;
 import io.github.matrixidot.jsharp.compiler.ast.VarDeclarator;
 import io.github.matrixidot.jsharp.compiler.bound.BExpr;
+import io.github.matrixidot.jsharp.compiler.bound.BLValue;
 import io.github.matrixidot.jsharp.compiler.bound.BStmt;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
+import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Nullness;
@@ -190,9 +192,41 @@ final class Stmts {
       atomic = false;
     }
     for (VarDeclarator d : lv.vars()) {
-      out.add(declareLocal(d, declared, lv.kind(), isVal, atomic));
+      FieldSymbol global = a.ctx.scriptGlobals.get(d);
+      out.add(
+          global != null
+              ? assignScriptGlobal(d, global, declared)
+              : declareLocal(d, declared, lv.kind(), isVal, atomic));
     }
     return out.size() == 1 ? out.getFirst() : new BStmt.Block(out, lv.span());
+  }
+
+  /**
+   * A script variable its functions use (D094): the declaration assigns its static field, whose
+   * type it fixes if the declaration infers one.
+   */
+  private BStmt assignScriptGlobal(VarDeclarator d, FieldSymbol f, Type declared) {
+    if (d.init() == null) {
+      if (f.type() == null) {
+        a.error(Code.CANNOT_INFER, d.nameSpan(), "'" + d.name() + "' needs an initializer");
+        f.setType(Type.ErrorType.INSTANCE);
+      }
+      return new BStmt.Empty(d.span());
+    }
+    BExpr init;
+    if (f.type() != null) {
+      init = a.exprCoerced(d.init(), f.type(), d.init().span());
+    } else {
+      init = a.value(d.init(), null);
+      Type t = inferredLocalType(init, d);
+      if (!t.isError() && init.type() != t && !init.type().isError()) {
+        init = a.coerce(init, t, d.init().span());
+      }
+      f.setType(t);
+    }
+    return new BStmt.ExprStmt(
+        new BExpr.Assign(new BLValue.FieldLV(null, f, f.type()), init, f.type(), d.span()),
+        d.span());
   }
 
   BStmt.LocalDecl declareLocal(VarDeclarator d, Type declared, LocalKind kind, boolean isVal) {

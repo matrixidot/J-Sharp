@@ -1,0 +1,38 @@
+// D094: functions in a script can use the script's top-level variables.
+import java.util.*;
+
+int early() => count;        // runs before `count` is declared: sees the default, like Python
+println(early());
+
+val greeting = "Hello";
+var count = 0;
+List<String> log = new ArrayList<>();
+String? title = null;
+
+void greet(String name) {
+    count++;
+    log.add(name);
+    println($"{greeting}, {name}! ({count})");
+}
+
+greet("Ada");
+greet("Tim");
+println(log);
+println(early());
+
+void setTitle(String t) {
+    title = t;
+}
+setTitle("Dr");
+if (title != null) println(title.length());   // narrowed until the next call
+
+val fixed = "stable";
+String shout() => fixed.toUpperCase();
+println(shout());
+
+var unused = 41;             // not used by any function: stays a local
+println(unused + 1);
+
+int x = 7;                   // a function parameter named x is not this x
+int twice(int x) => 2 * x;
+println(twice(x));

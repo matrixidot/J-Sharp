@@ -147,4 +147,4 @@
   - lifted equality, which removed a NullPointerException on `map.get(k) == false` (D093);
   - primitive type pattern bindings;
   - hints for C# type names.
-- Open for the owner: whether functions in a script file may use the script's top-level variables.
+- Functions in a script can now use its top-level variables (D094, the owner's choice); examples/lox/main.jsharp uses them.

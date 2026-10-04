@@ -864,6 +864,7 @@ final class Calls {
     }
     List<BExpr> finalArgs = finalArgs(sel, created, infos, span);
     BExpr result = new BExpr.New(created, sel.method, finalArgs, span);
+    a.forgetScriptVarNarrowings();
     if (infer && mentionsAny(c.thisType(), sel.defaultedVars)) {
       a.flexibleResults.add(result);
     }
@@ -2232,6 +2233,7 @@ final class Calls {
       recv = null;
     }
     BExpr result = new BExpr.Call(recv, m, finalArgs, kind, t, span);
+    a.forgetScriptVarNarrowings();
     if (mentionsAny(ret, sel.defaultedVars)) {
       a.flexibleResults.add(result);
     }

@@ -30,6 +30,15 @@ public final class Context {
    */
   public Map<SourceFile, Map<Span, io.github.matrixidot.jsharp.compiler.symbols.Symbol>> typeRefs;
 
+  /**
+   * Script variables that the file's functions use (D094): each top-level {@code var}/{@code val}
+   * declarator so hoisted, and its static field.
+   */
+  public final Map<
+          io.github.matrixidot.jsharp.compiler.ast.VarDeclarator,
+          io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol>
+      scriptGlobals = new java.util.IdentityHashMap<>();
+
   /** Records that the name at {@code span} denotes {@code sym} (no-op unless recording). */
   public void recordTypeRef(
       SourceFile file, Span span, io.github.matrixidot.jsharp.compiler.symbols.Symbol sym) {

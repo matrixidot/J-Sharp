@@ -157,6 +157,18 @@ extensions, and extensions must be in scope: `import my.pkg.*` brings in the top
 functions and extensions of a package. The standard library's extensions (`jsharp.collections`,
 `jsharp.text`) are always available.
 
+In a script, functions can use the script's variables:
+
+```jsharp
+var visits = 0;
+void visit(String page) {
+    visits++;
+    println($"{page}: visit {visits}");
+}
+visit("home");                       // prints: home: visit 1
+visit("about");                      // prints: about: visit 2
+```
+
 A project can have any number of files holding only functions, like a `mathutils.jsharp` of
 helpers. Files in the same package call each other's functions by name, and other packages
 `import` them. Only one file may contain top-level statements: that is the program's entry point.

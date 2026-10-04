@@ -551,3 +551,21 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - primitive type patterns (`double d` against an `Object`) bind the primitive type, unboxed;
   - unknown C# type names (`Func`, `Action`, `IEnumerable`, `Dictionary`, `bool`, `decimal`)
     get a hint with the Java or J# equivalent.
+- **D094: Functions in a script can use its top-level variables** (the owner's choice, found
+  writing examples/lox).
+  - A top-level `var`/`val` of a file with top-level statements, used by one of the file's
+    functions, becomes a private static field of the module class. "Used" means free in the
+    function: its own parameters, locals, loop, catch and pattern variables, lambda parameters
+    and local functions do not count.
+  - The declaration assigns the field where the script declares it. Reading it earlier (from a
+    function called before that line) sees the default value, as in Python. Variables no
+    function uses stay locals.
+  - Types: explicit types are entered with the field. Inferred types come from checking the
+    script's statements, which happens before the module's other members. A use needing an
+    inferred type before then is an error asking for an explicit type.
+  - A `val` stays single-assignment (`SCRIPT_VAL`): reassigning it is JS0903.
+  - Smart casts work on these fields as stable paths (D089). A `val` stays narrowed. For a `var`,
+    narrowing ends at any call or object creation (which might run a function that changes it)
+    and at assignment.
+  - Variables declared inside top-level blocks remain locals of the entry point, with the
+    existing hint.

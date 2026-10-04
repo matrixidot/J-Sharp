@@ -811,7 +811,28 @@ public final class Attr {
   }
 
   private static boolean isStable(FieldSymbol f) {
-    return f.has(Flags.FINAL) && f.owner().isSource();
+    // Script variables kept in fields (D094) narrow too: a val is assigned once; for a var,
+    // forgetScriptVarNarrowings drops the narrowing at any call that might change it.
+    return (f.has(Flags.FINAL) || f.has(Flags.SCRIPT_GLOBAL)) && f.owner().isSource();
+  }
+
+  /**
+   * A call (or object creation) may run a script function that reassigns a script {@code var}
+   * (D094): narrowings of those end here.
+   */
+  void forgetScriptVarNarrowings() {
+    env.flow
+        .narrowed
+        .keySet()
+        .removeIf(
+            k ->
+                k instanceof StablePath p
+                    && p.members().stream()
+                        .anyMatch(
+                            m ->
+                                m instanceof FieldSymbol f
+                                    && f.has(Flags.SCRIPT_GLOBAL)
+                                    && !f.has(Flags.SCRIPT_VAL)));
   }
 
   /** Record components and get-only auto-properties ({@code { get; }}, {@code { get; init; }}). */
@@ -2885,6 +2906,14 @@ public final class Attr {
   Type ensureFieldType(FieldSymbol f) {
     if (f.type() != null) {
       return f.type();
+    }
+    if (f.has(Flags.SCRIPT_GLOBAL)) {
+      // Its type comes from the script's declaration, which has not been checked yet (D094).
+      error(
+          Code.CANNOT_INFER,
+          Span.NONE,
+          "the type of script variable '" + f.name() + "' is not known here");
+      return Type.ErrorType.INSTANCE;
     }
     if (!inferring.add(f)) {
       Span s = f.declarator() != null ? f.declarator().nameSpan() : Span.NONE;

@@ -1,0 +1,14 @@
+// D094: a script's val stays a val when its functions use it.
+val limit = 3;
+var total = 0;
+void bump() {
+    total += 1;
+    limit = 4;                                                           //~ JS0903
+}
+bump();
+String? name = null;
+void rename() { name = null; }
+if (name != null) {
+    rename();                    // may change name: the check no longer holds
+    println(name.length());                                              //~ JS0608
+}
