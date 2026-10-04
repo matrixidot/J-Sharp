@@ -13,13 +13,17 @@ repositories {
     intellijPlatform { defaultRepositories() }
 }
 
-// The JetBrains IDE to build against (any IntelliJ-platform IDE with the LSP client, 2026.2+):
-// -PidePath=/path/to/ide, default /opt/clion.
-val idePath = providers.gradleProperty("idePath").orElse("/opt/clion")
+// The IDE to build and test against, downloaded once into the Gradle cache. The plugin uses only
+// the platform's APIs, so the result installs in any JetBrains IDE 2026.2+ (IntelliJ IDEA, CLion,
+// PyCharm, ...). CLion, because IntelliJ IDEA Ultimate's license check fails inside the test
+// harness and IDEA Community ended with 2025.3. To use an installed IDE instead, pass
+// -PidePath=/path/to/ide or put idePath=... in ~/.gradle/gradle.properties.
+val idePath: String? = providers.gradleProperty("idePath").orNull
+val clionVersion = "2026.2.2"
 
 dependencies {
     intellijPlatform {
-        local(idePath)
+        if (idePath != null) local(idePath) else clion(clionVersion)
         testFramework(TestFrameworkType.Platform)
     }
     // The J# lexer and parser, for highlighting and finding entry points (from the J# build).
@@ -46,8 +50,9 @@ intellijPlatform {
     }
     buildSearchableOptions = false
     instrumentCode = false
-    // Verify against another IDE with -PverifyIde=/path (default: the build IDE).
-    pluginVerification { ides { local(providers.gradleProperty("verifyIde").orElse(idePath)) } }
+    // verifyPlugin checks against an installed IDE: -PverifyIde=/path (default: idePath).
+    val verifyIde = providers.gradleProperty("verifyIde").orNull ?: idePath
+    if (verifyIde != null) pluginVerification { ides { local(verifyIde) } }
 }
 
 val cliDist = gradle.includedBuild("jsharp").task(":cli:installDist")

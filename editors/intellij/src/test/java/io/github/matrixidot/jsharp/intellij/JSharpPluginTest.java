@@ -19,6 +19,9 @@ public class JSharpPluginTest extends BasePlatformTestCase {
   @Override
   protected void tearDown() throws Exception {
     try {
+      if (getProject() == null) {
+        return; // setUp failed: nothing was started
+      }
       // The light project is reused by the next test: stop the server before it is disposed.
       LspClientManager.getInstance(getProject()).stopClients(JSharpLspProvider.class);
       for (int i = 0;

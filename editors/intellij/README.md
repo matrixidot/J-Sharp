@@ -28,12 +28,16 @@ Then in the IDE: Settings | Plugins | ⚙ | Install Plugin from Disk…, and pic
 `editors/intellij/build/distributions/jsharp-intellij-0.1.0.zip`. Restart the IDE after
 updating the plugin.
 
-The build compiles against a local JetBrains IDE (default `/opt/clion`; pass
-`-PidePath=/path/to/ide`). It is a separate Gradle build so the main build needs no IDE.
+The build compiles against CLion 2026.2.2, which Gradle downloads the first time (about 1 GB,
+cached afterwards). The plugin uses only the platform's APIs, so it installs in any JetBrains IDE
+2026.2 or later. To build against an IDE you already have, pass `-PidePath=/path/to/ide` (for
+example `-PidePath=/opt/clion`), or put `idePath=...` in `~/.gradle/gradle.properties`. It is a
+separate Gradle build so the main build needs no IDE.
 
 ## Tests
 
 `./gradlew -p editors/intellij test` runs the plugin in a headless IDE: file type and
 highlighting, Enter and brace handling, the gutter Run icon and run configurations, running a
 program with its library files, and the language server answering the IDE.
-`./gradlew -p editors/intellij verifyPlugin` runs JetBrains' Plugin Verifier.
+`./gradlew -p editors/intellij verifyPlugin -PverifyIde=/path/to/ide` runs JetBrains' Plugin
+Verifier against an installed IDE.
