@@ -1,0 +1,29 @@
+// Classes, inheritance, initializers, super calls.
+class Shape {
+  init(name) { this.name = name; }
+  describe() { print this.name; print this.area(); }
+  area() { return 0; }
+}
+class Circle < Shape {
+  init(r) {
+    super.init("circle");
+    this.r = r;
+  }
+  area() { return 3 * this.r * this.r; }
+}
+class Square < Shape {
+  init(side) {
+    super.init("square");
+    this.side = side;
+  }
+  area() { return this.side * this.side; }
+}
+var shapes = Circle(2);
+shapes.describe();
+Square(3).describe();
+print Circle;
+print Square(1);
+print len("hello") + 1;
+print "a" + "b" == "ab";
+print nil == false;
+print !nil;

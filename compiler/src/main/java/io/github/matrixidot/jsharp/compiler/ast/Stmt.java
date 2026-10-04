@@ -36,6 +36,9 @@ public sealed interface Stmt extends Node {
   /** A local class/record/interface/enum declaration. */
   record LocalType(Decl.TypeDecl decl, Span span) implements Stmt {}
 
+  /** {@code yield value;}: the value of the switch arm block it ends (D092). */
+  record Yield(Expr value, Span span) implements Stmt {}
+
   /** A function declared in a block (D083), visible from its declaration to the block's end. */
   record LocalFunction(Decl.Method decl, Span span) implements Stmt {}
 

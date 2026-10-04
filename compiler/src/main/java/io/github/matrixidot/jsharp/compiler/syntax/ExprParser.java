@@ -980,6 +980,28 @@ abstract class ExprParser extends ParserBase {
 
   // ------------------------------------------------------------------ switch expressions
 
+  /**
+   * At a '{' after '=>': a block of statements ({@code { ...; yield x; }}) rather than a map
+   * literal, if a ';' appears directly inside the braces.
+   */
+  private boolean isBlockArm() {
+    int end = matching(pos);
+    int depth = 0;
+    for (int i = pos + 1; end > 0 && i < end; i++) {
+      switch (kind(i)) {
+        case LPAREN, LBRACKET, LBRACE -> depth++;
+        case RPAREN, RBRACKET, RBRACE -> depth--;
+        case SEMI -> {
+          if (depth == 0) {
+            return true;
+          }
+        }
+        default -> {}
+      }
+    }
+    return false;
+  }
+
   final List<SwitchArm> parseSwitchArms() {
     expect(LBRACE);
     List<SwitchArm> arms = new ArrayList<>();
@@ -989,7 +1011,11 @@ abstract class ExprParser extends ParserBase {
       Pattern p = parsePattern();
       Expr guard = acceptContextual("when") ? parseConditional() : null;
       expect(ARROW);
-      Expr body = parseExpr();
+      int bodyStart = startOffset();
+      Expr body =
+          at(LBRACE) && isBlockArm()
+              ? new Expr.BlockExpr(parseBlock(), spanFrom(bodyStart))
+              : parseExpr();
       arms.add(new SwitchArm(p, guard, body, spanFrom(start)));
       if (!accept(COMMA)) {
         if (!at(RBRACE) && pos != before) {

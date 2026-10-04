@@ -120,6 +120,10 @@ int len = sky!.length();           // '!' asserts non-null (throws if it is null
 println(len);                      // prints: 4
 ```
 
+A `?.` chain stops at the first null, as in C#: in `user?.name.trim()`, `trim()` runs only when
+`user` is not null. Checks also narrow fields that cannot change: final fields, record
+components and get-only properties (`if (node.next != null) node.next.value`).
+
 Assigning `null` to a `String`, or calling a method on a `String?` without a check, is a
 compile-time error. Types coming from Java are "platform" types: J# trusts nullness
 annotations such as JSpecify's `@Nullable` and otherwise lets you choose (pass
@@ -376,6 +380,27 @@ if (o is int n and > 0) println($"positive int {n}");   // prints: positive int 
 Patterns: type (`String s`), positional (`Add(var l, var r)`), property (`{ value: 0 }`),
 constants, relational (`> 0`), `and`/`or`/`not`, discards (`_`) and guards (`when`). Leaving out
 a case of a sealed type or enum is a compile-time error.
+
+A switch arm can run statements in a block that ends with `yield`, and `is not` binds its
+variable for the code after a failed test:
+
+```jsharp
+String grade(int score) => score switch {
+    >= 90 => "A",
+    >= 80 => {
+        val plus = score >= 85;
+        yield plus ? "B+" : "B";
+    },
+    _ => "C",
+};
+println(grade(87));                  // prints: B+
+
+int length(Object o) {
+    if (o is not String s) return -1;
+    return s.length();               // s is a String here
+}
+println(length("four"));             // prints: 4
+```
 
 ## Operators
 

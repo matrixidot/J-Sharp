@@ -541,7 +541,7 @@ final class Ops {
       BExpr cmp =
           new BExpr.Binary(
               negate ? BinOp.REF_NE : BinOp.REF_EQ, left, right, PrimType.BOOLEAN, false, span);
-      VarSymbol v = Attr.localOf(other);
+      Object v = a.narrowKey(other);
       FlowState t = a.env.flow.copy();
       FlowState f = a.env.flow.copy();
       if (v != null && other.type().nullness() != Nullness.NON_NULL) {
@@ -571,11 +571,17 @@ final class Ops {
           negate ? BinOp.REF_NE : BinOp.REF_EQ, left, right, PrimType.BOOLEAN, false, span);
     }
     // Numeric/boolean comparison when at least one side is primitive and both have primitive views.
-    boolean primitiveCompare =
-        (lt instanceof PrimType || rt instanceof PrimType)
-            && lp != null
-            && rp != null
-            && !(lt.nullness() == Nullness.NULLABLE || rt.nullness() == Nullness.NULLABLE);
+    boolean oneSidePrimitive =
+        (lt instanceof PrimType || rt instanceof PrimType) && lp != null && rp != null;
+    boolean leftMaybeNull = lt.isReference() && lt.nullness() != Nullness.NON_NULL;
+    boolean rightMaybeNull = rt.isReference() && rt.nullness() != Nullness.NON_NULL;
+    if (oneSidePrimitive && (leftMaybeNull || rightMaybeNull)) {
+      BExpr lifted = liftedEquals(b, left, right, lp, rp, negate, span);
+      if (lifted != null) {
+        return lifted;
+      }
+    }
+    boolean primitiveCompare = oneSidePrimitive && !leftMaybeNull && !rightMaybeNull;
     if (primitiveCompare) {
       PrimType opType;
       if (lp == PrimType.BOOLEAN || rp == PrimType.BOOLEAN) {
@@ -593,6 +599,61 @@ final class Ops {
           new BExpr.Binary(negate ? BinOp.NE : BinOp.EQ, l2, r2, PrimType.BOOLEAN, false, span));
     }
     // Value equality on references (null-safe equals); box a primitive side.
+    return referenceEquals(b, left, right, negate, span);
+  }
+
+  /**
+   * {@code boxed == primitive} where the boxed side may be null (declared nullable, or a Java value
+   * of unknown nullness): lifted as in C# (D093). Null equals no number, so {@code ==} is false and
+   * {@code !=} true; otherwise the values compare as numbers (with promotion), not as boxes.
+   */
+  private BExpr liftedEquals(
+      Expr.Binary b, BExpr left, BExpr right, PrimType lp, PrimType rp, boolean negate, Span span) {
+    PrimType opType;
+    if (lp == PrimType.BOOLEAN || rp == PrimType.BOOLEAN) {
+      if (lp != rp) {
+        return null; // reported by the reference path
+      }
+      opType = PrimType.BOOLEAN;
+    } else {
+      opType = Types.promote(lp, rp);
+    }
+    boolean leftBoxed = left.type().isReference();
+    BExpr boxed = leftBoxed ? left : right;
+    BExpr prim = leftBoxed ? right : left;
+    VarSymbol tmp =
+        a.env.newVar(
+            "$lifted",
+            boxed.type().withNullness(Nullness.NON_NULL),
+            Flags.FINAL | Flags.SYNTHETIC,
+            VarSymbol.Kind.LOCAL,
+            span);
+    a.env.flow.assigned.set(tmp.id());
+    BExpr value = new BExpr.Local(tmp, span);
+    BExpr present =
+        new BExpr.Binary(
+            BinOp.REF_NE,
+            value,
+            new BExpr.Const(null, Type.NullType.INSTANCE, span),
+            PrimType.BOOLEAN,
+            false,
+            span);
+    BExpr cmp =
+        new BExpr.Binary(
+            negate ? BinOp.NE : BinOp.EQ,
+            a.coerce(value, opType, span),
+            a.coerce(prim, opType, span),
+            PrimType.BOOLEAN,
+            false,
+            span);
+    BExpr whenNull = new BExpr.Const(negate, PrimType.BOOLEAN, span);
+    return new BExpr.Let(
+        tmp, boxed, new BExpr.Conditional(present, cmp, whenNull, PrimType.BOOLEAN, span), span);
+  }
+
+  private BExpr referenceEquals(Expr.Binary b, BExpr left, BExpr right, boolean negate, Span span) {
+    Type lt = left.type();
+    Type rt = right.type();
     if (lt instanceof PrimType p) {
       left = a.coerce(left, a.syms.boxed(p), b.left().span());
       lt = left.type();
@@ -894,6 +955,8 @@ final class Ops {
         a.env.flow.maybeAssigned.set(v.id());
       }
       a.env.flow.narrowed.remove(v);
+      // Paths through the reassigned local no longer hold (D089).
+      a.env.flow.narrowed.keySet().removeIf(k -> k instanceof Attr.StablePath p && p.root() == v);
       if (value != null
           && v.type().nullness() != Nullness.NON_NULL
           && value.type().isReference()

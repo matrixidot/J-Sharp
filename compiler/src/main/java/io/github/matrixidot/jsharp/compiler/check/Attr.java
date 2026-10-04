@@ -462,6 +462,12 @@ public final class Attr {
   }
 
   private BExpr exprImpl(Expr e, Type pt) {
+    if (e instanceof Expr.Member || e instanceof Expr.Call || e instanceof Expr.Index) {
+      BExpr chain = nullConditional(e);
+      if (chain != null) {
+        return chain;
+      }
+    }
     return switch (e) {
       case Expr.Literal l -> literal(l);
       case Expr.Interpolated i -> interpolated(i);
@@ -508,6 +514,7 @@ public final class Attr {
         error(Code.INVALID_THIS, s.span(), "'super' must be followed by a member access or call");
         yield new BExpr.Error(Type.ErrorType.INSTANCE, s.span());
       }
+      case Expr.BlockExpr b -> blockValue(b, pt);
       case Expr.TypeOf t -> typeOf(t);
       case Expr.NameOf n -> nameOf(n);
       case Expr.Tuple t -> patterns.tuple(t, pt);
@@ -746,9 +753,101 @@ public final class Attr {
   Target target(Expr e, boolean quietTypes) {
     Target t = targetImpl(e, quietTypes);
     if (t instanceof ValueTarget vt) {
-      recordType(e, vt.expr());
+      t = new ValueTarget(narrowPath(vt.expr()));
+      recordType(e, ((ValueTarget) t).expr());
     }
     return t;
+  }
+
+  /**
+   * A path whose value cannot change between a check and a later read (D089): a local (or the
+   * static context, {@code root == null}) or {@code this} of a class, then members that are final
+   * fields, record components or get-only auto-properties of classes compiled here. Null checks and
+   * type tests on a stable path narrow it like a local.
+   *
+   * @param root a {@link VarSymbol}, a {@link ClassSymbol} (its {@code this}), or null (static)
+   */
+  record StablePath(
+      Object root, List<io.github.matrixidot.jsharp.compiler.symbols.Symbol> members) {}
+
+  /** The smart-cast key of {@code e}: its local, its stable path, or null. */
+  Object narrowKey(BExpr e) {
+    VarSymbol v = localOf(e);
+    return v != null ? v : stablePath(e);
+  }
+
+  StablePath stablePath(BExpr e) {
+    return switch (e) {
+      case BExpr.Conv c when c.kind() == ConvKind.CHECKCAST || c.kind() == ConvKind.RETYPE ->
+          stablePath(c.expr());
+      case BExpr.Field f when isStable(f.field()) -> extend(f.receiver(), f.field());
+      case BExpr.Call c
+          when c.args().isEmpty()
+              && c.method().property() != null
+              && c.method() == c.method().property().getter()
+              && isStable(c.method().property()) ->
+          extend(c.receiver(), c.method().property());
+      default -> null;
+    };
+  }
+
+  private StablePath extend(BExpr receiver, io.github.matrixidot.jsharp.compiler.symbols.Symbol m) {
+    Object root;
+    List<io.github.matrixidot.jsharp.compiler.symbols.Symbol> members = new ArrayList<>();
+    if (receiver == null) {
+      root = null;
+    } else if (localOf(receiver) instanceof VarSymbol v && !v.isAtomic()) {
+      root = v;
+    } else if (receiver instanceof BExpr.This t && t.type() instanceof ClassType ct) {
+      root = ct.sym();
+    } else if (stablePath(receiver) instanceof StablePath p) {
+      root = p.root();
+      members.addAll(p.members());
+    } else {
+      return null;
+    }
+    members.add(m);
+    return new StablePath(root, List.copyOf(members));
+  }
+
+  private static boolean isStable(FieldSymbol f) {
+    return f.has(Flags.FINAL) && f.owner().isSource();
+  }
+
+  /** Record components and get-only auto-properties ({@code { get; }}, {@code { get; init; }}). */
+  private static boolean isStable(io.github.matrixidot.jsharp.compiler.symbols.PropertySymbol p) {
+    if (!p.owner().isSource() || p.backingField() == null) {
+      return false;
+    }
+    if (p.decl() == null) {
+      return p.owner().isRecord(); // a record component
+    }
+    if (p.decl().getter() != null) {
+      return false; // computed: int x => ...
+    }
+    for (var acc : p.decl().accessors()) {
+      if (acc.body() != null
+          || acc.kind() == io.github.matrixidot.jsharp.compiler.ast.Accessor.Kind.SET) {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  /** Applies a smart cast recorded for {@code e}'s stable path. */
+  private BExpr narrowPath(BExpr e) {
+    if (localOf(e) != null) {
+      return e; // locals are narrowed by localRef
+    }
+    StablePath p = stablePath(e);
+    Type narrowed = p == null ? null : env.flow.narrowed.get(p);
+    if (narrowed == null || narrowed.equals(e.type())) {
+      return e;
+    }
+    boolean needsCast =
+        !types.isSameType(narrowed.erasure(), e.type().erasure())
+            && !types.isSubtype(e.type(), narrowed);
+    return new BExpr.Conv(e, needsCast ? ConvKind.CHECKCAST : ConvKind.RETYPE, narrowed, e.span());
   }
 
   private Target targetImpl(Expr e, boolean quietTypes) {
@@ -1596,6 +1695,137 @@ public final class Attr {
       return safeAccess(m.target(), m.span(), tmp -> member(tmp, m.name(), m.nameSpan(), m.span()));
     }
     return asValue(target(m, false), m.span());
+  }
+
+  /**
+   * A switch arm block {@code { ...; yield v; }} (D092): checked like a nested body with its own
+   * jump targets (no break/continue out of it), whose value is the common type of its yields (or
+   * the expected type).
+   */
+  private BExpr blockValue(Expr.BlockExpr b, Type pt) {
+    Env outer = env;
+    Env e = outer.nested();
+    e.lambda = outer.lambda;
+    e.jumps = new java.util.ArrayDeque<>();
+    e.yieldTo = new Env.YieldContext(pt == null || pt.isError() || pt == PrimType.VOID ? null : pt);
+    env = e;
+    BStmt body;
+    try {
+      body = stmts.block(b.block());
+      if (env.flow.alive) {
+        report(
+            err(Code.MISSING_RETURN, b.span(), "this switch arm block can end without a value")
+                .help("end every path with 'yield value;' (or 'throw')"));
+      }
+    } finally {
+      env = outer;
+    }
+    Env.YieldContext y = e.yieldTo;
+    Type type =
+        y.expected != null
+            ? y.expected
+            : y.yielded.isEmpty() ? Type.NeverType.INSTANCE : types.lub(y.yielded);
+    y.target.type = type;
+    return new BExpr.BlockValue(y.target, body, type, b.span());
+  }
+
+  private int nullConditionals;
+
+  /**
+   * C# null-conditional chains (D091): in {@code a?.b.c()} a null {@code a} makes the whole chain
+   * null, and {@code .b} and {@code .c()} apply to the non-null value. The chain is rewritten as
+   * {@code a?.<tmp.b.c()>} with {@code tmp} bound to {@code a}. Null if {@code e}'s chain has no
+   * inner {@code ?.}/{@code ?[}.
+   */
+  private BExpr nullConditional(Expr e) {
+    Expr inner = innerNullSafe(e);
+    if (inner == null) {
+      return null;
+    }
+    String name = "$nc" + nullConditionals++;
+    Expr receiver;
+    Expr replacement;
+    switch (inner) {
+      case Expr.Member m -> {
+        receiver = m.target();
+        replacement =
+            new Expr.Member(
+                new Expr.Name(name, List.of(), m.target().span()),
+                m.name(),
+                m.nameSpan(),
+                m.typeArgs(),
+                false,
+                m.span());
+      }
+      case Expr.Index i -> {
+        receiver = i.target();
+        replacement =
+            new Expr.Index(
+                new Expr.Name(name, List.of(), i.target().span()), i.index(), false, i.span());
+      }
+      default -> {
+        return null;
+      }
+    }
+    Expr rest = replaceInChain(e, inner, replacement);
+    return safeAccess(
+        receiver,
+        e.span(),
+        tmp -> {
+          Scope saved = env.scope;
+          env.scope = saved.child();
+          env.scope.vars.put(name, localOf(tmp));
+          try {
+            return value(rest, null);
+          } finally {
+            env.scope = saved;
+          }
+        });
+  }
+
+  /** The leftmost {@code ?.}/{@code ?[} below {@code e} in its member/call/index chain. */
+  private static Expr innerNullSafe(Expr e) {
+    Expr found = null;
+    for (Expr cur = chainReceiver(e); cur != null; cur = chainReceiver(cur)) {
+      if (cur instanceof Expr.Member m && m.nullSafe()
+          || cur instanceof Expr.Index i && i.nullSafe()) {
+        found = cur; // keep going: the leftmost one is lifted first
+      }
+    }
+    return found;
+  }
+
+  /** The next link of a postfix chain (parentheses end it). */
+  private static Expr chainReceiver(Expr e) {
+    return switch (e) {
+      case Expr.Member m -> m.target();
+      case Expr.Call c -> c.callee() instanceof Expr.Member ? c.callee() : null;
+      case Expr.Index i -> i.target();
+      default -> null;
+    };
+  }
+
+  /** {@code e} with the chain link {@code old} replaced by {@code replacement}. */
+  private static Expr replaceInChain(Expr e, Expr old, Expr replacement) {
+    if (e == old) {
+      return replacement;
+    }
+    return switch (e) {
+      case Expr.Member m ->
+          new Expr.Member(
+              replaceInChain(m.target(), old, replacement),
+              m.name(),
+              m.nameSpan(),
+              m.typeArgs(),
+              m.nullSafe(),
+              m.span());
+      case Expr.Call c ->
+          new Expr.Call(replaceInChain(c.callee(), old, replacement), c.args(), c.span());
+      case Expr.Index i ->
+          new Expr.Index(
+              replaceInChain(i.target(), old, replacement), i.index(), i.nullSafe(), i.span());
+      default -> e;
+    };
   }
 
   /**

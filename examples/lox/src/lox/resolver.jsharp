@@ -1,0 +1,198 @@
+package lox;
+
+import java.util.*;
+
+/** Static pass: binds each variable use to its scope depth and reports scope errors. */
+public class Resolver {
+    private enum FunctionType { None, Function, Method, Initializer }
+    private enum ClassType { None, Class, Subclass }
+
+    private final Interpreter interpreter;
+    private final Reporter reporter;
+    /** Innermost last; each maps a name to whether it is fully defined. */
+    private final ArrayDeque<Map<String, boolean>> scopes = new ArrayDeque<>();
+    private FunctionType currentFunction = FunctionType.None;
+    private ClassType currentClass = ClassType.None;
+
+    public Resolver(Interpreter interpreter, Reporter reporter) {
+        this.interpreter = interpreter;
+        this.reporter = reporter;
+    }
+
+    public void resolve(List<Stmt> statements) {
+        foreach (var s in statements) resolve(s);
+    }
+
+    private void resolve(Stmt stmt) {
+        switch (stmt) {
+            case Block b:
+                beginScope();
+                resolve(b.statements);
+                endScope();
+                break;
+            case ClassDecl c:
+                classDeclaration(c);
+                break;
+            case ExpressionStmt e:
+                resolve(e.expression);
+                break;
+            case FunctionDecl f:
+                declare(f.name);
+                define(f.name);
+                resolveFunction(f, FunctionType.Function);
+                break;
+            case IfStmt i:
+                resolve(i.condition);
+                resolve(i.thenBranch);
+                if (i.elseBranch != null) resolve(i.elseBranch);
+                break;
+            case PrintStmt p:
+                resolve(p.expression);
+                break;
+            case ReturnStmt r:
+                if (currentFunction == FunctionType.None) {
+                    reporter.error(r.keyword, "Can't return from top-level code.");
+                }
+                if (r.value != null) {
+                    if (currentFunction == FunctionType.Initializer) {
+                        reporter.error(r.keyword, "Can't return a value from an initializer.");
+                    }
+                    resolve(r.value);
+                }
+                break;
+            case VarStmt v:
+                declare(v.name);
+                if (v.initializer != null) resolve(v.initializer);
+                define(v.name);
+                break;
+            case WhileStmt w:
+                resolve(w.condition);
+                resolve(w.body);
+                break;
+        }
+    }
+
+    private void classDeclaration(ClassDecl c) {
+        val enclosingClass = currentClass;
+        currentClass = ClassType.Class;
+        declare(c.name);
+        define(c.name);
+        if (c.superclass != null) {
+            if (c.name.lexeme == c.superclass.name.lexeme) {
+                reporter.error(c.superclass.name, "A class can't inherit from itself.");
+            }
+            currentClass = ClassType.Subclass;
+            resolve(c.superclass);
+            beginScope();
+            scopes.peekLast().put("super", true);
+        }
+        beginScope();
+        scopes.peekLast().put("this", true);
+        foreach (var m in c.methods) {
+            resolveFunction(m, m.name.lexeme == "init" ? FunctionType.Initializer : FunctionType.Method);
+        }
+        endScope();
+        if (c.superclass != null) endScope();
+        currentClass = enclosingClass;
+    }
+
+    private void resolve(Expr expr) {
+        switch (expr) {
+            case Variable v:
+                if (!scopes.isEmpty() && scopes.peekLast().get(v.name.lexeme) == false) {
+                    reporter.error(v.name, "Can't read local variable in its own initializer.");
+                }
+                resolveLocal(v, v.name);
+                break;
+            case Assign a:
+                resolve(a.value);
+                resolveLocal(a, a.name);
+                break;
+            case Binary b:
+                resolve(b.left);
+                resolve(b.right);
+                break;
+            case Logical l:
+                resolve(l.left);
+                resolve(l.right);
+                break;
+            case Call c:
+                resolve(c.callee);
+                c.arguments.forEach(resolve);
+                break;
+            case Get g:
+                resolve(g.obj);
+                break;
+            case SetField s:
+                resolve(s.value);
+                resolve(s.obj);
+                break;
+            case Grouping g:
+                resolve(g.expression);
+                break;
+            case Literal l:
+                break;
+            case Unary u:
+                resolve(u.right);
+                break;
+            case ThisExpr t:
+                if (currentClass == ClassType.None) {
+                    reporter.error(t.keyword, "Can't use 'this' outside of a class.");
+                } else {
+                    resolveLocal(t, t.keyword);
+                }
+                break;
+            case SuperExpr s:
+                if (currentClass == ClassType.None) {
+                    reporter.error(s.keyword, "Can't use 'super' outside of a class.");
+                } else if (currentClass != ClassType.Subclass) {
+                    reporter.error(s.keyword, "Can't use 'super' in a class with no superclass.");
+                } else {
+                    resolveLocal(s, s.keyword);
+                }
+                break;
+        }
+    }
+
+    private void resolveFunction(FunctionDecl f, FunctionType type) {
+        val enclosing = currentFunction;
+        currentFunction = type;
+        beginScope();
+        foreach (var p in f.params) {
+            declare(p);
+            define(p);
+        }
+        resolve(f.body);
+        endScope();
+        currentFunction = enclosing;
+    }
+
+    private void beginScope() => scopes.addLast(new HashMap<>());
+
+    private void endScope() => scopes.removeLast();
+
+    private void declare(Token name) {
+        if (scopes.isEmpty()) return;
+        val scope = scopes.peekLast();
+        if (scope.containsKey(name.lexeme)) {
+            reporter.error(name, "Already a variable with this name in this scope.");
+        }
+        scope.put(name.lexeme, false);
+    }
+
+    private void define(Token name) {
+        if (!scopes.isEmpty()) scopes.peekLast().put(name.lexeme, true);
+    }
+
+    private void resolveLocal(Expr expr, Token name) {
+        var depth = 0;
+        val it = scopes.descendingIterator();
+        while (it.hasNext()) {
+            if (it.next().containsKey(name.lexeme)) {
+                interpreter.resolve(expr, depth);
+                return;
+            }
+            depth++;
+        }
+    }
+}

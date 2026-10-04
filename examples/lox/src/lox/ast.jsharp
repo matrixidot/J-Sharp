@@ -1,0 +1,30 @@
+package lox;
+
+import java.util.*;
+
+/** Lox expressions. */
+public sealed interface Expr {}
+public record Assign(Token name, Expr value) : Expr;
+public record Binary(Expr left, Token op, Expr right) : Expr;
+public record Call(Expr callee, Token paren, List<Expr> arguments) : Expr;
+public record Get(Expr obj, Token name) : Expr;
+public record Grouping(Expr expression) : Expr;
+public record Literal(Object? value) : Expr;
+public record Logical(Expr left, Token op, Expr right) : Expr;
+public record SetField(Expr obj, Token name, Expr value) : Expr;
+public record SuperExpr(Token keyword, Token method) : Expr;
+public record ThisExpr(Token keyword) : Expr;
+public record Unary(Token op, Expr right) : Expr;
+public record Variable(Token name) : Expr;
+
+/** Lox statements. */
+public sealed interface Stmt {}
+public record Block(List<Stmt> statements) : Stmt;
+public record ClassDecl(Token name, Variable? superclass, List<FunctionDecl> methods) : Stmt;
+public record ExpressionStmt(Expr expression) : Stmt;
+public record FunctionDecl(Token name, List<Token> params, List<Stmt> body) : Stmt;
+public record IfStmt(Expr condition, Stmt thenBranch, Stmt? elseBranch) : Stmt;
+public record PrintStmt(Expr expression) : Stmt;
+public record ReturnStmt(Token keyword, Expr? value) : Stmt;
+public record VarStmt(Token name, Expr? initializer) : Stmt;
+public record WhileStmt(Expr condition, Stmt body) : Stmt;

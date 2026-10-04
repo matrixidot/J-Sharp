@@ -1,0 +1,327 @@
+package lox;
+
+import java.util.*;
+import java.util.function.Supplier;
+
+/** Recursive-descent parser: tokens to statements. */
+public class Parser {
+    /** Thrown to unwind to the next statement after a syntax error. */
+    private class ParseError : RuntimeException { }
+
+    private final List<Token> tokens;
+    private final Reporter reporter;
+    private int current = 0;
+
+    public Parser(List<Token> tokens, Reporter reporter) {
+        this.tokens = tokens;
+        this.reporter = reporter;
+    }
+
+    public List<Stmt> parse() {
+        val statements = new ArrayList<Stmt>();
+        while (!atEnd) {
+            val decl = declaration();
+            if (decl != null) statements.add(decl);
+        }
+        return statements;
+    }
+
+    // ---------------------------------------------------------------- statements
+
+    private Stmt? declaration() {
+        try {
+            if (match(TokenType.Class)) return classDeclaration();
+            if (match(TokenType.Fun)) return function("function");
+            if (match(TokenType.Var)) return varDeclaration();
+            return statement();
+        } catch (ParseError e) {
+            synchronize();
+            return null;
+        }
+    }
+
+    private Stmt classDeclaration() {
+        val name = consume(TokenType.Identifier, "Expect class name.");
+        Variable? superclass = null;
+        if (match(TokenType.Less)) {
+            consume(TokenType.Identifier, "Expect superclass name.");
+            superclass = new Variable(previous);
+        }
+        consume(TokenType.LeftBrace, "Expect '{' before class body.");
+        val methods = new ArrayList<FunctionDecl>();
+        while (!check(TokenType.RightBrace) && !atEnd) {
+            methods.add(function("method"));
+        }
+        consume(TokenType.RightBrace, "Expect '}' after class body.");
+        return new ClassDecl(name, superclass, methods);
+    }
+
+    private FunctionDecl function(String kind) {
+        val name = consume(TokenType.Identifier, $"Expect {kind} name.");
+        consume(TokenType.LeftParen, $"Expect '(' after {kind} name.");
+        val params = new ArrayList<Token>();
+        if (!check(TokenType.RightParen)) {
+            do {
+                if (params.size() >= 255) {
+                    error(peek, "Can't have more than 255 parameters.");
+                }
+                params.add(consume(TokenType.Identifier, "Expect parameter name."));
+            } while (match(TokenType.Comma));
+        }
+        consume(TokenType.RightParen, "Expect ')' after parameters.");
+        consume(TokenType.LeftBrace, $"Expect '{{' before {kind} body.");
+        return new FunctionDecl(name, params, block());
+    }
+
+    private Stmt varDeclaration() {
+        val name = consume(TokenType.Identifier, "Expect variable name.");
+        Expr? initializer = match(TokenType.Equal) ? expression() : null;
+        consume(TokenType.Semicolon, "Expect ';' after variable declaration.");
+        return new VarStmt(name, initializer);
+    }
+
+    private Stmt statement() {
+        if (match(TokenType.For)) return forStatement();
+        if (match(TokenType.If)) return ifStatement();
+        if (match(TokenType.Print)) return printStatement();
+        if (match(TokenType.Return)) return returnStatement();
+        if (match(TokenType.While)) return whileStatement();
+        if (match(TokenType.LeftBrace)) return new Block(block());
+        return expressionStatement();
+    }
+
+    /** {@code for} is sugar for a block with a while loop. */
+    private Stmt forStatement() {
+        consume(TokenType.LeftParen, "Expect '(' after 'for'.");
+        Stmt? initializer =
+            match(TokenType.Semicolon) ? null
+            : match(TokenType.Var) ? varDeclaration()
+            : expressionStatement();
+        Expr condition = check(TokenType.Semicolon) ? new Literal(true) : expression();
+        consume(TokenType.Semicolon, "Expect ';' after loop condition.");
+        Expr? increment = check(TokenType.RightParen) ? null : expression();
+        consume(TokenType.RightParen, "Expect ')' after for clauses.");
+        Stmt body = statement();
+        if (increment != null) {
+            body = new Block([body, new ExpressionStmt(increment)]);
+        }
+        body = new WhileStmt(condition, body);
+        return initializer == null ? body : new Block([initializer, body]);
+    }
+
+    private Stmt ifStatement() {
+        consume(TokenType.LeftParen, "Expect '(' after 'if'.");
+        val condition = expression();
+        consume(TokenType.RightParen, "Expect ')' after if condition.");
+        val thenBranch = statement();
+        Stmt? elseBranch = match(TokenType.Else) ? statement() : null;
+        return new IfStmt(condition, thenBranch, elseBranch);
+    }
+
+    private Stmt printStatement() {
+        val value = expression();
+        consume(TokenType.Semicolon, "Expect ';' after value.");
+        return new PrintStmt(value);
+    }
+
+    private Stmt returnStatement() {
+        val keyword = previous;
+        Expr? value = check(TokenType.Semicolon) ? null : expression();
+        consume(TokenType.Semicolon, "Expect ';' after return value.");
+        return new ReturnStmt(keyword, value);
+    }
+
+    private Stmt whileStatement() {
+        consume(TokenType.LeftParen, "Expect '(' after 'while'.");
+        val condition = expression();
+        consume(TokenType.RightParen, "Expect ')' after condition.");
+        return new WhileStmt(condition, statement());
+    }
+
+    private Stmt expressionStatement() {
+        val expr = expression();
+        consume(TokenType.Semicolon, "Expect ';' after expression.");
+        return new ExpressionStmt(expr);
+    }
+
+    private List<Stmt> block() {
+        val statements = new ArrayList<Stmt>();
+        while (!check(TokenType.RightBrace) && !atEnd) {
+            val decl = declaration();
+            if (decl != null) statements.add(decl);
+        }
+        consume(TokenType.RightBrace, "Expect '}' after block.");
+        return statements;
+    }
+
+    // ---------------------------------------------------------------- expressions
+
+    private Expr expression() => assignment();
+
+    private Expr assignment() {
+        val expr = or();
+        if (match(TokenType.Equal)) {
+            val equals = previous;
+            val value = assignment();
+            return expr switch {
+                Variable v => new Assign(v.name, value),
+                Get g => new SetField(g.obj, g.name, value),
+                _ => {
+                    error(equals, "Invalid assignment target."); // reported, parsing goes on
+                    yield expr;
+                },
+            };
+        }
+        return expr;
+    }
+
+    private Expr or() {
+        var expr = and();
+        while (match(TokenType.Or)) {
+            val op = previous;
+            expr = new Logical(expr, op, and());
+        }
+        return expr;
+    }
+
+    private Expr and() {
+        var expr = equality();
+        while (match(TokenType.And)) {
+            val op = previous;
+            expr = new Logical(expr, op, equality());
+        }
+        return expr;
+    }
+
+    /** Left-associative binary operators: {@code next (op next)*}. */
+    private Expr binary(Supplier<Expr> next, params TokenType[] ops) {
+        var expr = next.get();
+        while (match(ops)) {
+            val op = previous;
+            expr = new Binary(expr, op, next.get());
+        }
+        return expr;
+    }
+
+    private Expr equality() => binary(comparison, TokenType.BangEqual, TokenType.EqualEqual);
+
+    private Expr comparison() =>
+        binary(term, TokenType.Greater, TokenType.GreaterEqual, TokenType.Less, TokenType.LessEqual);
+
+    private Expr term() => binary(factor, TokenType.Minus, TokenType.Plus);
+
+    private Expr factor() => binary(unary, TokenType.Slash, TokenType.Star);
+
+    private Expr unary() {
+        if (match(TokenType.Bang, TokenType.Minus)) {
+            val op = previous;
+            return new Unary(op, unary());
+        }
+        return call();
+    }
+
+    private Expr call() {
+        var expr = primary();
+        while (true) {
+            if (match(TokenType.LeftParen)) {
+                expr = finishCall(expr);
+            } else if (match(TokenType.Dot)) {
+                expr = new Get(expr, consume(TokenType.Identifier, "Expect property name after '.'."));
+            } else {
+                break;
+            }
+        }
+        return expr;
+    }
+
+    private Expr finishCall(Expr callee) {
+        val arguments = new ArrayList<Expr>();
+        if (!check(TokenType.RightParen)) {
+            do {
+                if (arguments.size() >= 255) {
+                    error(peek, "Can't have more than 255 arguments.");
+                }
+                arguments.add(expression());
+            } while (match(TokenType.Comma));
+        }
+        val paren = consume(TokenType.RightParen, "Expect ')' after arguments.");
+        return new Call(callee, paren, arguments);
+    }
+
+    private Expr primary() {
+        if (match(TokenType.False)) return new Literal(false);
+        if (match(TokenType.True)) return new Literal(true);
+        if (match(TokenType.Nil)) return new Literal(null);
+        if (match(TokenType.Number, TokenType.String)) return new Literal(previous.literal);
+        if (match(TokenType.Super)) {
+            val keyword = previous;
+            consume(TokenType.Dot, "Expect '.' after 'super'.");
+            return new SuperExpr(keyword, consume(TokenType.Identifier, "Expect superclass method name."));
+        }
+        if (match(TokenType.This)) return new ThisExpr(previous);
+        if (match(TokenType.Identifier)) return new Variable(previous);
+        if (match(TokenType.LeftParen)) {
+            val expr = expression();
+            consume(TokenType.RightParen, "Expect ')' after expression.");
+            return new Grouping(expr);
+        }
+        throw error(peek, "Expect expression.");
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    private boolean match(params TokenType[] types) {
+        foreach (var type in types) {
+            if (check(type)) {
+                advance();
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private Token consume(TokenType type, String message) {
+        if (check(type)) return advance();
+        throw error(peek, message);
+    }
+
+    private boolean check(TokenType type) => !atEnd && peek.type == type;
+
+    private Token advance() {
+        if (!atEnd) current++;
+        return previous;
+    }
+
+    private boolean atEnd => peek.type == TokenType.Eof;
+
+    private Token peek => tokens[current];
+
+    private Token previous => tokens[current - 1];
+
+    private ParseError error(Token token, String message) {
+        reporter.error(token, message);
+        return new ParseError();
+    }
+
+    /** Skips to the start of the next statement after an error. */
+    private void synchronize() {
+        advance();
+        while (!atEnd) {
+            if (previous.type == TokenType.Semicolon) return;
+            switch (peek.type) {
+                case TokenType.Class:
+                case TokenType.Fun:
+                case TokenType.Var:
+                case TokenType.For:
+                case TokenType.If:
+                case TokenType.While:
+                case TokenType.Print:
+                case TokenType.Return:
+                    return;
+                default:
+                    break;
+            }
+            advance();
+        }
+    }
+}

@@ -94,10 +94,10 @@ final class Patterns {
           return new BPattern.Any(binding(t.binding(), ty, span, bindings), span);
         }
         Type tested = checkPatternType(input, ty, t.type().span());
-        return new BPattern.TypeTest(
-            tested,
-            binding(t.binding(), tested.withNullness(Nullness.NON_NULL), span, bindings),
-            span);
+        // The test uses the boxed type (Double for `double d`); the variable has the written
+        // primitive type, unboxed on binding.
+        Type bound = ty instanceof PrimType ? ty : tested.withNullness(Nullness.NON_NULL);
+        return new BPattern.TypeTest(tested, binding(t.binding(), bound, span, bindings), span);
       }
       case Pattern.Constant c -> {
         return constantPattern(c, input, bindings);
@@ -605,14 +605,25 @@ final class Patterns {
     Type input = e.type();
     FlowState before = env().flow.copy();
     List<VarSymbol> bindings = new ArrayList<>();
-    BPattern p = pattern(i.pattern(), input, bindings);
+    List<VarSymbol> whenFalse = new ArrayList<>();
+    BPattern p;
+    if (i.pattern() instanceof Pattern.Not not) {
+      // `x is not T t`: t is bound when the test is false, as in C# (D090), so it can be used
+      // after `if (x is not T t) return;`.
+      p = new BPattern.Not(pattern(not.pattern(), input, whenFalse), not.span());
+    } else {
+      p = pattern(i.pattern(), input, bindings);
+    }
     FlowState t = env().flow.copy();
     FlowState f = before.copy();
     f.alive = env().flow.alive;
     for (VarSymbol b : bindings) {
       t.assigned.set(b.id());
     }
-    VarSymbol v = Attr.localOf(e);
+    for (VarSymbol b : whenFalse) {
+      f.assigned.set(b.id());
+    }
+    Object v = a.narrowKey(e);
     if (v != null && !input.isError()) {
       switch (p) {
         case BPattern.TypeTest tt when tt.binding() == null ->

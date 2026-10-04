@@ -100,6 +100,7 @@ final class Stmts {
       case Stmt.Break b -> jump(b.label(), true, b.span());
       case Stmt.Continue c -> jump(c.label(), false, c.span());
       case Stmt.Return r -> returnStmt(r);
+      case Stmt.Yield y -> yieldStmt(y);
       case Stmt.Throw t -> throwStmt(t);
       case Stmt.Try t -> tryStmt(t);
       case Stmt.Using u -> using(u);
@@ -660,8 +661,31 @@ final class Stmts {
     return isBreak ? new BStmt.Break(target.label, span) : new BStmt.Continue(target.label, span);
   }
 
+  private BStmt yieldStmt(Stmt.Yield y) {
+    Env.YieldContext to = env().yieldTo;
+    if (to == null) {
+      a.report(
+          a.err(Code.INVALID_JUMP, y.span(), "'yield' is only allowed in a switch arm block")
+              .help("write the arm as 'pattern => { ...; yield value; }'"));
+      a.value(y.value(), null);
+      return new BStmt.Empty(y.span());
+    }
+    BExpr v =
+        to.expected != null
+            ? a.exprCoerced(y.value(), to.expected, y.value().span())
+            : a.value(y.value(), null);
+    to.yielded.add(v.type());
+    env().flow.alive = false;
+    return new BStmt.Yield(v, to.target, y.span());
+  }
+
   private BStmt returnStmt(Stmt.Return r) {
     Env env = env();
+    if (env.yieldTo != null) {
+      a.report(
+          a.err(Code.INVALID_JUMP, r.span(), "cannot return from inside a switch expression")
+              .help("give the arm its value with 'yield value;'"));
+    }
     Type rt = env.returnType;
     BExpr value = null;
     if (env.isAsync && env.lambda == null || env.isAsync && env.lambda != null) {

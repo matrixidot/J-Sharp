@@ -1,0 +1,42 @@
+package lox;
+
+/** Collects and prints errors; remembers whether any happened. */
+public class Reporter {
+    public boolean hadError { get; private set; }
+    public boolean hadRuntimeError { get; private set; }
+
+    public void error(int line, String message) => report(line, "", message);
+
+    public void error(Token token, String message) {
+        if (token.type == TokenType.Eof) {
+            report(token.line, " at end", message);
+        } else {
+            report(token.line, $" at '{token.lexeme}'", message);
+        }
+    }
+
+    public void runtimeError(RuntimeError error) {
+        System.err.println($"{error.getMessage()}\n[line {error.token.line}]");
+        hadRuntimeError = true;
+    }
+
+    public void reset() {
+        hadError = false;
+        hadRuntimeError = false;
+    }
+
+    private void report(int line, String where, String message) {
+        System.err.println($"[line {line}] Error{where}: {message}");
+        hadError = true;
+    }
+}
+
+/** An error while running a Lox program. */
+public class RuntimeError : RuntimeException {
+    public Token token { get; }
+
+    public RuntimeError(Token token, String message) {
+        super(message);
+        this.token = token;
+    }
+}

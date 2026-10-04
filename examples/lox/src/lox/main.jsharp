@@ -1,0 +1,36 @@
+package lox;
+
+import java.nio.file.*;
+import java.io.*;
+
+// jlox in J#: `lox script.lox` runs a file; `lox` alone starts a prompt.
+
+private val reporter = new Reporter();
+private val interpreter = new Interpreter(reporter);
+
+void run(String source) {
+    val tokens = new Scanner(source, reporter).scanTokens();
+    val statements = new Parser(tokens, reporter).parse();
+    if (reporter.hadError) return;
+    new Resolver(interpreter, reporter).resolve(statements);
+    if (reporter.hadError) return;
+    interpreter.interpret(statements);
+}
+
+if (args.length > 1) {
+    System.err.println("Usage: lox [script]");
+    System.exit(64);
+} else if (args.length == 1) {
+    run(Files.readString(Path.of(args[0])));
+    if (reporter.hadError) System.exit(65);
+    if (reporter.hadRuntimeError) System.exit(70);
+} else {
+    val input = new BufferedReader(new InputStreamReader(System.in));
+    while (true) {
+        System.out.print("> ");
+        val line = input.readLine();
+        if (line == null) break;
+        run(line);
+        reporter.reset();
+    }
+}

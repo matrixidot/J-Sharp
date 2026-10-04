@@ -1,0 +1,152 @@
+package lox;
+
+import java.util.*;
+import java.util.function.Function;
+
+/** A scope of variables, chained to its enclosing scope. */
+public class Environment {
+    public Environment? enclosing { get; }
+    private final Map<String, Object?> values = new HashMap<>();
+
+    public Environment(Environment? enclosing = null) {
+        this.enclosing = enclosing;
+    }
+
+    public void define(String name, Object? value) => values.put(name, value);
+
+    public Object? get(Token name) {
+        if (values.containsKey(name.lexeme)) return values.get(name.lexeme);
+        if (enclosing != null) return enclosing.get(name);
+        throw new RuntimeError(name, $"Undefined variable '{name.lexeme}'.");
+    }
+
+    public void assign(Token name, Object? value) {
+        if (values.containsKey(name.lexeme)) {
+            values.put(name.lexeme, value);
+        } else if (enclosing != null) {
+            enclosing.assign(name, value);
+        } else {
+            throw new RuntimeError(name, $"Undefined variable '{name.lexeme}'.");
+        }
+    }
+
+    public Object? getAt(int distance, String name) => ancestor(distance).values.get(name);
+
+    public void assignAt(int distance, Token name, Object? value) =>
+        ancestor(distance).values.put(name.lexeme, value);
+
+    private Environment ancestor(int distance) {
+        var env = this;
+        for (var i = 0; i < distance; i++) {
+            env = env.enclosing!;
+        }
+        return env;
+    }
+}
+
+/** Anything Lox code can call. */
+public interface Callable {
+    int arity();
+    Object? call(Interpreter interpreter, List<Object?> arguments);
+}
+
+/** A built-in function. */
+public record NativeFunction(String name, int arity, Function<List<Object?>, Object?> body) : Callable {
+    public override int arity() => arity;
+    public override Object? call(Interpreter interpreter, List<Object?> arguments) => body.apply(arguments);
+    public override String toString() => "<native fn>";
+}
+
+/** A user-defined function or method, closed over its defining environment. */
+public class LoxFunction : Callable {
+    private final FunctionDecl declaration;
+    private final Environment closure;
+    private final boolean isInitializer;
+
+    public LoxFunction(FunctionDecl declaration, Environment closure, boolean isInitializer) {
+        this.declaration = declaration;
+        this.closure = closure;
+        this.isInitializer = isInitializer;
+    }
+
+    /** This method with {@code this} bound to {@code instance}. */
+    public LoxFunction bind(LoxInstance instance) {
+        val env = new Environment(closure);
+        env.define("this", instance);
+        return new LoxFunction(declaration, env, isInitializer);
+    }
+
+    public override int arity() => declaration.params.size();
+
+    public override Object? call(Interpreter interpreter, List<Object?> arguments) {
+        val env = new Environment(closure);
+        for (var i = 0; i < declaration.params.size(); i++) {
+            env.define(declaration.params[i].lexeme, arguments[i]);
+        }
+        try {
+            interpreter.executeBlock(declaration.body, env);
+        } catch (Return r) {
+            return isInitializer ? closure.getAt(0, "this") : r.value;
+        }
+        return isInitializer ? closure.getAt(0, "this") : null;
+    }
+
+    public override String toString() => $"<fn {declaration.name.lexeme}>";
+}
+
+/** A class: calling it creates an instance. */
+public class LoxClass : Callable {
+    public String name { get; }
+    private final LoxClass? superclass;
+    private final Map<String, LoxFunction> methods;
+
+    public LoxClass(String name, LoxClass? superclass, Map<String, LoxFunction> methods) {
+        this.name = name;
+        this.superclass = superclass;
+        this.methods = methods;
+    }
+
+    public LoxFunction? findMethod(String name) =>
+        methods.get(name) ?? superclass?.findMethod(name);
+
+    public override int arity() => findMethod("init")?.arity() ?? 0;
+
+    public override Object? call(Interpreter interpreter, List<Object?> arguments) {
+        val instance = new LoxInstance(this);
+        findMethod("init")?.bind(instance).call(interpreter, arguments);
+        return instance;
+    }
+
+    public override String toString() => name;
+}
+
+/** An object: its class and its fields. */
+public class LoxInstance {
+    private final LoxClass klass;
+    private final Map<String, Object?> fields = new HashMap<>();
+
+    public LoxInstance(LoxClass klass) {
+        this.klass = klass;
+    }
+
+    public Object? get(Token name) {
+        if (fields.containsKey(name.lexeme)) return fields.get(name.lexeme);
+        val method = klass.findMethod(name.lexeme);
+        if (method != null) return method.bind(this);
+        throw new RuntimeError(name, $"Undefined property '{name.lexeme}'.");
+    }
+
+    public void set(Token name, Object? value) => fields.put(name.lexeme, value);
+
+    public override String toString() => $"{klass.name} instance";
+}
+
+/** Unwinds a function call with its return value. */
+public class Return : RuntimeException {
+    public Object? value { get; }
+
+    public Return(Object? value) {
+        super(null, null, false, false);
+        this.value = value;
+    }
+}

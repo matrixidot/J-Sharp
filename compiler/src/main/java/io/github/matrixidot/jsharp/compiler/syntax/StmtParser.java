@@ -197,6 +197,12 @@ abstract class StmtParser extends ExprParser {
           return new Stmt.Lock(monitor, body, spanFrom(start));
         }
       }
+      if (t.isContextual("yield") && startsYieldValue(peek(1).kind())) {
+        advance();
+        Expr value = parseExpr();
+        expect(SEMI);
+        return new Stmt.Yield(value, spanFrom(start));
+      }
       if (t.isContextual("checked") && peek(1).is(LBRACE)) {
         advance();
         Stmt.Block body = parseBlock();
@@ -269,6 +275,32 @@ abstract class StmtParser extends ExprParser {
       return m > 0 && (kind(m + 1) == LBRACE || kind(m + 1) == ARROW);
     }
     return false;
+  }
+
+  /** After {@code yield}: a value, not the use of a variable or method named yield. */
+  private static boolean startsYieldValue(TokenKind next) {
+    return switch (next) {
+      case EQ,
+          DOT,
+          LBRACKET,
+          SEMI,
+          PLUSPLUS,
+          MINUSMINUS,
+          PLUS_EQ,
+          MINUS_EQ,
+          STAR_EQ,
+          SLASH_EQ,
+          PERCENT_EQ,
+          AMP_EQ,
+          BAR_EQ,
+          CARET_EQ,
+          QUESTION_DOT,
+          QUESTION_QUESTION_EQ,
+          ARROW,
+          EOF ->
+          false;
+      default -> true;
+    };
   }
 
   /** True if a local variable declaration (or deconstruction) starts at the cursor. */

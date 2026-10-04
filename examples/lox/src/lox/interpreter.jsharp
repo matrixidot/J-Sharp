@@ -1,0 +1,230 @@
+package lox;
+
+import java.util.*;
+
+/** Evaluates statements and expressions. */
+public class Interpreter {
+    public final Environment globals = new Environment();
+    private Environment environment = globals;
+    private final Map<Expr, int> locals = new IdentityHashMap<>();
+    private final Reporter reporter;
+    private final StringBuilder? output;
+
+    /** @param output where {@code print} writes, or null for standard output */
+    public Interpreter(Reporter reporter, StringBuilder? output = null) {
+        this.reporter = reporter;
+        this.output = output;
+        globals.define("clock", new NativeFunction("clock", 0, args => System.nanoTime() / 1e9));
+        globals.define("len", new NativeFunction("len", 1, args => args[0] switch {
+            String s => (double) s.length(),
+            _ => throw new IllegalArgumentException("len() needs a string"),
+        }));
+    }
+
+    public void interpret(List<Stmt> statements) {
+        try {
+            foreach (var s in statements) execute(s);
+        } catch (RuntimeError e) {
+            reporter.runtimeError(e);
+        }
+    }
+
+    /** Records how many scopes up a variable expression resolves (from the Resolver). */
+    public void resolve(Expr expr, int depth) => locals.put(expr, depth);
+
+    // ---------------------------------------------------------------- statements
+
+    private void execute(Stmt stmt) {
+        switch (stmt) {
+            case Block b:
+                executeBlock(b.statements, new Environment(environment));
+                break;
+            case ClassDecl c:
+                classDeclaration(c);
+                break;
+            case ExpressionStmt e:
+                evaluate(e.expression);
+                break;
+            case FunctionDecl f:
+                environment.define(f.name.lexeme, new LoxFunction(f, environment, false));
+                break;
+            case IfStmt i:
+                if (isTruthy(evaluate(i.condition))) {
+                    execute(i.thenBranch);
+                } else if (i.elseBranch != null) {
+                    execute(i.elseBranch);
+                }
+                break;
+            case PrintStmt p:
+                val text = stringify(evaluate(p.expression));
+                if (output != null) {
+                    output.append(text).append('\n');
+                } else {
+                    System.out.println(text);
+                }
+                break;
+            case ReturnStmt r:
+                throw new Return(r.value == null ? null : evaluate(r.value));
+            case VarStmt v:
+                environment.define(v.name.lexeme, v.initializer == null ? null : evaluate(v.initializer));
+                break;
+            case WhileStmt w:
+                while (isTruthy(evaluate(w.condition))) execute(w.body);
+                break;
+        }
+    }
+
+    public void executeBlock(List<Stmt> statements, Environment env) {
+        val previous = environment;
+        try {
+            environment = env;
+            foreach (var s in statements) execute(s);
+        } finally {
+            environment = previous;
+        }
+    }
+
+    private void classDeclaration(ClassDecl c) {
+        LoxClass? superclass = null;
+        if (c.superclass != null) {
+            superclass = evaluate(c.superclass) as LoxClass
+                ?? throw new RuntimeError(c.superclass.name, "Superclass must be a class.");
+        }
+        environment.define(c.name.lexeme, null);
+        if (superclass != null) {
+            environment = new Environment(environment);
+            environment.define("super", superclass);
+        }
+        val methods = new HashMap<String, LoxFunction>();
+        foreach (var m in c.methods) {
+            methods.put(m.name.lexeme, new LoxFunction(m, environment, m.name.lexeme == "init"));
+        }
+        val klass = new LoxClass(c.name.lexeme, superclass, methods);
+        if (superclass != null) {
+            environment = environment.enclosing!;
+        }
+        environment.assign(c.name, klass);
+    }
+
+    // ---------------------------------------------------------------- expressions
+
+    private Object? evaluate(Expr expr) => expr switch {
+        Literal l => l.value,
+        Grouping g => evaluate(g.expression),
+        Unary u => unary(u),
+        Binary b => binary(b),
+        Logical l => logical(l),
+        Variable v => lookUp(v.name, v),
+        Assign a => assign(a),
+        Call c => call(c),
+        Get g => evaluate(g.obj) is LoxInstance inst
+            ? inst.get(g.name)
+            : throw new RuntimeError(g.name, "Only instances have properties."),
+        SetField s => setField(s),
+        ThisExpr t => lookUp(t.keyword, t),
+        SuperExpr s => superMethod(s),
+    };
+
+    private Object? unary(Unary u) {
+        val right = evaluate(u.right);
+        return u.op.type switch {
+            TokenType.Minus => -number(u.op, right),
+            TokenType.Bang => !isTruthy(right),
+            _ => throw new IllegalStateException(u.op.toString()),
+        };
+    }
+
+    private Object? binary(Binary b) {
+        val left = evaluate(b.left);
+        val right = evaluate(b.right);
+        val op = b.op;
+        return op.type switch {
+            TokenType.Plus => (left, right) switch {
+                (double x, double y) => x + y,
+                (String x, String y) => x + y,
+                _ => throw new RuntimeError(op, "Operands must be two numbers or two strings."),
+            },
+            TokenType.Minus => number(op, left) - number(op, right),
+            TokenType.Star => number(op, left) * number(op, right),
+            TokenType.Slash => number(op, left) / number(op, right),
+            TokenType.Greater => number(op, left) > number(op, right),
+            TokenType.GreaterEqual => number(op, left) >= number(op, right),
+            TokenType.Less => number(op, left) < number(op, right),
+            TokenType.LessEqual => number(op, left) <= number(op, right),
+            TokenType.EqualEqual => left == right,
+            TokenType.BangEqual => left != right,
+            _ => throw new IllegalStateException(op.toString()),
+        };
+    }
+
+    private Object? logical(Logical l) {
+        val left = evaluate(l.left);
+        if (l.op.type == TokenType.Or) {
+            return isTruthy(left) ? left : evaluate(l.right);
+        }
+        return !isTruthy(left) ? left : evaluate(l.right);
+    }
+
+    private Object? assign(Assign a) {
+        val value = evaluate(a.value);
+        int? distance = locals.get(a);
+        if (distance != null) {
+            environment.assignAt(distance, a.name, value);
+        } else {
+            globals.assign(a.name, value);
+        }
+        return value;
+    }
+
+    private Object? call(Call c) {
+        val callee = evaluate(c.callee);
+        val arguments = c.arguments.select(evaluate).toList();
+        if (callee is not Callable function) {
+            throw new RuntimeError(c.paren, "Can only call functions and classes.");
+        }
+        if (arguments.size() != function.arity()) {
+            throw new RuntimeError(c.paren, $"Expected {function.arity()} arguments but got {arguments.size()}.");
+        }
+        return function.call(this, arguments);
+    }
+
+    private Object? setField(SetField s) {
+        if (evaluate(s.obj) is not LoxInstance instance) {
+            throw new RuntimeError(s.name, "Only instances have fields.");
+        }
+        val value = evaluate(s.value);
+        instance.set(s.name, value);
+        return value;
+    }
+
+    private Object? superMethod(SuperExpr s) {
+        int distance = locals.get(s)!;
+        val superclass = (LoxClass) environment.getAt(distance, "super")!;
+        val instance = (LoxInstance) environment.getAt(distance - 1, "this")!;
+        val method = superclass.findMethod(s.method.lexeme)
+            ?? throw new RuntimeError(s.method, $"Undefined property '{s.method.lexeme}'.");
+        return method.bind(instance);
+    }
+
+    private Object? lookUp(Token name, Expr expr) {
+        int? distance = locals.get(expr);
+        return distance != null ? environment.getAt(distance, name.lexeme) : globals.get(name);
+    }
+
+    // ---------------------------------------------------------------- helpers
+
+    private static double number(Token op, Object? value) =>
+        value is double d ? d : throw new RuntimeError(op, "Operand must be a number.");
+
+    private static boolean isTruthy(Object? value) => value switch {
+        null => false,
+        boolean b => b,
+        _ => true,
+    };
+
+    public static String stringify(Object? value) => value switch {
+        null => "nil",
+        double d when d == Math.floor(d) && !Double.isInfinite(d) => $"{(long) d}",
+        _ => value.toString(),
+    };
+}

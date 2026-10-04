@@ -345,6 +345,7 @@ public final class AstPrinter {
       case Stmt.Break b -> s("break", b.label());
       case Stmt.Continue c -> s("continue", c.label());
       case Stmt.Return r -> s("return", opt(r.value()));
+      case Stmt.Yield y -> s("yield", toS(y.value()));
       case Stmt.Throw t -> s("throw", t.value() == null ? "<rethrow>" : toS(t.value()));
       case Stmt.Labeled l -> s("label " + l.label(), toS(l.body()));
       case Stmt.Switch sw -> {
@@ -461,6 +462,7 @@ public final class AstPrinter {
       case Expr.This t -> t.qualifier() == null ? "this" : t.qualifier() + ".this";
       case Expr.Super sp -> sp.qualifier() == null ? "super" : s("super", toS(sp.qualifier()));
       case Expr.TypeOf t -> s("typeof", typeStr(t.type()));
+      case Expr.BlockExpr b -> s("block-value", toS(b.block()));
       case Expr.NameOf n -> s("nameof", toS(n.expr()));
       case Expr.Tuple t -> list("tuple", t.elements());
       case Expr.With w -> {

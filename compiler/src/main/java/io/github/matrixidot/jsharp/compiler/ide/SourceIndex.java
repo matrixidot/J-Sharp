@@ -464,6 +464,7 @@ public final class SourceIndex {
       }
       case BStmt.Labeled l -> stmt(l.body());
       case BStmt.Return r -> expr(r.value());
+      case BStmt.Yield y -> expr(y.value());
       case BStmt.Throw t -> expr(t.exception());
       case BStmt.Try t -> {
         stmt(t.body());
@@ -709,6 +710,7 @@ public final class SourceIndex {
         stmts(b.stmts());
         expr(b.value());
       }
+      case BExpr.BlockValue bv -> stmt(bv.body());
       case BExpr.Await a -> {
         expr(a.task());
         add(a.span(), Kind.EXPRESSION, null, a.type(), false);

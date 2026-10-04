@@ -130,6 +130,7 @@ public final class AstWalk {
         walk(f.body(), v);
       }
       case Stmt.Return r -> walk(r.value(), v);
+      case Stmt.Yield y -> walk(y.value(), v);
       case Stmt.Throw t -> walk(t.value(), v);
       case Stmt.Labeled l -> walk(l.body(), v);
       case Stmt.Switch sw -> {
@@ -247,6 +248,7 @@ public final class AstWalk {
       case Expr.This t -> {}
       case Expr.Super s -> {}
       case Expr.TypeOf t -> {}
+      case Expr.BlockExpr b -> walk(b.block(), v);
       case Expr.Error err -> {}
     }
   }

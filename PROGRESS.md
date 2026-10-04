@@ -136,3 +136,15 @@
 - `editors/intellij`: a J# file type and highlighter (the compiler's lexer), the language server through the IDE's LSP client (completion, errors, hover, navigation, rename, parameter hints), brace and Enter handling, and run configurations with a gutter Run icon. The compiler is bundled and runs on the IDE's Java (D087).
 - Tests: 9 headless-IDE tests (highlighting, Enter and brace behaviour, entry points and run configurations, running a program with its library files, the language server answering), and the Plugin Verifier against CLion 2026.2.
 - Semantic highlighting (D088): classes, interfaces, methods, functions, properties, parameters, locals and enum constants are colored from the server, in IntelliJ and VS Code. Type names in declarations are now indexed (hover and go to definition work on them). An IntelliJ test checks the IDE applies the class, field and parameter colors.
+
+## Post-v0.1: dogfooding with a Lox interpreter
+- `examples/lox`: jlox from *Crafting Interpreters*, about 900 lines of J#, tested by ExamplesTest under `-Xverify:all`.
+- It found 8 problems in the compiler. Fixed:
+  - smart casts on stable members (D089);
+  - `is not` bindings (D090);
+  - C# null-conditional chains (D091);
+  - switch arm blocks with `yield` (D092);
+  - lifted equality, which removed a NullPointerException on `map.get(k) == false` (D093);
+  - primitive type pattern bindings;
+  - hints for C# type names.
+- Open for the owner: whether functions in a script file may use the script's top-level variables.

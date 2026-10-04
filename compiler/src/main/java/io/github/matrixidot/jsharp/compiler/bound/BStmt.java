@@ -62,6 +62,15 @@ public sealed interface BStmt {
   /** A labeled non-loop statement ({@code break label} leaves it). */
   record Labeled(Label label, BStmt body, Span span) implements BStmt {}
 
+  /** {@code yield value;} ending a switch arm block (see {@link BExpr.BlockValue}). */
+  record Yield(BExpr value, YieldTarget target, Span span) implements BStmt {}
+
+  /** The block a {@code yield} completes, and the block's value type (set after checking it). */
+  final class YieldTarget {
+    public final Label label = new Label("yield");
+    public Type type;
+  }
+
   record Break(Label target, Span span) implements BStmt {}
 
   record Continue(Label target, Span span) implements BStmt {}

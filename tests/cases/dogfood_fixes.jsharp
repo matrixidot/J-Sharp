@@ -1,0 +1,74 @@
+// Fixes found by writing the Lox interpreter (examples/lox): D089-D093.
+import java.util.*;
+
+// D089: smart casts on stable members (record components, final fields, get-only properties).
+public record Node(String name, Node? next);
+public class Box {
+    private final String? label;
+    public String? tag { get; }
+    public Box(String? label, String? tag) {
+        this.label = label;
+        this.tag = tag;
+    }
+    public int labelLength() => label != null ? label.length() : -1;
+    public String describe() {
+        if (tag == null) return "untagged";
+        return tag.toUpperCase();
+    }
+}
+int depth(Node n) {
+    var count = 1;
+    var cur = n;
+    while (cur.next != null) {
+        cur = cur.next;   // reassigning the root drops the narrowing, re-checked next turn
+        count++;
+    }
+    return count;
+}
+println(depth(new Node("a", new Node("b", new Node("c", null)))));
+println(new Box("hi", null).labelLength());
+println(new Box(null, "x").describe() + " " + new Box(null, null).describe());
+
+// D090: `is not` patterns bind when the test is false.
+String kind(Object o) {
+    if (o is not String s) return "not a string";
+    return $"string of {s.length()}";
+}
+println(kind("abc") + ", " + kind(3));
+
+// Primitive type patterns bind primitives.
+String show(Object v) => v switch {
+    double d when d == Math.floor(d) => $"{(long) d}",
+    double d => $"{d / 2}",
+    _ => "other",
+};
+println($"{show(4.0)} {show(3.0 + 0.5)} {show("x")}");
+
+// D091: null-conditional chains short-circuit as a whole.
+String? present = "hello";
+String? missing = null;
+println(present?.toUpperCase().length());
+println(missing?.toUpperCase().length());
+println(missing?.substring(1).toUpperCase() ?? "fallback");
+
+// D092: switch arm blocks with yield.
+String grade(int score) => score switch {
+    >= 90 => "A",
+    >= 80 => {
+        val plus = score >= 85;
+        yield plus ? "B+" : "B";
+    },
+    _ => {
+        if (score < 0) throw new IllegalArgumentException("negative");
+        yield "C";
+    },
+};
+println($"{grade(95)} {grade(87)} {grade(81)} {grade(10)}");
+
+// D093: equality between a primitive and a maybe-null boxed value is lifted.
+var seen = new HashMap<String, boolean>();
+println(seen.get("x") == false);
+seen.put("x", false);
+println(seen.get("x") == false);
+int? one = 1;
+println(one == 1L);

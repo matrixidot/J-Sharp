@@ -12,13 +12,16 @@ import java.util.Set;
 /**
  * Flow facts at a program point: reachability, definite assignment (locals by id, final fields of
  * the class being constructed), possible assignment (for single assignment of finals) and
- * smart-cast narrowings of locals. Copied at branches and joined at merges.
+ * smart-cast narrowings of locals and of stable paths ({@link Attr.StablePath}, D089). Copied at
+ * branches and joined at merges.
  */
 final class FlowState {
   boolean alive = true;
   final BitSet assigned;
   final Set<FieldSymbol> assignedFields;
-  final Map<VarSymbol, Type> narrowed;
+
+  /** Keys are {@link VarSymbol}s and {@link Attr.StablePath}s. */
+  final Map<Object, Type> narrowed;
 
   /** Variables that may have been assigned on some path. */
   final BitSet maybeAssigned;
@@ -28,7 +31,7 @@ final class FlowState {
   }
 
   private FlowState(
-      BitSet assigned, Set<FieldSymbol> fields, Map<VarSymbol, Type> narrowed, BitSet maybe) {
+      BitSet assigned, Set<FieldSymbol> fields, Map<Object, Type> narrowed, BitSet maybe) {
     this.assigned = assigned;
     this.assignedFields = fields;
     this.narrowed = narrowed;

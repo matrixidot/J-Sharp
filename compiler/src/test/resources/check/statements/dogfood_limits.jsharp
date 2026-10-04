@@ -1,0 +1,29 @@
+// The limits of D089-D092: what stays an error.
+public record N(N? next);
+public class Computed {
+    public String? text => null;       // a computed property may change: never narrowed
+}
+void reassigned(N n) {
+    var cur = n;
+    if (cur.next != null) {
+        cur = new N(null);
+        println(cur.next.next);                                        //~ JS0608
+    }
+}
+void computed(Computed c) {
+    if (c.text != null) println(c.text.length());                      //~ JS0608
+}
+void nestedNot(Object o) {
+    if (o is String and not String s) println(o);                      //~ JS0651
+}
+int noYield(int x) => x switch {
+    1 => { println("one"); },                                          //~ JS0902
+    _ => 2,
+};
+void misplaced() {
+    yield 3;                                                           //~ JS0904
+}
+int returns(int x) => x switch {
+    _ => { return 1; },                                                //~ JS0904
+};
+Func<int, int> csharpName = x => x;                                    //~ JS0401

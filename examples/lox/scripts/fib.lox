@@ -1,0 +1,18 @@
+// Recursion and closures.
+fun fib(n) {
+  if (n < 2) return n;
+  return fib(n - 2) + fib(n - 1);
+}
+for (var i = 0; i < 10; i = i + 1) print fib(i);
+
+fun makeCounter() {
+  var i = 0;
+  fun count() {
+    i = i + 1;
+    return i;
+  }
+  return count;
+}
+var counter = makeCounter();
+print counter();
+print counter();

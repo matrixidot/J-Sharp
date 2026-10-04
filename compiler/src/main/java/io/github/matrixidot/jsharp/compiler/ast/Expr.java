@@ -278,6 +278,12 @@ public sealed interface Expr extends Node {
    */
   record Super(Expr qualifier, Span span) implements Expr {}
 
+  /**
+   * A switch arm's block body, {@code Pattern => { ...; yield value; }} (D092): runs statements and
+   * produces the value of the {@code yield} that ends it.
+   */
+  record BlockExpr(Stmt.Block block, Span span) implements Expr {}
+
   /** {@code typeof(T)}. */
   record TypeOf(TypeNode type, Span span) implements Expr {}
 

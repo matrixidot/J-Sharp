@@ -502,6 +502,19 @@ public final class TypeResolver {
     return sb.toString();
   }
 
+  /** Hints for C# type names that J# spells the Java way. */
+  private static final java.util.Map<String, String> CSHARP_TYPES =
+      java.util.Map.of(
+          "Func",
+              "J# uses Java's function types: java.util.function.Function, Supplier, BiFunction, ...",
+          "Action",
+              "J# uses Java's function types: Runnable, java.util.function.Consumer, BiConsumer",
+          "IEnumerable", "use Iterable (or jsharp.collections.Sequence for lazy queries)",
+          "IList", "use java.util.List",
+          "Dictionary", "use java.util.Map (e.g. HashMap)",
+          "bool", "use boolean",
+          "decimal", "use java.math.BigDecimal");
+
   private void reportUnresolved(TypeNode.Named n, TypeScope scope) {
     SourceFile file = scope.file().unit().file();
     String name = n.segments().getFirst().name();
@@ -525,7 +538,10 @@ public final class TypeResolver {
               seg0.span().start(), seg0.span().start() + name.length());
       b = ctx.error(Code.UNRESOLVED_TYPE, file, nameSpan, "cannot find type '" + name + "'");
       String importable = importable(ctx, name);
-      if (importable != null) {
+      String csharp = CSHARP_TYPES.get(name);
+      if (csharp != null) {
+        b.help(csharp);
+      } else if (importable != null) {
         b.help("add 'import " + importable + ";'");
       } else {
         Set<String> names = new LinkedHashSet<>();

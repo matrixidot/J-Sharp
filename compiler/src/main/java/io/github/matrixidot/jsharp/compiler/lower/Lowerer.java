@@ -927,6 +927,20 @@ public final class Lowerer {
               f.span());
       case BStmt.Foreach f -> foreach(f);
       case BStmt.Labeled l -> new BStmt.Labeled(l.label(), ls(l.body()), l.span());
+      case BStmt.Yield y -> {
+        // yield v: store into the block's temporary, then leave the block.
+        VarSymbol tmp = yieldTemps.get(y.target());
+        BStmt store =
+            new BStmt.ExprStmt(
+                new BExpr.Assign(
+                    new BLValue.LocalLV(tmp),
+                    adapt(lx(y.value()), tmp.type()),
+                    tmp.type(),
+                    y.span()),
+                y.span());
+        yield new BStmt.Block(
+            List.of(store, new BStmt.Break(y.target().label, y.span())), y.span());
+      }
       case BStmt.Break b -> b;
       case BStmt.Continue c -> c;
       case BStmt.Return r ->
@@ -1747,6 +1761,7 @@ public final class Lowerer {
       case BExpr.Coalesce co -> coalesce(co);
       case BExpr.Block b -> new BExpr.Block(lsAll(b.stmts()), lx(b.value()), b.span());
       case BExpr.Await aw -> await(aw);
+      case BExpr.BlockValue bv -> blockValue(bv);
       case BExpr.Switch sx -> switchExpr(sx);
       case BExpr.IsPattern ip -> isPattern(ip);
       case BExpr.Nop n -> n;
@@ -1764,6 +1779,26 @@ public final class Lowerer {
       out.add(adapt(e, to));
     }
     return out;
+  }
+
+  // ------------------------------------------------------------------ switch arm blocks (D092)
+
+  private final Map<BStmt.YieldTarget, VarSymbol> yieldTemps = new java.util.IdentityHashMap<>();
+
+  /** {@code { ...; yield v; }}: {@code tmp = <zero>; yield: { body } } then {@code tmp}. */
+  private BExpr blockValue(BExpr.BlockValue bv) {
+    Span span = bv.span();
+    Type type =
+        bv.type() instanceof Type.NeverType || bv.type().isError() ? syms.objectType() : bv.type();
+    VarSymbol tmp = mutableTemp("yield", type, span);
+    yieldTemps.put(bv.target(), tmp);
+    BExpr zero =
+        type instanceof PrimType p ? new BExpr.Const(ConstFold1.zero(p), p, span) : nullConst(span);
+    List<BStmt> stmts =
+        List.of(
+            new BStmt.LocalDecl(tmp, zero, span),
+            new BStmt.Labeled(bv.target().label, ls(bv.body()), span));
+    return new BExpr.Block(stmts, new BExpr.Local(tmp, span), span);
   }
 
   // ------------------------------------------------------------------ atomic locals (D084)
@@ -2494,6 +2529,19 @@ public final class Lowerer {
         case FLOAT -> 1f;
         case DOUBLE -> 1d;
         default -> 1;
+      };
+    }
+
+    static Object zero(PrimType t) {
+      return switch (t) {
+        case BOOLEAN -> false;
+        case CHAR -> '\0';
+        case BYTE -> (byte) 0;
+        case SHORT -> (short) 0;
+        case LONG -> 0L;
+        case FLOAT -> 0f;
+        case DOUBLE -> 0d;
+        default -> 0;
       };
     }
   }

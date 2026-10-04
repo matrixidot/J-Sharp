@@ -265,6 +265,9 @@ public sealed interface BExpr {
     }
   }
 
+  /** A switch arm block: runs {@code body}; its value is that of the {@code yield} reached. */
+  record BlockValue(BStmt.YieldTarget target, BStmt body, Type type, Span span) implements BExpr {}
+
   /** {@code await task}: joins a {@code Task}/{@code Future} on the current (virtual) thread. */
   record Await(BExpr task, MethodSymbol join, Type type, Span span) implements BExpr {}
 

@@ -269,6 +269,7 @@ final class CodeGen {
         jump(top);
         bind(end);
       }
+      case BStmt.Yield y -> throw new IllegalStateException("yield is lowered");
       case BStmt.Labeled l -> {
         Label end = cb.newLabel();
         targets.put(l.label(), new Target(end, null, cleanups.size()));

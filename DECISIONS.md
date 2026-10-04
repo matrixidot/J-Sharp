@@ -517,3 +517,37 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - IntelliJ asks for semantic tokens only for plain-text and TextMate files by default, so the
     plugin opts in for J# files. VS Code registers a semantic tokens provider with the same
     legend.
+- **D089: Smart casts on stable paths** (found writing examples/lox). Null checks and type
+  tests narrow a path like a local when nothing can change it between check and use.
+  - A stable path is a local or `this` (or static), followed by members that are `final`
+    fields, record components, or get-only auto-properties (`{ get; }`, `{ get; init; }`), all
+    declared in this compilation.
+  - Computed properties and members of library classes are not stable, because their getters
+    can return something new each call. Kotlin draws the same line.
+  - Reassigning the root local drops narrowings through it.
+  - Keys of `FlowState.narrowed` are locals or `Attr.StablePath`s; `Attr.target` applies them to
+    member reads and receivers.
+- **D090: `x is not T t`** binds `t` when the test is false, as in C#, so
+  `if (x is not T t) return;` leaves `t` usable. Only a top-level `not` may bind; inside
+  `and`/`or` it is still an error, since the binding would not be definitely assigned.
+- **D091: Null-conditional chains short-circuit as a whole** (C#): in `a?.b.c()` a null `a`
+  makes the whole chain null, and `.b` and `.c()` apply to the non-null value. The checker
+  rewrites the chain around the leftmost `?.`/`?[` as `a?.<$t.b.c()>` with a synthetic
+  non-null local. Parentheses end a chain.
+- **D092: Switch arm blocks with `yield`** (Java's form): `pattern => { ...; yield value; }`.
+  - After `=>`, a `{` starts a block when a `;` appears directly inside it; otherwise it is a
+    map literal.
+  - A block must yield (or throw) on every path. `return`, and `break`/`continue` out of the
+    block, are errors, as in Java. `yield` outside an arm block is an error.
+  - The arm's type is the expected type, else the common type of its yields.
+  - Lowered to a labeled block that stores into a temporary and breaks.
+  - `yield` is contextual: `yield = 1`, `yield.x` and similar still use a name `yield`.
+- **D093: Lifted equality.** `boxed == primitive`, where the boxed side may be null (declared
+  `T?`, or a Java value of unknown nullness such as `Map.get`), is false for null and otherwise
+  compares numbers with promotion, as C# lifts `==`. It used to unbox Java values, which threw
+  NullPointerException when the map had no entry, and compared declared-nullable values as
+  boxes, which made `int? 1 == 1L` false. `!=` is the negation.
+- Also from examples/lox:
+  - primitive type patterns (`double d` against an `Object`) bind the primitive type, unboxed;
+  - unknown C# type names (`Func`, `Action`, `IEnumerable`, `Dictionary`, `bool`, `decimal`)
+    get a hint with the Java or J# equivalent.

@@ -1,0 +1,4 @@
+print "before";
+var x = 1;
+print x + "one";
+print "never";

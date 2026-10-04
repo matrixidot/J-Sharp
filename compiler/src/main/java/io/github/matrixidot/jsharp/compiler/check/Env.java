@@ -66,6 +66,24 @@ final class Env {
   FieldSymbol backingField;
   Deque<Jump> jumps = new ArrayDeque<>();
 
+  /**
+   * The switch arm block a {@code yield} here completes (D092), or null. Not copied into nested
+   * bodies, so lambdas and local functions inside the block cannot yield from it.
+   */
+  YieldContext yieldTo;
+
+  /** A switch arm block being checked: its expected type and the types of its yields. */
+  static final class YieldContext {
+    final Type expected;
+    final io.github.matrixidot.jsharp.compiler.bound.BStmt.YieldTarget target =
+        new io.github.matrixidot.jsharp.compiler.bound.BStmt.YieldTarget();
+    final List<Type> yielded = new java.util.ArrayList<>();
+
+    YieldContext(Type expected) {
+      this.expected = expected;
+    }
+  }
+
   /** Innermost catch variable (for {@code throw;}), or null. */
   VarSymbol catchVar;
 
