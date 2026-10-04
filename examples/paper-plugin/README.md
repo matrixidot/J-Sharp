@@ -19,7 +19,9 @@ The plugin is `examples/paper-plugin/build/libs/hello-jsharp.jar`. Copy it into 
 ## How it is set up
 
 - `settings.gradle.kts` takes the J# Gradle plugin from the checkout (`includeBuild("../..")`).
-  For a plugin in its own folder, point `includeBuild` at your J-Sharp checkout instead.
+  For a plugin in its own folder, run `./gradlew publishToMavenLocal` in J-Sharp once, then use
+  `pluginManagement { repositories { mavenLocal(); gradlePluginPortal() } }` in settings and
+  `id("io.github.matrixidot.jsharp") version "0.1.0-SNAPSHOT"` in `plugins { }`.
 - `build.gradle.kts` adds Paper's repository and `paper-api` as `compileOnly` (the server
   provides it), and puts the J# runtime inside the jar, because the server only loads the
   plugin jar.

@@ -63,24 +63,36 @@ sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=
 
 ## Using J# in a Gradle project
 
-The Gradle plugin compiles `src/main/jsharp` and `src/test/jsharp` with the project's
-dependencies and adds the J# runtime. J# and Java in the same module can use each other freely,
-and the J# classes go into tests, jars and `run`.
+Install J# into your local Maven repository once per machine (and again after pulling changes):
+
+```
+./gradlew publishToMavenLocal          # Windows: gradlew.bat publishToMavenLocal
+```
+
+Then any Gradle project can use the plugin by version, with no path to this checkout. It
+compiles `src/main/jsharp` and `src/test/jsharp` with the project's dependencies and adds the J#
+runtime.
 
 ```kotlin
-// settings.gradle.kts: use the plugin from a J-Sharp checkout...
-pluginManagement { includeBuild("../J-Sharp") }
-// ...or after `./gradlew publishToMavenLocal` in the checkout:
-// pluginManagement { repositories { mavenLocal(); gradlePluginPortal() } }
+// settings.gradle.kts
+pluginManagement {
+    repositories {
+        mavenLocal()
+        gradlePluginPortal()
+    }
+}
 
 // build.gradle.kts
 plugins {
-    id("io.github.matrixidot.jsharp")
+    id("io.github.matrixidot.jsharp") version "0.1.0-SNAPSHOT"
     application
 }
 dependencies { implementation("com.example:some-java-library:1.0") }
 application { mainClass.set("app.MainModule") }
 ```
+
+When working on J# itself, `pluginManagement { includeBuild("path/to/J-Sharp") }` uses the
+checkout directly instead.
 
 After a build, the editors also know the project's dependencies: completion and hover work for
 your libraries' classes. [`examples/paper-plugin`](examples/paper-plugin) is a complete example:
