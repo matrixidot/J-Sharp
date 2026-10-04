@@ -157,4 +157,44 @@ class JSharpPluginFunctionalTest {
     BuildResult result = runner(":app:compileJSharp").buildAndFail();
     assertThat(result.getOutput()).contains("error[JS0600]").contains("J# compilation failed");
   }
+
+  private void singleModule() throws IOException {
+    write("settings.gradle.kts", "rootProject.name = \"solo\"\n");
+    write("build.gradle.kts", "plugins { id(\"io.github.matrixidot.jsharp\") }\n");
+  }
+
+  /** Like Kotlin's .kt files, .jsharp files in src/main/java are compiled (D097). */
+  @Test
+  void compilesJSharpFilesInTheJavaDirectory() throws IOException {
+    singleModule();
+    write(
+        "src/main/java/solo/Twice.jsharp",
+        "package solo;\npublic static int twice(int x) => 2 * x;\n");
+    BuildResult result = runner("classes").build();
+    assertThat(result.task(":compileJSharp").getOutcome()).isEqualTo(TaskOutcome.SUCCESS);
+    assertThat(dir.resolve("build/classes/jsharp/main/solo"))
+        .isDirectoryContaining("glob:**.class");
+  }
+
+  /** A .jsharp file the build would skip (here in src/main/kotlin) fails it instead (D097). */
+  @Test
+  void failsForJSharpFilesOutsideTheSourceDirectories() throws IOException {
+    singleModule();
+    write("src/main/kotlin/solo/Lost.jsharp", "package solo;\npublic static int one() => 1;\n");
+    BuildResult result = runner("jar").buildAndFail();
+    assertThat(result.getOutput())
+        .contains("not in a J# source directory")
+        .contains("Lost.jsharp")
+        .contains("move them to src/main/jsharp");
+  }
+
+  /** IntelliJ's Gradle import reads the idea model: src/main/jsharp is a source folder. */
+  @Test
+  void marksTheJSharpDirectoryAsASourceFolderForIntelliJ() throws IOException {
+    singleModule();
+    write("src/main/jsharp/solo/One.jsharp", "package solo;\npublic static int one() => 1;\n");
+    runner("ideaModule").build();
+    assertThat(Files.readString(dir.resolve("solo.iml")))
+        .contains("url=\"file://$MODULE_DIR$/src/main/jsharp\" isTestSource=\"false\"");
+  }
 }

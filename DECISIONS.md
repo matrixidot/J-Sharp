@@ -587,3 +587,16 @@ Format: **decision** — reason. *Rejected:* alternatives.
   J#'s class file version, so the plugins load unchanged. The jar includes the J# runtime, since
   servers load only the plugin jar. It is a separate Gradle build (`./gradlew -p
   examples/paper-plugin jar`), not part of `./gradlew build`, because it downloads Paper's API.
+- **D097: J# sources cannot go missing from a Gradle build.** A Paper plugin built with its class
+  in `src/main/kotlin` passed `./gradlew build`, then failed on the server with
+  ClassNotFoundException: compileJSharp had found no sources (NO-SOURCE).
+  - `.jsharp` files in a source set's Java directories (`src/main/java`) are compiled too, as
+    Kotlin does with `.kt` files there.
+  - `check<Set>JSharpSourceLocations` fails the build for any other `.jsharp` file under
+    `src/<set>/` (resources excepted), and says to move it to `src/<set>/jsharp`. compileJSharp
+    depends on it.
+  - The plugin applies `idea` and adds `src/main/jsharp` (and `src/test/jsharp` as test
+    sources) to its module model, which IntelliJ's Gradle import reads. The folder is then a
+    source root, with New | Package.
+  - The language server applies a project's recorded class path (D096) to files under
+    `src/<set>/java` as well.

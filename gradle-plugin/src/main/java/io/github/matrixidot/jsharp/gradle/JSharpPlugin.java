@@ -1,6 +1,7 @@
 package io.github.matrixidot.jsharp.gradle;
 
 import io.github.matrixidot.jsharp.compiler.driver.RuntimeLocator;
+import java.io.File;
 import java.nio.file.Path;
 import java.util.List;
 import org.gradle.api.Plugin;
@@ -40,6 +41,31 @@ public class JSharpPlugin implements Plugin<Project> {
               project.files(runtime.stream().map(Path::toFile).toList()));
     }
     java.getSourceSets().all(sourceSet -> configure(project, sourceSet));
+    markSourceFoldersForIntelliJ(project, java);
+  }
+
+  /**
+   * IntelliJ's Gradle import does not know custom source directories, so src/main/jsharp would be a
+   * plain folder (no New | Package, no source root). The {@code idea} plugin's model is what the
+   * import reads: the J# directories are added to it (D097).
+   */
+  private static void markSourceFoldersForIntelliJ(Project project, JavaPluginExtension java) {
+    project.getPluginManager().apply(org.gradle.plugins.ide.idea.IdeaPlugin.class);
+    project.afterEvaluate(
+        p -> {
+          var module =
+              p.getExtensions()
+                  .getByType(org.gradle.plugins.ide.idea.model.IdeaModel.class)
+                  .getModule();
+          for (SourceSet set : java.getSourceSets()) {
+            File dir = p.file("src/" + set.getName() + "/jsharp");
+            if (set.getName().equals(SourceSet.MAIN_SOURCE_SET_NAME)) {
+              module.getSourceDirs().add(dir);
+            } else if (set.getName().equals(SourceSet.TEST_SOURCE_SET_NAME)) {
+              module.getTestSources().from(dir);
+            }
+          }
+        });
   }
 
   private static void configure(Project project, SourceSet sourceSet) {
@@ -47,6 +73,8 @@ public class JSharpPlugin implements Plugin<Project> {
     SourceDirectorySet jsharp =
         project.getObjects().sourceDirectorySet("jsharp", sourceSet.getName() + " J# source");
     jsharp.srcDir("src/" + name + "/jsharp");
+    // Like Kotlin's .kt files, .jsharp files in the Java source directories are compiled too.
+    jsharp.srcDirs(sourceSet.getJava().getSrcDirs());
     jsharp.getFilter().include("**/*.jsharp");
     sourceSet.getExtensions().add(SourceDirectorySet.class, "jsharp", jsharp);
     sourceSet.getAllSource().source(jsharp);
@@ -109,5 +137,33 @@ public class JSharpPlugin implements Plugin<Project> {
     project
         .getTasks()
         .named(sourceSet.getClassesTaskName(), t -> t.dependsOn(compile, classPathFile));
+
+    // .jsharp files elsewhere under src/<set> (src/main/kotlin, ...) fail the build (D097).
+    TaskProvider<JSharpSourceCheck> sourceCheck =
+        project
+            .getTasks()
+            .register(
+                sourceSet.getTaskName("check", "JSharpSourceLocations"),
+                JSharpSourceCheck.class,
+                t -> {
+                  t.setDescription(
+                      "Checks that the " + name + " J# files are where J# compiles them.");
+                  t.getExpectedDirectory().set("src/" + name + "/jsharp");
+                  t.getStraySources()
+                      .from(
+                          project
+                              .fileTree("src/" + name)
+                              .matching(
+                                  f -> {
+                                    f.include("**/*.jsharp");
+                                    f.exclude("resources/**");
+                                  })
+                              .filter(
+                                  file ->
+                                      jsharp.getSrcDirs().stream()
+                                          .noneMatch(
+                                              dir -> file.toPath().startsWith(dir.toPath()))));
+                });
+    compile.configure(t -> t.dependsOn(sourceCheck));
   }
 }

@@ -160,9 +160,10 @@ final class Workspace {
   }
 
   /**
-   * The class path for {@code uri}: in a Gradle project ({@code <project>/src/<set>/jsharp}) built
-   * with the J# plugin, the libraries it recorded in {@code build/jsharp/<set>.classpath} (D095);
-   * otherwise the server's own.
+   * The class path for {@code uri}: in a Gradle project ({@code <project>/src/<set>/jsharp}, or
+   * {@code .../java}, which the Gradle plugin also compiles .jsharp files from) built with the J#
+   * plugin, the libraries it recorded in {@code build/jsharp/<set>.classpath} (D095); otherwise the
+   * server's own.
    */
   private ClassPath classPathFor(URI uri) {
     Path file;
@@ -174,7 +175,8 @@ final class Workspace {
     Path root = sourceRoot(file, packageOf(text(uri)));
     if (root == null
         || root.getFileName() == null
-        || !root.getFileName().toString().equals("jsharp")
+        || !(root.getFileName().toString().equals("jsharp")
+            || root.getFileName().toString().equals("java"))
         || root.getParent() == null
         || root.getParent().getParent() == null
         || root.getParent().getParent().getFileName() == null
