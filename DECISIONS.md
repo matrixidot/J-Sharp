@@ -481,3 +481,26 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - `jsharp run a.jsharp b.jsharp -- args` runs several sources (Run passes the program's
     library files with it).
   - Renaming types is not supported yet, because uses of a type in type positions are not indexed.
+- **D087: IntelliJ platform plugin** (`editors/intellij`, a separate Gradle build compiled
+  against a local JetBrains IDE, 2026.2+).
+  - J# is a real language with its own file type, not a TextMate bundle. Files of the generic
+    TextMate type count as plain text in IntelliJ, and the IDE did not attach LSP features to
+    them (the owner saw no code intelligence).
+  - Highlighting wraps the J# compiler's lexer, so it matches the compiler. The whole buffer is
+    lexed and only the first token has the initial state, so edits re-lex from the start.
+  - The PSI is flat: structure, errors and navigation come from the language server through
+    the IDE's client-based LSP API (`LspIntegrationProvider`, `ProjectWideLspClientDescriptor`).
+    The server runs on the IDE's JetBrains Runtime (Java 25) from the plugin's `server/lib`.
+  - Editing is native:
+    - a brace matcher, and quote and comment handlers;
+    - an Enter handler, registered first because there is no formatter. It keeps the line's
+      indentation and indents after `{ ( [`. Between braces it puts the closing one on its own
+      line, and after an unmatched `{` it adds the `}`.
+    - a typed handler that lines a lone `}` up with its `{` line.
+  - Running uses a J# run configuration type (file and arguments), a producer ("Run
+    'main.jsharp'") and a run line marker at the entry point. The entry point is found with
+    the J# parser: the first top-level statement, else `main`. Program files come from the
+    server's `jsharp/programFiles` request, else the file plus the library files beside it.
+    The LSP code lens is disabled in IntelliJ, since the gutter icon replaces it.
+  - Verified with JetBrains' Plugin Verifier and with headless-IDE tests. The IDE's light-test
+    project lives in an in-memory file system, so the tests start the server directly.

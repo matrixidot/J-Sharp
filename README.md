@@ -52,7 +52,9 @@ jsharp lsp                                       language server for editors (st
 Editor support: the VS Code extension in [`editors/vscode`](editors/vscode) adds highlighting,
 live errors, hover, go to definition, references, rename, parameter hints, completion, outline
 and a ▶ Run button. It bundles the compiler, so `./gradlew installVscodeExtension` is all it takes
-(with Java 25 installed). Other editors can run `jsharp lsp`. For a first look, open
+(with Java 25 installed). JetBrains IDEs (IntelliJ IDEA 2026.2+, CLion, ...) have a plugin in
+[`editors/intellij`](editors/intellij), with run configurations and a gutter Run icon. Other
+editors can run `jsharp lsp`. For a first look, open
 [`examples/showcase`](examples/showcase) and press Run.
 
 `bin/jsharp` runs the locally built CLI (`cli/build/install/jsharp`), building it if needed; set

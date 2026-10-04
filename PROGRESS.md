@@ -131,3 +131,7 @@
 - VS Code extension rebuilt: no npm dependency, bundles the compiler (one `.vsix`, needs only Java 25), `./gradlew installVscodeExtension`. Adds references, highlights, rename, parameter hints and a ▶ Run button, plus hover and definition fixes for local functions, atomic locals, record components and enum constants (D086).
 - `examples/showcase`: a multi-file tour program for demos, run by ExamplesTest.
 - Tests: an LSP session test for hover, definition, references (writes included), rename across files and its refusals, signature help on unclosed calls, and the Run lens. The extension client was smoke-tested in Node against the bundled server, with a stub `vscode` module.
+
+## Post-v0.1: IntelliJ plugin
+- `editors/intellij`: a J# file type and highlighter (the compiler's lexer), the language server through the IDE's LSP client (completion, errors, hover, navigation, rename, parameter hints), brace and Enter handling, and run configurations with a gutter Run icon. The compiler is bundled and runs on the IDE's Java (D087).
+- Tests: 9 headless-IDE tests (highlighting, Enter and brace behaviour, entry points and run configurations, running a program with its library files, the language server answering), and the Plugin Verifier against CLion 2026.2.

@@ -848,6 +848,7 @@ public final class LanguageServer {
       return List.of();
     }
     Map<String, Object> range = Workspace.range(text, at, at);
+    // Arguments: the document, then the files to run it with (see programFiles).
     return List.of(
         Json.obj(
             "range",
@@ -859,7 +860,7 @@ public final class LanguageServer {
                 "command",
                 "jsharp.run",
                 "arguments",
-                List.of(uri.toString()))));
+                List.of(uri.toString(), programFiles(uri)))));
   }
 
   /** The files {@code jsharp run} needs for the program in {@code uri}: its unit. */

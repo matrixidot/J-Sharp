@@ -1,0 +1,41 @@
+<idea-plugin>
+  <id>io.github.matrixidot.jsharp</id>
+  <name>J#</name>
+  <vendor url="https://github.com/matrixidot/J-Sharp">matrixidot</vendor>
+  <description><![CDATA[
+    <p>J# language support: syntax highlighting, errors as you type, completion, hover, go to
+    definition, find usages, rename, parameter hints, brace handling, and run configurations
+    (the green Run icon next to a program's entry point).</p>
+    <p>The J# compiler is bundled and runs on the IDE's own Java runtime.</p>
+  ]]></description>
+
+  <depends>com.intellij.modules.platform</depends>
+  <depends>com.intellij.modules.lsp</depends>
+
+  <extensions defaultExtensionNs="com.intellij">
+    <fileType name="J#" implementationClass="io.github.matrixidot.jsharp.intellij.JSharpFileType"
+              fieldName="INSTANCE" language="JSharp" extensions="jsharp"/>
+    <lang.parserDefinition language="JSharp"
+                           implementationClass="io.github.matrixidot.jsharp.intellij.JSharpParserDefinition"/>
+    <lang.syntaxHighlighterFactory language="JSharp"
+                                   implementationClass="io.github.matrixidot.jsharp.intellij.JSharpSyntaxHighlighterFactory"/>
+    <lang.braceMatcher language="JSharp"
+                       implementationClass="io.github.matrixidot.jsharp.intellij.JSharpBraceMatcher"/>
+    <lang.commenter language="JSharp"
+                    implementationClass="io.github.matrixidot.jsharp.intellij.JSharpCommenter"/>
+    <lang.quoteHandler language="JSharp"
+                       implementationClass="io.github.matrixidot.jsharp.intellij.JSharpQuoteHandler"/>
+    <enterHandlerDelegate implementation="io.github.matrixidot.jsharp.intellij.JSharpEnterHandler"
+                          order="first"/>
+    <typedHandler implementation="io.github.matrixidot.jsharp.intellij.JSharpTypedHandler"/>
+
+    <configurationType implementation="io.github.matrixidot.jsharp.intellij.JSharpRunConfigurationType"/>
+    <runConfigurationProducer
+        implementation="io.github.matrixidot.jsharp.intellij.JSharpRunConfigurationProducer"/>
+    <runLineMarkerContributor language="JSharp"
+                              implementationClass="io.github.matrixidot.jsharp.intellij.JSharpRunLineMarker"/>
+
+    <platform.lsp.integrationProvider
+        implementation="io.github.matrixidot.jsharp.intellij.JSharpLspProvider"/>
+  </extensions>
+</idea-plugin>
