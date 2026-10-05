@@ -24,8 +24,8 @@ foreach (var s in shapes.where(s => area(s) > 1).orderBy(s => area(s))) println(
 
 ## Install
 
-Download from the [latest release](https://github.com/matrixidot/J-Sharp/releases/latest). Java is
-included; nothing else needs installing.
+Download from the [releases page](https://github.com/matrixidot/J-Sharp/releases) (J# is in beta:
+the newest is a pre-release). Java is included; nothing else needs installing.
 
 - **IntelliJ IDEA** (or another JetBrains IDE, 2026.2+): Settings | Plugins | ⚙ | Install Plugin
   from Disk, pick `jsharp-intellij-plugin-<version>.zip`. Then **File | New | Project | J#**.
@@ -94,7 +94,7 @@ pluginManagement {
 
 // build.gradle.kts
 plugins {
-    id("io.github.matrixidot.jsharp") version "0.2.0"
+    id("io.github.matrixidot.jsharp") version "0.2.0-beta"
     application
 }
 dependencies { implementation("com.example:some-java-library:1.0") }
@@ -139,7 +139,7 @@ sources compiled by `jsharp build`; use Gradle for those.
 
 ## Development
 
-Releases: pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`, which tests, publishes the
+Releases: pushing a tag named after the version (`0.2.0-beta`, `0.2.0`) runs `.github/workflows/release.yml`, which tests, publishes the
 Maven repository to GitHub Pages and attaches every download to a GitHub release (D100).
 `scripts/runtimes.sh` builds the bundled Java runtimes; `./gradlew cliDistribution vscodeExtension
 -Pplatform=linux-x64` packages them locally.
@@ -171,3 +171,9 @@ overloading), functions as values, local functions, `atomic` locals, and Java an
 compiled together in one module. 452 automated tests, including 133 programs run under
 `-Xverify:all`. Not yet available: a Maven Central release, incremental compilation, renaming
 types in the editor, structured concurrency and query syntax. See [PROGRESS.md](PROGRESS.md).
+
+## License
+
+J# is licensed under the [Apache License 2.0](LICENSE). The downloads that include Java bundle an
+OpenJDK runtime (Eclipse Temurin), under GPLv2 with the Classpath Exception; its notices are in
+`runtime/legal`.

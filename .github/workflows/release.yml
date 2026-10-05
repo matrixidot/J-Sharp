@@ -1,4 +1,5 @@
-# A release (D100): pushing a tag vX.Y.Z builds and tests J#, then
+# A release (D100): pushing a tag named after the version (0.2.0, or 0.2.0-beta for a GitHub
+# pre-release; a leading v is dropped) builds and tests J#, then
 # - publishes the Gradle plugin, compiler and runtime to the Maven repository on GitHub Pages
 #   (https://matrixidot.github.io/J-Sharp/maven), which `jsharp new` projects use;
 # - attaches the downloads to a GitHub release: the jsharp command and the VS Code extension for
@@ -11,7 +12,7 @@
 name: Release
 on:
   push:
-    tags: ["v*"]
+    tags: ["[0-9]*", "v[0-9]*"]
   workflow_dispatch:
     inputs:
       version:
@@ -116,7 +117,9 @@ jobs:
           Gradle projects use \`id("io.github.matrixidot.jsharp") version "$VERSION"\` from \`maven("https://matrixidot.github.io/J-Sharp/maven")\`.
 
           NOTES
-          gh release create "$GITHUB_REF_NAME" dist/* --title "J# $VERSION" --notes-file notes.md --generate-notes
+          prerelease=""
+          case "$VERSION" in *-*) prerelease="--prerelease" ;; esac
+          gh release create "$GITHUB_REF_NAME" dist/* --title "J# $VERSION" --notes-file notes.md --generate-notes $prerelease
 
       - name: JetBrains Marketplace
         if: env.PUBLISH == 'true' && env.HAS_JETBRAINS == 'true'

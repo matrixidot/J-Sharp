@@ -631,7 +631,7 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - Without an installed Java (no `JAVA_HOME`, no `java` on the PATH), VS Code terminals get the
     bundled runtime as `JAVA_HOME` (environmentVariableCollection), so `./gradlew` works.
   - The IntelliJ plugin needs none of this: it runs on the IDE's Java 25.
-- **D100: Releases.** A `vX.Y.Z` tag runs `.github/workflows/release.yml` (D098 and D099
+- **D100: Releases.** A tag named after the version (`0.2.0-beta`) runs `.github/workflows/release.yml` (D098 and D099
   together); a manual run is a dry run.
   - It builds and tests, builds the runtimes and packages, and publishes the compiler, runtime and
     Gradle plugin (with its plugin marker) into the `gh-pages` branch under `maven/`, served at
@@ -642,3 +642,9 @@ Format: **decision** — reason. *Rejected:* alternatives.
     tokens are repository secrets.
   - The version comes from the tag (`-Pversion`): the IntelliJ plugin and the VS Code
     `package.json` follow it. Development builds are `0.2.0-SNAPSHOT`.
+- **D101: Apache-2.0, and beta versions.** J# is licensed under Apache-2.0 (the owner's
+  choice). `LICENSE` goes into every jar (`META-INF/LICENSE`), the CLI downloads and the VS Code
+  extension, and the POMs name the license. Beta releases are versioned `X.Y.Z-beta`, the same
+  for the tag, the release and everything inside it (the owner asked for one consistent name).
+  VS Code requires a semantic version, and `0.2.0-beta` sorts before `0.2.0` in Gradle and Maven.
+  Versions with a suffix are GitHub pre-releases.

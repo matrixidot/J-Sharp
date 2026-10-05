@@ -4,6 +4,7 @@
   "description": "J# language support: highlighting, errors as you type, hover, go to definition, references, rename, parameter hints, completion, outline, and Run.",
   "version": "0.1.0",
   "publisher": "matrixidot",
+  "license": "Apache-2.0",
   "repository": { "type": "git", "url": "https://github.com/matrixidot/J-Sharp" },
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Programming Languages"],

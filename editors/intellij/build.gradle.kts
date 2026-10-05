@@ -36,6 +36,8 @@ dependencies {
 
 java { toolchain { languageVersion.set(JavaLanguageVersion.of(25)) } }
 
+tasks.jar { from("../../LICENSE") { into("META-INF") } }
+
 tasks.withType<JavaCompile>().configureEach {
     options.release.set(25)
     options.encoding = "UTF-8"

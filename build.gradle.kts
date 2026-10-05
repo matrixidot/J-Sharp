@@ -42,6 +42,29 @@ subprojects {
         }
     }
 
+    // Apache-2.0: the license in every jar, and in the published POMs.
+    tasks.withType<Jar>().configureEach {
+        from(rootProject.file("LICENSE")) { into("META-INF") }
+    }
+    plugins.withId("maven-publish") {
+        extensions.configure<PublishingExtension> {
+            publications.withType<MavenPublication>().configureEach {
+                pom {
+                    name.set("J# ${project.name}")
+                    description.set(project.description ?: "J#, a statically typed language for the JVM")
+                    url.set("https://github.com/matrixidot/J-Sharp")
+                    licenses {
+                        license {
+                            name.set("Apache-2.0")
+                            url.set("https://www.apache.org/licenses/LICENSE-2.0")
+                        }
+                    }
+                    scm { url.set("https://github.com/matrixidot/J-Sharp") }
+                }
+            }
+        }
+    }
+
     extensions.configure<com.diffplug.gradle.spotless.SpotlessExtension> {
         java {
             target("src/**/*.java")
@@ -89,6 +112,7 @@ val checkRuntime =
 
 /** The J# CLI files plus, for a platform, its runtime (bin/, lib/, runtime/). */
 fun CopySpec.cliWithRuntime() {
+    from(rootProject.file("LICENSE"))
     from(project(":cli").layout.buildDirectory.dir("install/jsharp")) {
         filesMatching("bin/*") { permissions { unix("rwxr-xr-x") } }
     }
@@ -196,6 +220,7 @@ tasks.register<Zip>("vscodeExtension") {
     into("extension") {
         from("editors/vscode") {
             exclude("node_modules/**", "*.vsix", "package-lock.json")
+            from(rootProject.file("LICENSE"))
             // The release's version, as in extension.vsixmanifest.
             filesMatching("package.json") {
                 filter { line -> line.replace(Regex("^  \"version\": \".*\","), "  \"version\": \"$vscodeVersion\",") }
