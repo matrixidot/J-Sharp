@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+  <modelVersion>4.0.0</modelVersion>
+  <groupId>io.github.matrixidot.jsharp</groupId>
+  <artifactId>io.github.matrixidot.jsharp.gradle.plugin</artifactId>
+  <version>0.2.0-beta</version>
+  <packaging>pom</packaging>
+  <name>J# gradle-plugin</name>
+  <description>Gradle plugin: compiles src/&lt;sourceSet&gt;/jsharp with the J# compiler.</description>
+  <url>https://github.com/matrixidot/J-Sharp</url>
+  <licenses>
+    <license>
+      <name>Apache-2.0</name>
+      <url>https://www.apache.org/licenses/LICENSE-2.0</url>
+    </license>
+  </licenses>
+  <scm>
+    <url>https://github.com/matrixidot/J-Sharp</url>
+  </scm>
+  <dependencies>
+    <dependency>
+      <groupId>io.github.matrixidot.jsharp</groupId>
+      <artifactId>gradle-plugin</artifactId>
+      <version>0.2.0-beta</version>
+    </dependency>
+  </dependencies>
+</project>
