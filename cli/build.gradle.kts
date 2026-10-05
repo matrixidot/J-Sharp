@@ -47,3 +47,17 @@ tasks.named<CreateStartScripts>("startScripts") {
         script.writeText(text.replace(marker, cds))
     }
 }
+
+// `jsharp new` gives Gradle projects the same wrapper and daemon JVM criteria as this build.
+tasks.processResources {
+    from(rootProject.layout.projectDirectory) {
+        include(
+            "gradlew",
+            "gradlew.bat",
+            "gradle/wrapper/gradle-wrapper.jar",
+            "gradle/wrapper/gradle-wrapper.properties",
+            "gradle/gradle-daemon-jvm.properties",
+        )
+        into("io/github/matrixidot/jsharp/cli/gradle")
+    }
+}

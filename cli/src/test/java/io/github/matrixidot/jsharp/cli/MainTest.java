@@ -111,4 +111,60 @@ class MainTest {
   void cdsTrainingProgramCompiles() {
     assertThat(run("--cds-train").code()).isZero();
   }
+
+  /**
+   * {@code jsharp new} (D098): every template's J# sources compile; Gradle projects are complete.
+   */
+  @Test
+  void newProjects(@TempDir Path dir) throws IOException {
+    for (var t : ProjectTemplates.Template.values()) {
+      Path project = dir.resolve("demo-" + t.id);
+      Outcome o = run("new", t.id, project.toString(), "--package", "org.demo.app");
+      assertThat(o.code()).as(o.err()).isZero();
+      assertThat(o.out()).contains("created " + t.id + " project 'demo-" + t.id + "'");
+      if (t == ProjectTemplates.Template.SCRIPT) {
+        assertThat(project.resolve("gradlew")).doesNotExist();
+        Outcome checked = run("check", project.resolve("main.jsharp").toString());
+        assertThat(checked.code()).as(checked.out() + checked.err()).isZero();
+        continue;
+      }
+      assertThat(project.resolve("gradlew")).isExecutable();
+      assertThat(project.resolve("gradle/wrapper/gradle-wrapper.jar")).isNotEmptyFile();
+      assertThat(Files.readString(project.resolve("gradle/gradle-daemon-jvm.properties")))
+          .contains("toolchainVersion=25");
+      assertThat(Files.readString(project.resolve("settings.gradle.kts")))
+          .contains(ProjectTemplates.MAVEN_REPOSITORY)
+          .contains("rootProject.name = \"demo-" + t.id + "\"");
+      assertThat(Files.readString(project.resolve("build.gradle.kts")))
+          .contains("id(\"io.github.matrixidot.jsharp\") version \"");
+      if (t != ProjectTemplates.Template.PAPER) { // Paper's API is not on this class path
+        Path src = project.resolve("src/main/jsharp");
+        Outcome checked = run("check", src.toString());
+        assertThat(checked.code()).as(checked.out() + checked.err()).isZero();
+      }
+    }
+    Path paper = dir.resolve("demo-paper");
+    assertThat(Files.readString(paper.resolve("src/main/resources/paper-plugin.yml")))
+        .contains("main: org.demo.app.DemoPaper");
+    assertThat(paper.resolve("src/main/jsharp/org/demo/app/DemoPaper.jsharp")).exists();
+  }
+
+  @Test
+  void newProjectProblems(@TempDir Path dir) throws IOException {
+    assertThat(run("new", "app", dir.resolve("a").toString(), "--package", "com.class.x").err())
+        .contains("'class' is a keyword");
+    assertThat(run("new", "app", dir.resolve("b").toString(), "--package", "1x").err())
+        .contains("not a package name");
+    assertThat(run("new", "game", dir.resolve("c").toString()).err())
+        .contains("unknown template 'game'");
+    Files.createDirectories(dir.resolve("full"));
+    Files.writeString(dir.resolve("full/x.txt"), "x");
+    Outcome o = run("new", "app", dir.resolve("full").toString());
+    assertThat(o.code()).isEqualTo(1);
+    assertThat(o.err()).contains("already exists and is not empty");
+    assertThat(ProjectTemplates.defaultPackage("My Cool-Plugin"))
+        .isEqualTo("com.example.mycoolplugin");
+    assertThat(new ProjectTemplates.Project("my-cool plugin", "x").className())
+        .isEqualTo("MyCoolPlugin");
+  }
 }

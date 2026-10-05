@@ -70,6 +70,7 @@ public final class Main {
         case "build" -> build(rest, out, err);
         case "run" -> runProgram(rest, out, err);
         case "lsp" -> languageServer(rest, err);
+        case "new" -> newProject(rest, out, err);
         default -> {
           err.println(LanguageInfo.ID + ": unknown command '" + cmd + "'");
           printUsage(err);
@@ -363,6 +364,64 @@ public final class Main {
     return comp.diagnostics().hasErrors() ? 1 : 0;
   }
 
+  /** {@code jsharp new <template> <dir> [--name n] [--package p]} (D098). */
+  private static int newProject(String[] args, PrintStream out, PrintStream err) {
+    if (args.length == 1 && args[0].equals("--list")) {
+      for (var t : ProjectTemplates.Template.values()) {
+        out.printf("%-9s %s%n", t.id, t.description);
+      }
+      return 0;
+    }
+    String name = null;
+    String pkg = null;
+    List<String> positional = new ArrayList<>();
+    for (int i = 0; i < args.length; i++) {
+      switch (args[i]) {
+        case "--name" -> name = need(args, ++i, "--name");
+        case "--package" -> pkg = need(args, ++i, "--package");
+        default -> {
+          if (args[i].startsWith("-")) {
+            throw new UsageException("unknown option " + args[i]);
+          }
+          positional.add(args[i]);
+        }
+      }
+    }
+    if (positional.size() != 2) {
+      throw new UsageException(
+          "usage: new <template> <directory> [--name name] [--package pkg]; templates: "
+              + String.join(
+                  ", ", Arrays.stream(ProjectTemplates.Template.values()).map(t -> t.id).toList()));
+    }
+    var template = ProjectTemplates.Template.of(positional.get(0));
+    if (template == null) {
+      throw new UsageException(
+          "unknown template '" + positional.get(0) + "' (see 'jsharp new --list')");
+    }
+    Path dir = Path.of(positional.get(1)).toAbsolutePath().normalize();
+    if (name == null) {
+      name = dir.getFileName() == null ? "app" : dir.getFileName().toString();
+    }
+    String problem = ProjectTemplates.checkName(name);
+    if (problem == null) {
+      if (pkg == null) {
+        pkg = ProjectTemplates.defaultPackage(name);
+      }
+      problem = ProjectTemplates.checkPackage(pkg);
+    }
+    if (problem != null) {
+      throw new UsageException(problem);
+    }
+    try {
+      ProjectTemplates.create(template, new ProjectTemplates.Project(name, pkg), dir);
+    } catch (IOException e) {
+      err.println(LanguageInfo.ID + ": " + e.getMessage());
+      return 1;
+    }
+    out.println("created " + template.id + " project '" + name + "' in " + dir);
+    return 0;
+  }
+
   private static void printUsage(PrintStream out) {
     out.println("usage: " + LanguageInfo.ID + " <command> [options]");
     out.println();
@@ -376,6 +435,9 @@ public final class Main {
     out.println("  check <src...>                       report diagnostics only");
     out.println(
         "  lsp [-cp path]                       language server on stdin/stdout (for editors)");
+    out.println(
+        "  new <template> <dir> [--name n]      start a project: app, library, paper, script");
+    out.println("        [--package p]                  ('new --list' describes them)");
     out.println("  parse <file>                         print the syntax tree (debug)");
     out.println("  --version                            print version");
     out.println();
