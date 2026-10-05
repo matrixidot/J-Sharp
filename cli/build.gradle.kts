@@ -27,8 +27,8 @@ tasks.named<CreateStartScripts>("startScripts") {
             |DEFAULT_JVM_OPTS=""
             |JSHARP_CACHE="${'$'}{XDG_CACHE_HOME:-${'$'}HOME/.cache}/jsharp"
             |if [ -z "${'$'}JSHARP_NO_CDS" ] && mkdir -p "${'$'}JSHARP_CACHE" 2>/dev/null && [ -w "${'$'}JSHARP_CACHE" ]; then
-            |    # The archive is only valid for these exact jars: name it after their contents and dates.
-            |    JSHARP_FP=${'$'}( { ls -l "${'$'}APP_HOME"/lib/*.jar; cat "${'$'}APP_HOME"/lib/*.jar; } 2>/dev/null | cksum | cut -d' ' -f1 )
+            |    # The archive is only valid for these exact jars and this Java: name it after them.
+            |    JSHARP_FP=${'$'}( { echo "${'$'}JAVACMD"; ls -lL "${'$'}JAVACMD"; ls -l "${'$'}APP_HOME"/lib/*.jar; cat "${'$'}APP_HOME"/lib/*.jar; } 2>/dev/null | cksum | cut -d' ' -f1 )
             |    JSHARP_CDS="${'$'}JSHARP_CACHE/jsharp-$version-${'$'}JSHARP_FP.jsa"
             |    if [ ! -f "${'$'}JSHARP_CDS" ]; then
             |        # First run: record the classes a typical compilation loads (written atomically).
@@ -44,7 +44,34 @@ tasks.named<CreateStartScripts>("startScripts") {
             """.trimMargin()
         val text = script.readText()
         check(text.contains(marker)) { "start script layout changed" }
-        script.writeText(text.replace(marker, cds))
+        // A Java runtime bundled with J# (release downloads, the VS Code extension) comes first (D099).
+        val javaMarker = "# Determine the Java command to use to start the JVM."
+        check(text.contains(javaMarker)) { "start script layout changed" }
+        script.writeText(
+            text.replace(marker, cds).replace(
+                javaMarker,
+                """
+                |# A Java runtime bundled with J# (release downloads, the VS Code extension) comes first.
+                |if [ -x "${'$'}APP_HOME/runtime/bin/java" ] ; then
+                |    JAVA_HOME=${'$'}APP_HOME/runtime
+                |fi
+                |
+                |$javaMarker
+                """.trimMargin(),
+            ),
+        )
+        val bat = windowsScript
+        val batText = bat.readText()
+        val batMarker = "@rem Find java.exe"
+        check(batText.contains(batMarker)) { "start script layout changed" }
+        bat.writeText(
+            batText.replace(
+                batMarker,
+                "@rem A Java runtime bundled with J# (release downloads, the VS Code extension) comes first.\r\n" +
+                    "if exist \"%APP_HOME%\\runtime\\bin\\java.exe\" set JAVA_HOME=%APP_HOME%\\runtime\r\n\r\n" +
+                    batMarker,
+            ),
+        )
     }
 }
 

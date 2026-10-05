@@ -8,7 +8,7 @@
   "engines": { "vscode": "^1.85.0" },
   "categories": ["Programming Languages"],
   "main": "./extension.js",
-  "activationEvents": ["onLanguage:jsharp"],
+  "activationEvents": ["onLanguage:jsharp", "workspaceContains:**/*.jsharp"],
   "contributes": {
     "languages": [
       {
@@ -39,7 +39,15 @@
     },
     "commands": [
       { "command": "jsharp.run", "title": "J#: Run Program", "icon": "$(play)" },
-      { "command": "jsharp.restartServer", "title": "J#: Restart Language Server" }
+      { "command": "jsharp.restartServer", "title": "J#: Restart Language Server" },
+      { "command": "jsharp.newProject", "title": "J#: New Project..." }
+    ],
+    "viewsWelcome": [
+      {
+        "view": "explorer",
+        "contents": "Start writing J#:\n[New J# Project](command:jsharp.newProject)",
+        "when": "workbenchState == empty"
+      }
     ],
     "menus": {
       "editor/title/run": [

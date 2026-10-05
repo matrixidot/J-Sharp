@@ -25,15 +25,52 @@ function launcher(context) {
   const bundled = path.join(context.extensionPath, "server", "bin", name);
   if (fs.existsSync(bundled)) {
     if (process.platform !== "win32") {
-      try {
-        fs.chmodSync(bundled, 0o755); // zip extraction may drop the executable bit
-      } catch (e) {
-        // read-only installation: try running it anyway
+      // Zip extraction may drop the executable bits.
+      for (const f of [bundled, "runtime/bin/java", "runtime/lib/jspawnhelper"]) {
+        const file = path.isAbsolute(f) ? f : path.join(context.extensionPath, "server", f);
+        try {
+          if (fs.existsSync(file)) {
+            fs.chmodSync(file, 0o755);
+          }
+        } catch (e) {
+          // read-only installation: try running it anyway
+        }
       }
     }
     return bundled;
   }
   return "jsharp";
+}
+
+/** The Java runtime bundled with this (platform-specific) extension, if any. */
+function bundledRuntime(context) {
+  const home = path.join(context.extensionPath, "server", "runtime");
+  return fs.existsSync(path.join(home, "release")) ? home : undefined;
+}
+
+/** True if `java` is on the PATH or JAVA_HOME is set. */
+function javaInstalled() {
+  if (process.env.JAVA_HOME) {
+    return true;
+  }
+  const exe = process.platform === "win32" ? "java.exe" : "java";
+  return (process.env.PATH || "")
+    .split(path.delimiter)
+    .some((dir) => dir && fs.existsSync(path.join(dir, exe)));
+}
+
+/**
+ * Without an installed Java, terminals get the bundled runtime as JAVA_HOME, so `./gradlew` in a
+ * new J# project works on a machine with nothing else installed.
+ */
+function offerBundledJava(context) {
+  const env = context.environmentVariableCollection;
+  env.clear();
+  const runtime = bundledRuntime(context);
+  if (runtime && !javaInstalled()) {
+    env.description = "J#: the Java runtime bundled with the extension, for Gradle";
+    env.replace("JAVA_HOME", runtime);
+  }
 }
 
 function classPathArgs() {
@@ -144,7 +181,9 @@ async function start(context) {
       : `it stopped (exit code ${result.code})`;
     vscode.window
       .showErrorMessage(
-        `J#: the language server is not running: ${why}. It needs Java 25 (JAVA_HOME or java on the PATH).`,
+        bundledRuntime(context)
+          ? `J#: the language server is not running: ${why}.`
+          : `J#: the language server is not running: ${why}. It needs Java 25 (JAVA_HOME or java on the PATH).`,
         "Show Log",
         "Restart"
       )
@@ -435,6 +474,84 @@ async function run(context, uri) {
   runTerminal.sendText(process.platform === "win32" ? `& ${command}` : command);
 }
 
+// ---------------------------------------------------------------------- new project
+
+const TEMPLATES = [
+  { id: "app", label: "Application", detail: "A program, built with Gradle (./gradlew run)" },
+  { id: "paper", label: "Paper plugin", detail: "A Minecraft server plugin (./gradlew runServer)" },
+  { id: "library", label: "Library", detail: "Code for J# and Java projects, built with Gradle" },
+  { id: "script", label: "Script", detail: "A single file, no build tool (the Run button)" },
+];
+
+/** `jsharp new`, as a short series of prompts; then opens the new project (D098). */
+async function newProject(context) {
+  const template = await vscode.window.showQuickPick(TEMPLATES, {
+    title: "New J# Project (1/3): template",
+  });
+  if (!template) {
+    return;
+  }
+  const name = await vscode.window.showInputBox({
+    title: "New J# Project (2/3): name",
+    value: template.id === "paper" ? "MyPlugin" : "my-app",
+    validateInput: (v) =>
+      /^[A-Za-z0-9][A-Za-z0-9 ._-]*$/.test(v) ? undefined : "Letters, digits, '-', '_', '.' and spaces",
+  });
+  if (!name) {
+    return;
+  }
+  let pkg = "";
+  if (template.id !== "script") {
+    const simple = name.toLowerCase().replace(/[^a-z0-9]/g, "") || "app";
+    pkg = await vscode.window.showInputBox({
+      title: "New J# Project (3/3): package",
+      value: `com.example.${/^[0-9]/.test(simple) ? "app" + simple : simple}`,
+      validateInput: (v) =>
+        /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(v) ? undefined : "A package name, like com.example.app",
+    });
+    if (!pkg) {
+      return;
+    }
+  }
+  const parent = await vscode.window.showOpenDialog({
+    title: "Create the project in this folder",
+    openLabel: "Create Here",
+    canSelectFiles: false,
+    canSelectFolders: true,
+    canSelectMany: false,
+  });
+  if (!parent || parent.length === 0) {
+    return;
+  }
+  const dir = path.join(parent[0].fsPath, name);
+  const args = ["new", template.id, dir, "--name", name, ...(pkg ? ["--package", pkg] : [])];
+  const result = await new Promise((resolve) => {
+    const command = launcher(context);
+    const win = process.platform === "win32";
+    cp.execFile(
+      win ? quote(command) : command,
+      win ? args.map(quote) : args,
+      { shell: win },
+      (error, stdout, stderr) => resolve({ error, stdout, stderr })
+    );
+  });
+  if (result.error) {
+    const why = (result.stderr || result.error.message).trim().replace(/^jsharp: /, "");
+    vscode.window.showErrorMessage(`J#: could not create the project: ${why}`);
+    return;
+  }
+  const choice = await vscode.window.showInformationMessage(
+    `Created ${template.label.toLowerCase()} '${name}'.`,
+    "Open",
+    "Open in New Window"
+  );
+  if (choice) {
+    await vscode.commands.executeCommand("vscode.openFolder", vscode.Uri.file(dir), {
+      forceNewWindow: choice === "Open in New Window",
+    });
+  }
+}
+
 // ---------------------------------------------------------------------- activation
 
 async function activate(context) {
@@ -458,6 +575,7 @@ async function activate(context) {
       }
     }),
     vscode.commands.registerCommand("jsharp.run", (uri) => run(context, uri)),
+    vscode.commands.registerCommand("jsharp.newProject", () => newProject(context)),
     vscode.commands.registerCommand("jsharp.restartServer", async () => {
       const old = server;
       server = undefined;
@@ -474,6 +592,7 @@ async function activate(context) {
     })
   );
   registerProviders(context);
+  offerBundledJava(context);
   await start(context);
 }
 
