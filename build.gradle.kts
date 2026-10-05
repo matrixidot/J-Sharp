@@ -194,7 +194,13 @@ tasks.register<Zip>("vscodeExtension") {
     destinationDirectory.set(layout.buildDirectory.dir("vscode"))
     from(vsixManifest)
     into("extension") {
-        from("editors/vscode") { exclude("node_modules/**", "*.vsix", "package-lock.json") }
+        from("editors/vscode") {
+            exclude("node_modules/**", "*.vsix", "package-lock.json")
+            // The release's version, as in extension.vsixmanifest.
+            filesMatching("package.json") {
+                filter { line -> line.replace(Regex("^  \"version\": \".*\","), "  \"version\": \"$vscodeVersion\",") }
+            }
+        }
         into("server") { cliWithRuntime() }
     }
 }

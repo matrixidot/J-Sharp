@@ -22,7 +22,23 @@ println($"total area {shapes.sumDouble(s => area(s)):F2}");
 foreach (var s in shapes.where(s => area(s) > 1).orderBy(s => area(s))) println(s);
 ```
 
-## Quick start
+## Install
+
+Download from the [latest release](https://github.com/matrixidot/J-Sharp/releases/latest). Java is
+included; nothing else needs installing.
+
+- **IntelliJ IDEA** (or another JetBrains IDE, 2026.2+): Settings | Plugins | ⚙ | Install Plugin
+  from Disk, pick `jsharp-intellij-plugin-<version>.zip`. Then **File | New | Project | J#**.
+- **VS Code**: Extensions | ⋯ | Install from VSIX, pick the `.vsix` for your system (`win32-x64`,
+  `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`). Then **J#: New Project...** in the
+  command palette, or the button in an empty window's Explorer.
+- **Command line**: unpack `jsharp-<version>-<system>` and put its `bin` folder on your `PATH`.
+
+New projects come from templates: an application, a library, a Minecraft (Paper) server plugin, or
+a single script. On the command line: `jsharp new app my-app` (`jsharp new --list` shows them all).
+Gradle projects download Java 25 and J# by themselves.
+
+## Building from source
 
 You need JDK 25 (`JAVA_HOME` pointing at it is simplest). Nothing else: the Gradle wrapper fetches
 everything.
@@ -63,36 +79,34 @@ sharing archive in `~/.cache/jsharp` so later startups are fast (`JSHARP_NO_CDS=
 
 ## Using J# in a Gradle project
 
-Install J# into your local Maven repository once per machine (and again after pulling changes):
-
-```
-./gradlew publishToMavenLocal          # Windows: gradlew.bat publishToMavenLocal
-```
-
-Then any Gradle project can use the plugin by version, with no path to this checkout. It
-compiles `src/main/jsharp` and `src/test/jsharp` with the project's dependencies and adds the J#
-runtime.
+The Gradle plugin compiles `src/main/jsharp` and `src/test/jsharp` (and `.jsharp` files in
+`src/main/java`) with the project's dependencies and adds the J# runtime. `jsharp new` sets all of
+this up; by hand:
 
 ```kotlin
 // settings.gradle.kts
 pluginManagement {
     repositories {
-        mavenLocal()
+        maven("https://matrixidot.github.io/J-Sharp/maven")
         gradlePluginPortal()
     }
 }
 
 // build.gradle.kts
 plugins {
-    id("io.github.matrixidot.jsharp") version "0.1.0-SNAPSHOT"
+    id("io.github.matrixidot.jsharp") version "0.2.0"
     application
 }
 dependencies { implementation("com.example:some-java-library:1.0") }
 application { mainClass.set("app.MainModule") }
 ```
 
-When working on J# itself, `pluginManagement { includeBuild("path/to/J-Sharp") }` uses the
-checkout directly instead.
+Gradle must run on Java 25. `gradle/gradle-daemon-jvm.properties` with `toolchainVersion=25`
+(`./gradlew updateDaemonJvm --jvm-version=25`) makes Gradle download it.
+
+When working on J# itself, `./gradlew publishToMavenLocal` installs the development version
+(`0.2.0-SNAPSHOT`, used with `mavenLocal()`), and `pluginManagement { includeBuild("path/to/J-Sharp") }`
+uses a checkout directly.
 
 After a build, the editors also know the project's dependencies: completion and hover work for
 your libraries' classes. [`examples/paper-plugin`](examples/paper-plugin) is a complete example:
@@ -124,6 +138,11 @@ sources compiled by `jsharp build`; use Gradle for those.
 - [PROGRESS.md](PROGRESS.md): milestone log and current status
 
 ## Development
+
+Releases: pushing a tag `vX.Y.Z` runs `.github/workflows/release.yml`, which tests, publishes the
+Maven repository to GitHub Pages and attaches every download to a GitHub release (D100).
+`scripts/runtimes.sh` builds the bundled Java runtimes; `./gradlew cliDistribution vscodeExtension
+-Pplatform=linux-x64` packages them locally.
 
 ```
 ./gradlew build            # compile everything and run all tests

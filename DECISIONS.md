@@ -600,3 +600,45 @@ Format: **decision** — reason. *Rejected:* alternatives.
     source root, with New | Package.
   - The language server applies a project's recorded class path (D096) to files under
     `src/<set>/java` as well.
+- **D098: `jsharp new`, and the editors' New Project wizards.**
+  - Templates: `app` (Gradle application), `library`, `paper` (a Paper plugin with shadow and
+    run-paper), and `script` (one file, no build tool).
+  - Gradle templates use the published plugin of the CLI's own version. A development (SNAPSHOT)
+    CLI adds `mavenLocal()`.
+  - They include a Gradle wrapper and `gradle/gradle-daemon-jvm.properties` (Java 25 with
+    download links for each platform), plus the foojay resolver for toolchains. So a machine
+    with any Java, or IntelliJ's bundled one, builds them.
+  - The project folder may exist (IDEs create it first), but no file is overwritten.
+  - IntelliJ: a `newProjectWizard.generator` (`JSharpNewProjectWizard`), with name, location,
+    template and package fields. It calls `ProjectTemplates` in-process (the plugin depends on
+    the CLI module), opens the main file, and links the Gradle build through
+    `ExternalSystemUnlinkedProjectAware`, a no-op in IDEs without Gradle.
+  - VS Code: the `J#: New Project...` command prompts for the same fields and runs the bundled
+    `jsharp new`. An empty window's Explorer shows a button for it.
+- **D099: A Java runtime is bundled with the CLI and the VS Code extension.**
+  - `scripts/runtimes.sh` jlinks a Java 25 runtime for linux-x64/arm64, win32-x64 and
+    darwin-x64/arm64 from one machine. The host's Temurin JDK runs jlink against each platform's
+    Temurin `jmods` download (JDKs no longer contain jmods since JDK 24). One release is pinned
+    per run, since jlink requires an exact version match.
+  - The runtime leaves out development tools (jshell, jlink, jpackage, javadoc, jdeps, the
+    serviceability agent, Graal, incubator modules). It keeps jdk.compiler, which joint Java
+    compilation needs, and java.desktop, which Gradle needs. About 95 MB unpacked, 67 MB
+    compressed.
+  - `-Pplatform=<p>` adds it to `cliDistribution` (.tar.gz, or .zip for Windows) and to a
+    platform-specific `.vsix` (`TargetPlatform` in the manifest).
+  - The `jsharp` launchers prefer `<app>/runtime` over `JAVA_HOME`. The CDS archive name now
+    includes the Java binary.
+  - Without an installed Java (no `JAVA_HOME`, no `java` on the PATH), VS Code terminals get the
+    bundled runtime as `JAVA_HOME` (environmentVariableCollection), so `./gradlew` works.
+  - The IntelliJ plugin needs none of this: it runs on the IDE's Java 25.
+- **D100: Releases.** A `vX.Y.Z` tag runs `.github/workflows/release.yml` (D098 and D099
+  together); a manual run is a dry run.
+  - It builds and tests, builds the runtimes and packages, and publishes the compiler, runtime and
+    Gradle plugin (with its plugin marker) into the `gh-pages` branch under `maven/`, served at
+    https://matrixidot.github.io/J-Sharp/maven. Maven metadata accumulates across versions,
+    because publishing goes into the existing checkout.
+  - It creates a GitHub release with install notes and every download.
+  - It publishes to the JetBrains Marketplace, VS Code Marketplace and Open VSX only when their
+    tokens are repository secrets.
+  - The version comes from the tag (`-Pversion`): the IntelliJ plugin and the VS Code
+    `package.json` follow it. Development builds are `0.2.0-SNAPSHOT`.

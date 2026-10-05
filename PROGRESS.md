@@ -152,3 +152,8 @@
 ## Post-v0.1: Minecraft plugins
 - examples/paper-plugin: a Paper 26.x plugin written in J#: an event listener and a command. Its bytecode verifies against paper-api.
 - It found: a method inherited from two interfaces with different nullness (Bukkit's `Player.getLocation()`), fixed by D095. Editors did not know Gradle dependencies, fixed by D096.
+
+## Post-v0.1: distribution
+- `jsharp new` with app, library, Paper plugin and script templates (D098); New Project wizards in IntelliJ and VS Code.
+- A bundled Java runtime for the CLI and VS Code on five platforms (D099); the IntelliJ plugin uses the IDE's.
+- A release workflow publishing the Maven repository (GitHub Pages), GitHub release downloads, and marketplaces when tokens exist (D100).

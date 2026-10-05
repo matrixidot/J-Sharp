@@ -57,6 +57,10 @@ configure<PublishingExtension> {
     }
     repositories {
         // A local repository in the build directory, for checking publications.
-        maven { name = "buildRepo"; url = uri(rootProject.layout.buildDirectory.dir("repo")) }
+        // -PmavenRepo=<dir>: the release workflow publishes into the GitHub Pages checkout.
+        maven {
+            name = "buildRepo"
+            url = uri(providers.gradleProperty("mavenRepo").getOrElse(rootProject.layout.buildDirectory.dir("repo").get().asFile.path))
+        }
     }
 }

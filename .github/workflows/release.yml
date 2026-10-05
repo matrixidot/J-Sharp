@@ -1,0 +1,137 @@
+# A release (D100): pushing a tag vX.Y.Z builds and tests J#, then
+# - publishes the Gradle plugin, compiler and runtime to the Maven repository on GitHub Pages
+#   (https://matrixidot.github.io/J-Sharp/maven), which `jsharp new` projects use;
+# - attaches the downloads to a GitHub release: the jsharp command and the VS Code extension for
+#   each platform (with a bundled Java runtime), plus versions for an installed Java, and the
+#   IntelliJ plugin;
+# - publishes to the JetBrains Marketplace, the VS Code Marketplace and Open VSX when their
+#   tokens are set (repository secrets JETBRAINS_MARKETPLACE_TOKEN, VSCE_PAT, OVSX_PAT).
+# Run it by hand (Actions | Release | Run workflow) for a dry run that publishes nothing and keeps
+# the files as a workflow artifact.
+name: Release
+on:
+  push:
+    tags: ["v*"]
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version to build (dry run: nothing is published)"
+        required: true
+        default: "0.0.0-dryrun"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+
+      - name: Version
+        run: |
+          if [ "$GITHUB_REF_TYPE" = tag ]; then
+            echo "VERSION=${GITHUB_REF_NAME#v}" >> "$GITHUB_ENV"
+            echo "PUBLISH=true" >> "$GITHUB_ENV"
+          else
+            echo "VERSION=${{ inputs.version }}" >> "$GITHUB_ENV"
+            echo "PUBLISH=false" >> "$GITHUB_ENV"
+          fi
+          # Which marketplaces have tokens (the tokens themselves stay in their steps).
+          echo "HAS_JETBRAINS=${{ secrets.JETBRAINS_MARKETPLACE_TOKEN != '' }}" >> "$GITHUB_ENV"
+          echo "HAS_VSCE=${{ secrets.VSCE_PAT != '' }}" >> "$GITHUB_ENV"
+          echo "HAS_OVSX=${{ secrets.OVSX_PAT != '' }}" >> "$GITHUB_ENV"
+
+      - name: Build and test
+        run: ./gradlew build -Pversion="$VERSION"
+
+      - name: Java runtimes for each platform
+        run: scripts/runtimes.sh
+
+      - name: jsharp command and VS Code extension
+        run: |
+          ./gradlew cliDistribution vscodeExtension -Pversion="$VERSION"
+          for p in linux-x64 linux-arm64 win32-x64 darwin-x64 darwin-arm64; do
+            ./gradlew cliDistribution vscodeExtension -Pversion="$VERSION" -Pplatform="$p"
+          done
+
+      - name: IntelliJ plugin
+        run: ./gradlew -p editors/intellij buildPlugin -Pversion="$VERSION"
+
+      - name: Collect the downloads
+        run: |
+          mkdir dist
+          cp build/distributions/* build/vscode/*.vsix editors/intellij/build/distributions/*.zip dist/
+          mv "dist/jsharp-intellij-$VERSION.zip" "dist/jsharp-intellij-plugin-$VERSION.zip"
+          ls -la dist
+
+      - name: Keep the files (dry run)
+        if: env.PUBLISH != 'true'
+        uses: actions/upload-artifact@v4
+        with:
+          name: jsharp-${{ env.VERSION }}
+          path: dist/
+
+      - name: Maven repository on GitHub Pages
+        if: env.PUBLISH == 'true'
+        run: |
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if git fetch origin gh-pages; then
+            git worktree add -B gh-pages pages origin/gh-pages
+          else
+            git worktree add --orphan -b gh-pages pages
+          fi
+          ./gradlew publishAllPublicationsToBuildRepoRepository -Pversion="$VERSION" -PmavenRepo="$PWD/pages/maven"
+          touch pages/.nojekyll
+          cat > pages/index.html <<HTML
+          <!doctype html><meta charset="utf-8"><title>J# Maven repository</title>
+          <p>The Maven repository of <a href="https://github.com/matrixidot/J-Sharp">J#</a>:
+          <code>maven("https://matrixidot.github.io/J-Sharp/maven")</code>. Latest: $VERSION.</p>
+          HTML
+          cd pages
+          git add -A
+          git commit -m "Publish J# $VERSION"
+          git push origin gh-pages
+
+      - name: GitHub release
+        if: env.PUBLISH == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<NOTES
+          ## Install
+
+          - **IntelliJ IDEA** (or another JetBrains IDE, 2026.2+): Settings | Plugins | ⚙ | Install Plugin from Disk, and pick \`jsharp-intellij-plugin-$VERSION.zip\`. Then File | New | Project | J#.
+          - **VS Code**: download the \`.vsix\` for your system (\`win32-x64\`, \`darwin-arm64\` for Apple silicon, \`darwin-x64\`, \`linux-x64\`, \`linux-arm64\`), then Extensions | ⋯ | Install from VSIX. Then run **J#: New Project...** from the command palette.
+          - **Command line**: unpack \`jsharp-$VERSION-<system>\` and put its \`bin\` folder on your PATH. Then \`jsharp new app my-app\`.
+
+          These include Java; nothing else needs installing. (\`jsharp-$VERSION.vsix\` and \`jsharp-$VERSION.zip\` are the versions for an installed Java 25.)
+          Gradle projects use \`id("io.github.matrixidot.jsharp") version "$VERSION"\` from \`maven("https://matrixidot.github.io/J-Sharp/maven")\`.
+
+          NOTES
+          gh release create "$GITHUB_REF_NAME" dist/* --title "J# $VERSION" --notes-file notes.md --generate-notes
+
+      - name: JetBrains Marketplace
+        if: env.PUBLISH == 'true' && env.HAS_JETBRAINS == 'true'
+        env:
+          JETBRAINS_MARKETPLACE_TOKEN: ${{ secrets.JETBRAINS_MARKETPLACE_TOKEN }}
+        run: ./gradlew -p editors/intellij publishPlugin -Pversion="$VERSION"
+
+      - name: VS Code Marketplace
+        if: env.PUBLISH == 'true' && env.HAS_VSCE == 'true'
+        env:
+          VSCE_PAT: ${{ secrets.VSCE_PAT }}
+        run: npx --yes @vscode/vsce publish --packagePath dist/*.vsix
+
+      - name: Open VSX
+        if: env.PUBLISH == 'true' && env.HAS_OVSX == 'true'
+        env:
+          OVSX_PAT: ${{ secrets.OVSX_PAT }}
+        run: for f in dist/*.vsix; do npx --yes ovsx publish "$f"; done

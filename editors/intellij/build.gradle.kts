@@ -6,7 +6,7 @@ plugins {
 }
 
 group = "io.github.matrixidot.jsharp"
-version = "0.1.0"
+version = providers.gradleProperty("version").getOrElse("0.1.0")
 
 repositories {
     mavenCentral()
@@ -27,9 +27,9 @@ dependencies {
         testFramework(TestFrameworkType.Platform)
     }
     // The J# lexer and parser, for highlighting and finding entry points (from the J# build).
-    implementation("io.github.matrixidot.jsharp:compiler:0.1.0-SNAPSHOT")
+    implementation("io.github.matrixidot.jsharp:compiler:+")
     // The project templates of `jsharp new`, for the New Project wizard.
-    implementation("io.github.matrixidot.jsharp:cli:0.1.0-SNAPSHOT")
+    implementation("io.github.matrixidot.jsharp:cli:+")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.opentest4j:opentest4j:1.3.0")
 }
@@ -50,6 +50,8 @@ intellijPlatform {
         version = project.version.toString()
         ideaVersion { sinceBuild = "262" } // the client-based LSP API (2026.2)
     }
+    // The release workflow publishes when the JETBRAINS_MARKETPLACE_TOKEN secret is set.
+    publishing { token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN") }
     buildSearchableOptions = false
     instrumentCode = false
     // verifyPlugin checks against an installed IDE: -PverifyIde=/path (default: idePath).
