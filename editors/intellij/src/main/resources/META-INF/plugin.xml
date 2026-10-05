@@ -5,7 +5,8 @@
   <description><![CDATA[
     <p>J# language support: syntax highlighting, errors as you type, completion, hover, go to
     definition, find usages, rename, parameter hints, brace handling, and run configurations
-    (the green Run icon next to a program's entry point).</p>
+    (the green Run icon next to a program's entry point), and new projects (File | New | Project |
+    J#: an application, a library, a Minecraft Paper plugin or a script).</p>
     <p>The J# compiler is bundled and runs on the IDE's own Java runtime.</p>
   ]]></description>
 
@@ -34,6 +35,8 @@
         implementation="io.github.matrixidot.jsharp.intellij.JSharpRunConfigurationProducer"/>
     <runLineMarkerContributor language="JSharp"
                               implementationClass="io.github.matrixidot.jsharp.intellij.JSharpRunLineMarker"/>
+
+    <newProjectWizard.generator implementation="io.github.matrixidot.jsharp.intellij.JSharpNewProjectWizard"/>
 
     <platform.lsp.integrationProvider
         implementation="io.github.matrixidot.jsharp.intellij.JSharpLspProvider"/>

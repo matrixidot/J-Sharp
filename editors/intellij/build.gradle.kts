@@ -28,6 +28,8 @@ dependencies {
     }
     // The J# lexer and parser, for highlighting and finding entry points (from the J# build).
     implementation("io.github.matrixidot.jsharp:compiler:0.1.0-SNAPSHOT")
+    // The project templates of `jsharp new`, for the New Project wizard.
+    implementation("io.github.matrixidot.jsharp:cli:0.1.0-SNAPSHOT")
     testImplementation("junit:junit:4.13.2")
     testImplementation("org.opentest4j:opentest4j:1.3.0")
 }

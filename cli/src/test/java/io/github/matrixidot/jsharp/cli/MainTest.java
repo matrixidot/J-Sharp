@@ -157,11 +157,12 @@ class MainTest {
         .contains("not a package name");
     assertThat(run("new", "game", dir.resolve("c").toString()).err())
         .contains("unknown template 'game'");
-    Files.createDirectories(dir.resolve("full"));
-    Files.writeString(dir.resolve("full/x.txt"), "x");
-    Outcome o = run("new", "app", dir.resolve("full").toString());
+    // An existing folder is fine (IDEs create it first), but no file is overwritten.
+    Files.createDirectories(dir.resolve("full/.idea"));
+    assertThat(run("new", "script", dir.resolve("full").toString()).code()).isZero();
+    Outcome o = run("new", "script", dir.resolve("full").toString());
     assertThat(o.code()).isEqualTo(1);
-    assertThat(o.err()).contains("already exists and is not empty");
+    assertThat(o.err()).contains("main.jsharp already exists");
     assertThat(ProjectTemplates.defaultPackage("My Cool-Plugin"))
         .isEqualTo("com.example.mycoolplugin");
     assertThat(new ProjectTemplates.Project("my-cool plugin", "x").className())

@@ -164,15 +164,14 @@ public final class ProjectTemplates {
   }
 
   /**
-   * Writes the project into {@code dir} (which must not exist or be empty) and returns the files
-   * written. Gradle projects also get the Gradle wrapper and the daemon JVM criteria.
+   * Writes the project into {@code dir}, which may exist (an IDE creates it before the wizard runs)
+   * but must not contain any of the files, and returns the files written. Gradle projects also get
+   * the Gradle wrapper and the daemon JVM criteria.
    */
   public static List<Path> create(Template template, Project p, Path dir) throws IOException {
-    if (Files.exists(dir)) {
-      try (var s = Files.list(dir)) {
-        if (s.findAny().isPresent()) {
-          throw new IOException(dir + " already exists and is not empty");
-        }
+    for (String f : allFiles(template, p)) {
+      if (Files.exists(dir.resolve(f))) {
+        throw new IOException(dir.resolve(f) + " already exists");
       }
     }
     List<Path> written = new ArrayList<>();
@@ -180,13 +179,7 @@ public final class ProjectTemplates {
       written.add(write(dir.resolve(e.getKey()), e.getValue()));
     }
     if (template != Template.SCRIPT) {
-      for (String f :
-          List.of(
-              "gradlew",
-              "gradlew.bat",
-              "gradle/wrapper/gradle-wrapper.jar",
-              "gradle/wrapper/gradle-wrapper.properties",
-              "gradle/gradle-daemon-jvm.properties")) {
+      for (String f : GRADLE_FILES) {
         Path target = dir.resolve(f);
         Files.createDirectories(target.getParent());
         try (InputStream in = ProjectTemplates.class.getResourceAsStream("gradle/" + f)) {
@@ -205,6 +198,31 @@ public final class ProjectTemplates {
       }
     }
     return written;
+  }
+
+  private static final List<String> GRADLE_FILES =
+      List.of(
+          "gradlew",
+          "gradlew.bat",
+          "gradle/wrapper/gradle-wrapper.jar",
+          "gradle/wrapper/gradle-wrapper.properties",
+          "gradle/gradle-daemon-jvm.properties");
+
+  private static List<String> allFiles(Template template, Project p) {
+    List<String> out = new ArrayList<>(files(template, p).keySet());
+    if (template != Template.SCRIPT) {
+      out.addAll(GRADLE_FILES);
+    }
+    return out;
+  }
+
+  /** The file to open after creating a project: its main source file. */
+  public static String mainFile(Template template, Project p) {
+    return switch (template) {
+      case SCRIPT -> "main.jsharp";
+      case APP -> "src/main/jsharp/" + p.packagePath() + "/main.jsharp";
+      case LIBRARY, PAPER -> "src/main/jsharp/" + p.packagePath() + "/" + p.className() + ".jsharp";
+    };
   }
 
   private static Path write(Path file, String text) {

@@ -229,4 +229,44 @@ public class JSharpPluginTest extends BasePlatformTestCase {
     assertEquals(
         colors.toString(), "DEFAULT_INSTANCE_FIELD", colors.get("x@" + text.indexOf("x +")));
   }
+
+  /** File | New | Project | J#: the wizard creates the template's files and opens the main one. */
+  public void testNewProjectWizard() throws Exception {
+    var wizard =
+        com.intellij.ide.wizard.GeneratorNewProjectWizard.EP_NAME.getExtensionList().stream()
+            .filter(w -> w instanceof JSharpNewProjectWizard)
+            .findFirst()
+            .orElseThrow();
+    var context =
+        new com.intellij.ide.util.projectWizard.WizardContext(null, getTestRootDisposable());
+    var step = wizard.createStep(context);
+    com.intellij.ui.dsl.builder.BuilderKt.panel(
+        p -> {
+          step.setupUI(p);
+          return kotlin.Unit.INSTANCE;
+        });
+    Path parent = Files.createTempDirectory("jsharp-wizard");
+    var base = com.intellij.ide.wizard.NewProjectWizardBaseData.getBaseData(step);
+    base.setName("JsharpMC");
+    base.setPath(parent.toString());
+    step.setupProject(getProject());
+    Path dir = parent.resolve("JsharpMC");
+    // The first template is the application; the package defaults from the name.
+    assertTrue(Files.exists(dir.resolve("src/main/jsharp/com/example/jsharpmc/main.jsharp")));
+    assertTrue(Files.exists(dir.resolve("gradlew")));
+    assertTrue(Files.readString(dir.resolve("settings.gradle.kts")).contains("\"JsharpMC\""));
+    var editors = com.intellij.openapi.fileEditor.FileEditorManager.getInstance(getProject());
+    for (int i = 0;
+        i < 600
+            && java.util.Arrays.stream(editors.getOpenFiles())
+                .noneMatch(f -> f.getName().equals("main.jsharp"));
+        i++) {
+      Thread.sleep(50); // the main file opens once the project has opened
+      com.intellij.testFramework.PlatformTestUtil.dispatchAllEventsInIdeEventQueue();
+    }
+    var open = editors.getOpenFiles();
+    assertTrue(
+        java.util.Arrays.toString(open),
+        java.util.Arrays.stream(open).anyMatch(f -> f.getName().equals("main.jsharp")));
+  }
 }
