@@ -134,7 +134,10 @@ jobs:
         if: env.PUBLISH == 'true' && env.HAS_OVSX == 'true'
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
-        run: for f in dist/*.vsix; do npx --yes ovsx publish "$f"; done
+        run: |
+          # The matrixidot namespace is created on the first publish (an error once it exists).
+          npx --yes ovsx create-namespace matrixidot || true
+          for f in dist/*.vsix; do npx --yes ovsx publish "$f"; done
 
   # The installers and the downloads on real Windows, macOS and Linux machines.
   install-test:
