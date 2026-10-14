@@ -43,6 +43,7 @@
     <internalFileTemplate name="J# Enum"/>
     <internalFileTemplate name="J# Script"/>
 
+    <postStartupActivity implementation="io.github.matrixidot.jsharp.intellij.JSharpProjectOpened"/>
     <newProjectWizard.generator implementation="io.github.matrixidot.jsharp.intellij.JSharpNewProjectWizard"/>
 
     <platform.lsp.integrationProvider

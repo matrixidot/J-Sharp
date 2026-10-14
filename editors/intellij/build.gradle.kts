@@ -1,3 +1,4 @@
+import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
 plugins {
@@ -56,9 +57,19 @@ intellijPlatform {
     publishing { token = providers.environmentVariable("JETBRAINS_MARKETPLACE_TOKEN") }
     buildSearchableOptions = false
     instrumentCode = false
-    // verifyPlugin checks against an installed IDE: -PverifyIde=/path (default: idePath).
-    val verifyIde = providers.gradleProperty("verifyIde").orNull ?: idePath
-    if (verifyIde != null) pluginVerification { ides { local(verifyIde) } }
+    // verifyPlugin runs the Marketplace's checks (internal and deprecated APIs, compatibility)
+    // against IntelliJ IDEA, or an installed IDE with -PverifyIde=/path.
+    val verifyIde = providers.gradleProperty("verifyIde").orNull
+    pluginVerification {
+        ides {
+            if (verifyIde != null) {
+                local(verifyIde)
+            } else {
+                create(IntelliJPlatformType.IntellijIdea, clionVersion)
+                create(IntelliJPlatformType.IntellijIdeaCommunity, "2026.2.3") { useInstaller = false }
+            }
+        }
+    }
 }
 
 val cliDist = gradle.includedBuild("jsharp").task(":cli:installDist")

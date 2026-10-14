@@ -5,7 +5,6 @@ import com.intellij.ide.wizard.NewProjectWizardBaseData;
 import com.intellij.ide.wizard.NewProjectWizardStep;
 import com.intellij.openapi.fileEditor.FileEditorManager;
 import com.intellij.openapi.project.Project;
-import com.intellij.openapi.startup.StartupManager;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.ValidationInfo;
 import com.intellij.openapi.vfs.LocalFileSystem;
@@ -14,6 +13,7 @@ import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.ui.SimpleListCellRenderer;
 import com.intellij.ui.components.JBTextField;
 import com.intellij.ui.dsl.builder.Panel;
+import com.intellij.ui.layout.ValidationInfoBuilder;
 import io.github.matrixidot.jsharp.cli.ProjectTemplates;
 import io.github.matrixidot.jsharp.cli.ProjectTemplates.Template;
 import java.io.IOException;
@@ -58,14 +58,12 @@ final class JSharpNewProjectStep extends AbstractNewProjectWizardStep {
     builder.row(
         "Package:",
         row -> {
-          packageField =
-              row.textField()
-                  .validationInfo(
-                      (v, field) -> {
-                        String problem = ProjectTemplates.checkPackage(packageName());
-                        return problem == null ? null : new ValidationInfo(problem, field);
-                      })
-                  .getComponent();
+          kotlin.jvm.functions.Function2<ValidationInfoBuilder, JBTextField, ValidationInfo> check =
+              (v, field) -> {
+                String problem = ProjectTemplates.checkPackage(packageName());
+                return problem == null ? null : new ValidationInfo(problem, field);
+              };
+          packageField = row.textField().validationOnInput(check).validationOnApply(check).getComponent();
           packageField.getEmptyText().setText("default: com.example.<name>");
           packageField.setColumns(30);
           return Unit.INSTANCE;
@@ -101,19 +99,19 @@ final class JSharpNewProjectStep extends AbstractNewProjectWizardStep {
       VfsUtil.markDirtyAndRefresh(false, true, true, root);
     }
     String main = ProjectTemplates.mainFile(t, p);
-    StartupManager.getInstance(project)
-        .runAfterOpened(
-            () -> {
-              if (t != Template.SCRIPT) {
-                JSharpGradle.link(project, dir);
-              }
-              VirtualFile file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir.resolve(main));
-              if (file != null) {
-                com.intellij.openapi.application.ApplicationManager.getApplication()
-                    .invokeLater(
-                        () -> FileEditorManager.getInstance(project).openFile(file, true),
-                        project.getDisposed());
-              }
-            });
+    JSharpProjectOpened.whenOpened(
+        project,
+        () -> {
+          if (t != Template.SCRIPT) {
+            JSharpGradle.link(project, dir);
+          }
+          VirtualFile file = LocalFileSystem.getInstance().refreshAndFindFileByNioFile(dir.resolve(main));
+          if (file != null) {
+            com.intellij.openapi.application.ApplicationManager.getApplication()
+                .invokeLater(
+                    () -> FileEditorManager.getInstance(project).openFile(file, true),
+                    project.getDisposed());
+          }
+        });
   }
 }

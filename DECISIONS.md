@@ -678,3 +678,13 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - `.github/workflows/windows.yml` runs the language server, CLI and Gradle plugin tests on
     Windows. The IntelliJ plugin tests are left out: in a headless CLion on Windows runners,
     indexing never finishes and highlighting tests hang.
+- **D104: The IntelliJ plugin passes the Marketplace's verifier.**
+  - JetBrains Marketplace rejected 0.2.0-beta for using an internal API
+    (`StartupManager.runAfterOpened`, in the New Project wizard), which also marked it
+    incompatible with IntelliJ IDEA Community. The wizard's last steps (load the Gradle build,
+    open the main file) now run from a `postStartupActivity`, or right away when the project is
+    already open. The package field validates with `validationOnInput`/`validationOnApply`
+    instead of the experimental `validationInfo`.
+  - `verifyPlugin` checks against IntelliJ IDEA 2026.2.2 and IDEA Community 2026.2.3 (the latter
+    from JetBrains' Maven repository, which still publishes Community builds), and fails on
+    internal API use. The release workflow runs it before publishing.

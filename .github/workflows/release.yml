@@ -63,7 +63,8 @@ jobs:
           done
 
       - name: IntelliJ plugin
-        run: ./gradlew -p editors/intellij buildPlugin -Pversion="$VERSION"
+        # verifyPlugin: the Marketplace's checks (no internal APIs), on IntelliJ IDEA and IDEA Community.
+        run: ./gradlew -p editors/intellij buildPlugin verifyPlugin -Pversion="$VERSION"
 
       - name: Collect the downloads
         run: |
