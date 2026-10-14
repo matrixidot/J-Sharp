@@ -552,6 +552,79 @@ async function newProject(context) {
   }
 }
 
+// ---------------------------------------------------------------------- new file
+
+const FILE_KINDS = [
+  { label: "Class", body: (n) => `public class ${n} {\n}\n` },
+  { label: "Record", body: (n) => `public record ${n}();\n` },
+  { label: "Interface", body: (n) => `public interface ${n} {\n}\n` },
+  { label: "Enum", body: (n) => `public enum ${n} {\n}\n` },
+  {
+    label: "Script",
+    detail: "Top-level statements: a program you run with the Run button",
+    body: (n) => `// Top-level statements run as a program.\nprintln("Hello from ${n}!");\n`,
+  },
+];
+
+/**
+ * The package of a folder: below src/<set>/jsharp or src/<set>/java, else the package of a J# file
+ * already there, else none.
+ */
+function packageOf(folder) {
+  const parts = folder.split(/[\\/]/);
+  for (let i = parts.length - 1; i >= 2; i--) {
+    if ((parts[i] === "jsharp" || parts[i] === "java") && parts[i - 2] === "src") {
+      return parts.slice(i + 1).join(".");
+    }
+  }
+  try {
+    for (const f of fs.readdirSync(folder)) {
+      if (f.endsWith(".jsharp")) {
+        const m = /^\s*package\s+([\w.]+)\s*;/m.exec(fs.readFileSync(path.join(folder, f), "utf8"));
+        if (m) {
+          return m[1];
+        }
+      }
+    }
+  } catch (e) {
+    // an unreadable folder: no package
+  }
+  return "";
+}
+
+/** J#: New File: a class, record, interface, enum or script in the folder's package. */
+async function newFile(uri) {
+  let folder = uri?.fsPath;
+  if (!folder) {
+    const active = vscode.window.activeTextEditor?.document.uri;
+    folder = active?.scheme === "file" ? path.dirname(active.fsPath) : vscode.workspace.workspaceFolders?.[0]?.uri.fsPath;
+  }
+  if (!folder) {
+    vscode.window.showErrorMessage("J#: open a folder first");
+    return;
+  }
+  const kind = await vscode.window.showQuickPick(FILE_KINDS, { title: "New J# File" });
+  if (!kind) {
+    return;
+  }
+  const name = await vscode.window.showInputBox({
+    title: `New J# ${kind.label}`,
+    prompt: kind.label === "Script" ? "File name" : "Name",
+    validateInput: (v) => (/^[A-Za-z_][A-Za-z0-9_]*$/.test(v) ? undefined : "A name like Point or main"),
+  });
+  if (!name) {
+    return;
+  }
+  const file = path.join(folder, `${name}.jsharp`);
+  if (fs.existsSync(file)) {
+    vscode.window.showErrorMessage(`J#: ${name}.jsharp already exists`);
+    return;
+  }
+  const pkg = packageOf(folder);
+  fs.writeFileSync(file, (pkg ? `package ${pkg};\n\n` : "") + kind.body(name));
+  await vscode.window.showTextDocument(vscode.Uri.file(file));
+}
+
 // ---------------------------------------------------------------------- activation
 
 async function activate(context) {
@@ -576,6 +649,7 @@ async function activate(context) {
     }),
     vscode.commands.registerCommand("jsharp.run", (uri) => run(context, uri)),
     vscode.commands.registerCommand("jsharp.newProject", () => newProject(context)),
+    vscode.commands.registerCommand("jsharp.newFile", (uri) => newFile(uri)),
     vscode.commands.registerCommand("jsharp.restartServer", async () => {
       const old = server;
       server = undefined;

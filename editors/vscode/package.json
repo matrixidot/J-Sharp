@@ -16,7 +16,8 @@
         "id": "jsharp",
         "aliases": ["J#", "jsharp"],
         "extensions": [".jsharp"],
-        "configuration": "./language-configuration.json"
+        "configuration": "./language-configuration.json",
+        "icon": { "light": "./icons/jsharp.svg", "dark": "./icons/jsharp.svg" }
       }
     ],
     "grammars": [
@@ -41,7 +42,8 @@
     "commands": [
       { "command": "jsharp.run", "title": "J#: Run Program", "icon": "$(play)" },
       { "command": "jsharp.restartServer", "title": "J#: Restart Language Server" },
-      { "command": "jsharp.newProject", "title": "J#: New Project..." }
+      { "command": "jsharp.newProject", "title": "J#: New Project..." },
+      { "command": "jsharp.newFile", "title": "J#: New File...", "shortTitle": "J# File" }
     ],
     "viewsWelcome": [
       {
@@ -53,6 +55,12 @@
     "menus": {
       "editor/title/run": [
         { "command": "jsharp.run", "when": "resourceLangId == jsharp", "group": "navigation" }
+      ],
+      "explorer/context": [
+        { "command": "jsharp.newFile", "when": "explorerResourceIsFolder", "group": "navigation@1" }
+      ],
+      "file/newFile": [
+        { "command": "jsharp.newFile" }
       ],
       "commandPalette": [
         { "command": "jsharp.run", "when": "editorLangId == jsharp" }

@@ -36,9 +36,22 @@
     <runLineMarkerContributor language="JSharp"
                               implementationClass="io.github.matrixidot.jsharp.intellij.JSharpRunLineMarker"/>
 
+    <projectViewNodeDecorator implementation="io.github.matrixidot.jsharp.intellij.JSharpProjectViewDecorator"/>
+    <internalFileTemplate name="J# Class"/>
+    <internalFileTemplate name="J# Record"/>
+    <internalFileTemplate name="J# Interface"/>
+    <internalFileTemplate name="J# Enum"/>
+    <internalFileTemplate name="J# Script"/>
+
     <newProjectWizard.generator implementation="io.github.matrixidot.jsharp.intellij.JSharpNewProjectWizard"/>
 
     <platform.lsp.integrationProvider
         implementation="io.github.matrixidot.jsharp.intellij.JSharpLspProvider"/>
   </extensions>
+
+  <actions>
+    <action id="JSharp.NewFile" class="io.github.matrixidot.jsharp.intellij.JSharpCreateFileAction">
+      <add-to-group group-id="NewGroup" anchor="before" relative-to-action="NewFile"/>
+    </action>
+  </actions>
 </idea-plugin>

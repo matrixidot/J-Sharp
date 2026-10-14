@@ -176,6 +176,28 @@ class JSharpPluginFunctionalTest {
         .isDirectoryContaining("glob:**.class");
   }
 
+  /** Java and J# files in one folder, src/main/jsharp, use each other and run (D103). */
+  @Test
+  void javaFilesNextToJSharpFiles() throws IOException {
+    write("settings.gradle.kts", "rootProject.name = \"mixed\"\n");
+    write(
+        "build.gradle.kts",
+        "plugins {\n    id(\"io.github.matrixidot.jsharp\")\n    application\n}\n"
+            + "application { mainClass = \"app.MainModule\" }\n");
+    write(
+        "src/main/jsharp/app/Helper.java",
+        "package app;\npublic class Helper {\n  public static String hi() { return \"hi from Java\"; }\n"
+            + "  public static String back() { return Shout.loud(\"and J#\"); }\n}\n");
+    write(
+        "src/main/jsharp/app/Shout.jsharp",
+        "package app;\npublic class Shout {\n    public static String loud(String s) => s.toUpperCase();\n}\n");
+    write(
+        "src/main/jsharp/app/main.jsharp",
+        "package app;\nprintln(Helper.hi());\nprintln(Helper.back());\n");
+    BuildResult result = runner("run", "-q").build();
+    assertThat(result.getOutput()).contains("hi from Java").contains("AND J#");
+  }
+
   /** A .jsharp file the build would skip (here in src/main/kotlin) fails it instead (D097). */
   @Test
   void failsForJSharpFilesOutsideTheSourceDirectories() throws IOException {

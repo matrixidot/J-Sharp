@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
 
 jobs:
-  test:
+  tools:
     runs-on: windows-latest
-    timeout-minutes: 60
+    timeout-minutes: 30
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-java@v4
@@ -17,18 +17,35 @@ jobs:
           distribution: temurin
           java-version: "25"
       - uses: gradle/actions/setup-gradle@v4
-      - name: Language server and CLI
-        run: ./gradlew :lsp:test :cli:test --console=plain --continue
-      - name: IntelliJ plugin
-        if: success() || failure()
-        run: ./gradlew -p editors/intellij test --console=plain
+      - name: Language server, CLI and Gradle plugin
+        run: ./gradlew :lsp:test :cli:test :gradle-plugin:test --console=plain --continue
       - name: Test reports
-        if: failure()
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: windows-test-reports
+          name: windows-tools-reports
           path: |
             lsp/build/test-results/
             cli/build/test-results/
+            gradle-plugin/build/test-results/
+
+  intellij:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: IntelliJ plugin
+        run: ./gradlew -p editors/intellij test --console=plain
+      - name: Test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-intellij-reports
+          path: |
             editors/intellij/build/test-results/
             editors/intellij/build/idea-sandbox/**/log/idea.log

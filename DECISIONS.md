@@ -665,3 +665,15 @@ Format: **decision** — reason. *Rejected:* alternatives.
     extension, with the manifest's `PreRelease` property; the file name keeps the full version.
     A final release must therefore use a version core no beta used (0.2.0-beta, then 0.2.1 or
     0.3.0), or the marketplace refuses it as already published.
+- **D103: Mixed folders, IntelliJ new files and names, Windows CI.**
+  - Gradle: `src/<set>/jsharp` is also a Java source directory, so `.java` files next to
+    `.jsharp` files are compiled by javac and seen by J#. Before, they were ignored.
+  - IntelliJ: New | J# File creates a class, record, interface, enum or script from internal file
+    templates, with the package taken from the folder's path below its source root. The project
+    view shows `Point.jsharp`, when it declares `Point`, as `Point` with the type's icon, like
+    Java. Files of functions and scripts keep their file names.
+  - VS Code: the language has a file icon. `J#: New File...` (Explorer context menu, File | New
+    File) creates the same kinds, with the package from `src/<set>/jsharp|java/...` or from a
+    sibling file.
+  - `.github/workflows/windows.yml` runs the language server, CLI, Gradle plugin and IntelliJ
+    plugin tests on Windows.

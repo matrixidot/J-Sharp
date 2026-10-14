@@ -73,7 +73,10 @@ public class JSharpPlugin implements Plugin<Project> {
     SourceDirectorySet jsharp =
         project.getObjects().sourceDirectorySet("jsharp", sourceSet.getName() + " J# source");
     jsharp.srcDir("src/" + name + "/jsharp");
-    // Like Kotlin's .kt files, .jsharp files in the Java source directories are compiled too.
+    // The two languages may share folders: .java files in src/<set>/jsharp are Java sources (javac
+    // compiles them, J# sees their declarations), and .jsharp files in the Java source directories
+    // are J# sources, like Kotlin's .kt files there (D097, D103).
+    sourceSet.getJava().srcDir("src/" + name + "/jsharp");
     jsharp.srcDirs(sourceSet.getJava().getSrcDirs());
     jsharp.getFilter().include("**/*.jsharp");
     sourceSet.getExtensions().add(SourceDirectorySet.class, "jsharp", jsharp);

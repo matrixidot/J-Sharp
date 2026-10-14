@@ -269,4 +269,27 @@ public class JSharpPluginTest extends BasePlatformTestCase {
         java.util.Arrays.toString(open),
         java.util.Arrays.stream(open).anyMatch(f -> f.getName().equals("main.jsharp")));
   }
+
+  /** New | J# File: the template, in the folder's package. */
+  public void testNewFileFromTemplate() throws Exception {
+    var folder = myFixture.getTempDirFixture().findOrCreateDir("com/example");
+    var dir = getPsiManager().findDirectory(folder);
+    assertEquals("com.example", JSharpCreateFileAction.packageOf(dir));
+    var template =
+        com.intellij.ide.fileTemplates.FileTemplateManager.getInstance(getProject())
+            .getInternalTemplate("J# Record");
+    var file =
+        com.intellij.openapi.command.WriteCommandAction.writeCommandAction(getProject())
+            .compute(() -> new JSharpCreateFileAction().createFileFromTemplate("Point", template, dir));
+    assertEquals("Point.jsharp", file.getName());
+    assertEquals("package com.example;\n\npublic record Point();\n", file.getText());
+  }
+
+  /** The project view shows Point.jsharp declaring record Point as "Point" with a record icon. */
+  public void testProjectViewNames() {
+    var record = myFixture.configureByText("Point.jsharp", "public record Point(int x, int y);\n");
+    assertEquals(io.github.matrixidot.jsharp.compiler.ast.Decl.TypeKind.RECORD, JSharpFiles.mainType(record));
+    var script = myFixture.configureByText("main.jsharp", "println(1);\n");
+    assertNull(JSharpFiles.mainType(script));
+  }
 }
