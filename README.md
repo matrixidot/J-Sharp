@@ -32,7 +32,11 @@ the newest is a pre-release). Java is included; nothing else needs installing.
 - **VS Code**: Extensions | ⋯ | Install from VSIX, pick the `.vsix` for your system (`win32-x64`,
   `darwin-arm64`, `darwin-x64`, `linux-x64`, `linux-arm64`). Then **J#: New Project...** in the
   command palette, or the button in an empty window's Explorer.
-- **Command line**: unpack `jsharp-<version>-<system>` and put its `bin` folder on your `PATH`.
+- **Command line**: one command installs `jsharp` (with its own Java) and puts it on your `PATH`:
+  - Windows (PowerShell): `irm https://matrixidot.github.io/J-Sharp/install.ps1 | iex`
+  - macOS and Linux: `curl -fsSL https://matrixidot.github.io/J-Sharp/install.sh | sh`
+
+  Running it again updates J#. (Or unpack `jsharp-<version>-<system>` from the release yourself.)
 
 New projects come from templates: an application, a library, a Minecraft (Paper) server plugin, or
 a single script. On the command line: `jsharp new app my-app` (`jsharp new --list` shows them all).

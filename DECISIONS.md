@@ -648,3 +648,20 @@ Format: **decision** — reason. *Rejected:* alternatives.
   for the tag, the release and everything inside it (the owner asked for one consistent name).
   VS Code requires a semantic version, and `0.2.0-beta` sorts before `0.2.0` in Gradle and Maven.
   Versions with a suffix are GitHub pre-releases.
+- **D102: One-command install, and installer tests on every platform.**
+  - `scripts/install.ps1` (`irm https://matrixidot.github.io/J-Sharp/install.ps1 | iex`) and
+    `scripts/install.sh` (`curl ... | sh`) install the newest release's CLI download for the user.
+    Pre-releases count, since J# is in beta; `JSHARP_VERSION` picks a version.
+  - Windows: installs into `%LOCALAPPDATA%\Programs\jsharp` and adds `bin` to the user PATH.
+    Unix: installs into `~/.local/share/jsharp`, links `~/.local/bin/jsharp`, and adds that to
+    the shell's rc file when it is not on the PATH. No administrator rights are needed, and a
+    re-run updates.
+  - Releases copy them, with a landing page (`scripts/pages-index.html`), to GitHub Pages.
+  - `.github/workflows/install-test.yml` runs after each release, and by hand. On Windows
+    (Windows PowerShell, as `irm | iex` uses), Linux x64/arm64 and macOS arm64/x64, it installs
+    the release, runs a script, and builds a `jsharp new` app and Paper plugin with the bundled
+    runtime and the published Gradle plugin.
+  - VS Code accepts only X.Y.Z, so a suffixed version (`0.2.0-beta`) is `0.2.0` inside the
+    extension, with the manifest's `PreRelease` property; the file name keeps the full version.
+    A final release must therefore use a version core no beta used (0.2.0-beta, then 0.2.1 or
+    0.3.0), or the marketplace refuses it as already published.

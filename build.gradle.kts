@@ -157,15 +157,28 @@ val cliDistribution =
  * The VS Code extension as a .vsix (a zip in VS Code's package layout), with the J# CLI bundled
  * under extension/server so it works with only Java installed. No npm or vsce needed.
  */
-val vscodeVersion = providers.gradleProperty("version").get().removeSuffix("-SNAPSHOT")
+val vscodeFileVersion = providers.gradleProperty("version").get().removeSuffix("-SNAPSHOT")
+
+/**
+ * VS Code and its marketplaces take only X.Y.Z: a version with a suffix (0.2.0-beta) is X.Y.Z
+ * marked as a pre-release in the manifest (D102). The file keeps the full version.
+ */
+val vscodeVersion = vscodeFileVersion.substringBefore('-')
+val vscodePreRelease = vscodeFileVersion.contains('-')
 val vsixManifest =
     tasks.register("vscodeManifest") {
         val out = layout.buildDirectory.dir("vscode/meta")
         outputs.dir(out)
-        inputs.property("version", vscodeVersion)
+        inputs.property("version", vscodeFileVersion)
         inputs.property("platform", platform ?: "")
         // A platform-specific extension (VS Code installs the one matching the machine).
         val targetPlatform = platform?.let { " TargetPlatform=\"$it\"" } ?: ""
+        val preReleaseProperty =
+            if (vscodePreRelease) {
+                "\n                      <Property Id=\"Microsoft.VisualStudio.Code.PreRelease\" Value=\"true\" />"
+            } else {
+                ""
+            }
         doLast {
             val dir = out.get().asFile
             dir.mkdirs()
@@ -180,7 +193,7 @@ val vsixManifest =
                     <Categories>Programming Languages</Categories>
                     <Properties>
                       <Property Id="Microsoft.VisualStudio.Code.Engine" Value="^1.85.0" />
-                      <Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="workspace" />
+                      <Property Id="Microsoft.VisualStudio.Code.ExtensionKind" Value="workspace" />$preReleaseProperty
                     </Properties>
                   </Metadata>
                   <Installation>
@@ -214,7 +227,7 @@ tasks.register<Zip>("vscodeExtension") {
     group = "distribution"
     description = "Builds build/vscode/jsharp-<version>[-<platform>].vsix (install: code --install-extension <file>)."
     dependsOn(":cli:installDist", checkRuntime)
-    archiveFileName.set("jsharp-$vscodeVersion${platform?.let { "-$it" } ?: ""}.vsix")
+    archiveFileName.set("jsharp-$vscodeFileVersion${platform?.let { "-$it" } ?: ""}.vsix")
     destinationDirectory.set(layout.buildDirectory.dir("vscode"))
     from(vsixManifest)
     into("extension") {
@@ -237,7 +250,7 @@ tasks.register<Exec>("installVscodeExtension") {
     commandLine(
         "code",
         "--install-extension",
-        layout.buildDirectory.file("vscode/jsharp-$vscodeVersion${platform?.let { "-$it" } ?: ""}.vsix").get().asFile.path,
+        layout.buildDirectory.file("vscode/jsharp-$vscodeFileVersion${platform?.let { "-$it" } ?: ""}.vsix").get().asFile.path,
         "--force",
     )
 }

@@ -91,11 +91,8 @@ jobs:
           fi
           ./gradlew publishAllPublicationsToBuildRepoRepository -Pversion="$VERSION" -PmavenRepo="$PWD/pages/maven"
           touch pages/.nojekyll
-          cat > pages/index.html <<HTML
-          <!doctype html><meta charset="utf-8"><title>J# Maven repository</title>
-          <p>The Maven repository of <a href="https://github.com/matrixidot/J-Sharp">J#</a>:
-          <code>maven("https://matrixidot.github.io/J-Sharp/maven")</code>. Latest: $VERSION.</p>
-          HTML
+          cp scripts/install.ps1 scripts/install.sh pages/
+          cp scripts/pages-index.html pages/index.html
           cd pages
           git add -A
           git commit -m "Publish J# $VERSION"
@@ -111,7 +108,7 @@ jobs:
 
           - **IntelliJ IDEA** (or another JetBrains IDE, 2026.2+): Settings | Plugins | ⚙ | Install Plugin from Disk, and pick \`jsharp-intellij-plugin-$VERSION.zip\`. Then File | New | Project | J#.
           - **VS Code**: download the \`.vsix\` for your system (\`win32-x64\`, \`darwin-arm64\` for Apple silicon, \`darwin-x64\`, \`linux-x64\`, \`linux-arm64\`), then Extensions | ⋯ | Install from VSIX. Then run **J#: New Project...** from the command palette.
-          - **Command line**: unpack \`jsharp-$VERSION-<system>\` and put its \`bin\` folder on your PATH. Then \`jsharp new app my-app\`.
+          - **Command line**: in PowerShell, \`irm https://matrixidot.github.io/J-Sharp/install.ps1 | iex\`; on macOS or Linux, \`curl -fsSL https://matrixidot.github.io/J-Sharp/install.sh | sh\`. Then \`jsharp new app my-app\`. (Or unpack \`jsharp-$VERSION-<system>\` and put its \`bin\` folder on your PATH.)
 
           These include Java; nothing else needs installing. (\`jsharp-$VERSION.vsix\` and \`jsharp-$VERSION.zip\` are the versions for an installed Java 25.)
           Gradle projects use \`id("io.github.matrixidot.jsharp") version "$VERSION"\` from \`maven("https://matrixidot.github.io/J-Sharp/maven")\`.
@@ -138,3 +135,9 @@ jobs:
         env:
           OVSX_PAT: ${{ secrets.OVSX_PAT }}
         run: for f in dist/*.vsix; do npx --yes ovsx publish "$f"; done
+
+  # The installers and the downloads on real Windows, macOS and Linux machines.
+  install-test:
+    needs: release
+    if: github.ref_type == 'tag'
+    uses: ./.github/workflows/install-test.yml

@@ -1,0 +1,50 @@
+# Installs the newest release the way users do (scripts/install.ps1, scripts/install.sh) on
+# Windows, macOS and Linux, then creates and builds projects with it: the bundled Java runtime, the
+# launchers, `jsharp new` and the published Gradle plugin, on each platform (D102). Runs after every
+# release, or by hand.
+name: Install test
+on:
+  workflow_dispatch:
+  workflow_call:
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install (Windows PowerShell, as with irm ... | iex)
+        shell: powershell
+        run: Get-Content -Raw scripts/install.ps1 | Invoke-Expression
+      - name: A script, an application and a Paper plugin
+        shell: powershell
+        run: |
+          $ErrorActionPreference = 'Stop'
+          $jsharp = Join-Path $env:LOCALAPPDATA 'Programs\jsharp\bin\jsharp.bat'
+          $env:JAVA_HOME = Join-Path $env:LOCALAPPDATA 'Programs\jsharp\runtime'
+          & $jsharp new script hello; if ($LASTEXITCODE) { exit 1 }
+          & $jsharp run hello\main.jsharp; if ($LASTEXITCODE) { exit 1 }
+          & $jsharp new app "my app"; if ($LASTEXITCODE) { exit 1 }
+          Push-Location "my app"; .\gradlew.bat run --console=plain; if ($LASTEXITCODE) { exit 1 }; Pop-Location
+          & $jsharp new paper MyPlugin --package io.github.example.myplugin; if ($LASTEXITCODE) { exit 1 }
+          Push-Location MyPlugin; .\gradlew.bat build --console=plain; if ($LASTEXITCODE) { exit 1 }; Pop-Location
+          Get-ChildItem MyPlugin\build\libs
+
+  unix:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, ubuntu-24.04-arm, macos-latest, macos-15-intel]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Install (as with curl ... | sh)
+        run: sh scripts/install.sh < /dev/null
+      - name: A script, an application and a Paper plugin
+        run: |
+          set -eu
+          export JAVA_HOME="$HOME/.local/share/jsharp/runtime"
+          jsharp=$HOME/.local/bin/jsharp
+          $jsharp new script hello && $jsharp run hello/main.jsharp
+          $jsharp new app "my app" && (cd "my app" && ./gradlew run --console=plain)
+          $jsharp new paper MyPlugin --package io.github.example.myplugin
+          (cd MyPlugin && ./gradlew build --console=plain && ls build/libs)
