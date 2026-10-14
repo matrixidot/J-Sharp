@@ -1,6 +1,7 @@
 # The language server, CLI and Gradle plugin tests on Windows (D103): paths, URIs and process
-# launching differ there, and most J# users run Windows. (The IntelliJ plugin tests are not run
-# here: the headless CLion they use never finishes indexing on Windows runners.)
+# launching differ there, and most J# users run Windows. Of the IntelliJ plugin tests, only those
+# that start the bundled CLI run here: in the others, the headless CLion never finishes indexing on
+# Windows runners.
 name: Windows
 on:
   push:
@@ -29,3 +30,25 @@ jobs:
             lsp/build/test-results/
             cli/build/test-results/
             gradle-plugin/build/test-results/
+
+  intellij:
+    runs-on: windows-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "25"
+      - uses: gradle/actions/setup-gradle@v4
+      - name: IntelliJ plugin, starting the CLI and the language server
+        run: >-
+          ./gradlew -p editors/intellij test --console=plain
+          --tests "*.testRunningAProgramWithItsLibraryFiles"
+          --tests "*.testLanguageServerAnswers"
+      - name: Test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: windows-intellij-reports
+          path: editors/intellij/build/test-results/

@@ -3,6 +3,7 @@ package io.github.matrixidot.jsharp.intellij;
 import com.intellij.execution.configurations.GeneralCommandLine;
 import com.intellij.openapi.application.PathManager;
 import com.intellij.openapi.vfs.VirtualFile;
+import java.io.File;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -38,7 +39,9 @@ final class JSharpPlugin {
     List<String> command = new ArrayList<>();
     command.add(java.toString());
     command.add("-cp");
-    command.add(home().resolve("server").resolve("lib").resolve("*").toString());
+    // A string, not Path.resolve("*"): '*' is not a legal Windows path character, and java expands
+    // the class path wildcard itself.
+    command.add(home().resolve("server").resolve("lib") + File.separator + "*");
     command.add(MAIN_CLASS);
     command.addAll(args);
     return new GeneralCommandLine(command).withCharset(StandardCharsets.UTF_8);

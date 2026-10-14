@@ -688,3 +688,8 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - `verifyPlugin` checks against IntelliJ IDEA 2026.2.2 and IDEA Community 2026.2.3 (the latter
     from JetBrains' Maven repository, which still publishes Community builds), and fails on
     internal API use. The release workflow runs it before publishing.
+  - On Windows the plugin could not start the J# CLI at all: the class path was built with
+    `Path.resolve("*")`, and `*` is illegal in Windows paths. So the language server never ran
+    (no name highlighting, completion or errors; keywords, from the plugin's own lexer, still
+    worked), nor did run configurations. It is now a string. `windows.yml` runs the two IntelliJ
+    tests that start the CLI on Windows.
