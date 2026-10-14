@@ -1,3 +1,45 @@
-<!doctype html><meta charset="utf-8"><title>J# Maven repository</title>
-<p>The Maven repository of <a href="https://github.com/matrixidot/J-Sharp">J#</a>:
-<code>maven("https://matrixidot.github.io/J-Sharp/maven")</code>. Latest: 0.2.0-beta.</p>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>J#</title>
+<style>
+  :root { --bg: #fff; --fg: #1d1d1f; --muted: #5f6368; --code: #f3f4f6; --link: #0b57d0; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #16181c; --fg: #e8eaed; --muted: #9aa0a6; --code: #24272c; --link: #8ab4f8; }
+  }
+  body { background: var(--bg); color: var(--fg); font: 16px/1.55 system-ui, sans-serif;
+         max-width: 44rem; margin: 3rem auto; padding: 0 16px; }
+  h1 { margin-bottom: 0.2rem; } p.lead { color: var(--muted); margin-top: 0; }
+  pre { background: var(--code); padding: 0.8rem 1rem; border-radius: 8px; overflow-x: auto; }
+  code { font: 0.92em ui-monospace, monospace; } a { color: var(--link); }
+</style>
+</head>
+<body>
+<h1>J#</h1>
+<p class="lead">A statically typed JVM language with C#'s expressiveness and Java's ecosystem. Beta.</p>
+
+<h2>Install the command line</h2>
+<p>Windows (PowerShell):</p>
+<pre><code>irm https://matrixidot.github.io/J-Sharp/install.ps1 | iex</code></pre>
+<p>macOS and Linux:</p>
+<pre><code>curl -fsSL https://matrixidot.github.io/J-Sharp/install.sh | sh</code></pre>
+<p>Java is included. Then: <code>jsharp new app my-app</code> (<code>jsharp new --list</code> shows the templates).</p>
+
+<h2>Editors</h2>
+<p>IntelliJ IDEA and VS Code plugins are on the
+<a href="https://github.com/matrixidot/J-Sharp/releases">releases page</a>.</p>
+
+<h2>Gradle</h2>
+<pre><code>// settings.gradle.kts
+pluginManagement {
+    repositories {
+        maven("https://matrixidot.github.io/J-Sharp/maven")
+        gradlePluginPortal()
+    }
+}</code></pre>
+<p>The Maven repository is at <a href="maven/">/maven</a>.
+Source, documentation and license (Apache-2.0): <a href="https://github.com/matrixidot/J-Sharp">github.com/matrixidot/J-Sharp</a>.</p>
+</body>
+</html>
