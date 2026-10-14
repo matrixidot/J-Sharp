@@ -104,7 +104,8 @@ class MainTest {
     } finally {
       System.setOut(saved);
     }
-    assertThat(printed.toString(StandardCharsets.UTF_8)).isEqualTo("Hi, Ada\nHi, x.jsharp\n");
+    assertThat(printed.toString(StandardCharsets.UTF_8).replace("\r\n", "\n"))
+        .isEqualTo("Hi, Ada\nHi, x.jsharp\n");
   }
 
   @Test

@@ -675,5 +675,6 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - VS Code: the language has a file icon. `J#: New File...` (Explorer context menu, File | New
     File) creates the same kinds, with the package from `src/<set>/jsharp|java/...` or from a
     sibling file.
-  - `.github/workflows/windows.yml` runs the language server, CLI, Gradle plugin and IntelliJ
-    plugin tests on Windows.
+  - `.github/workflows/windows.yml` runs the language server, CLI and Gradle plugin tests on
+    Windows. The IntelliJ plugin tests are left out: in a headless CLion on Windows runners,
+    indexing never finishes and highlighting tests hang.

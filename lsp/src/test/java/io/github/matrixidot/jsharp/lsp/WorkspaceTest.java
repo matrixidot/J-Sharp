@@ -11,13 +11,13 @@ import org.junit.jupiter.api.io.TempDir;
 class WorkspaceTest {
   @Test
   void sourceRootStripsMatchingPackageDirectories() {
-    Path f = Path.of("/p/src/ledger/report/x.jsharp");
-    assertThat(Workspace.sourceRoot(f, "ledger.report")).isEqualTo(Path.of("/p/src"));
-    assertThat(Workspace.sourceRoot(Path.of("/p/src/report/x.jsharp"), "ledger.report"))
-        .isEqualTo(Path.of("/p/src"));
-    assertThat(Workspace.sourceRoot(Path.of("/p/src/x.jsharp"), "ledger"))
-        .isEqualTo(Path.of("/p/src"));
-    assertThat(Workspace.sourceRoot(Path.of("/p/src/x.jsharp"), "")).isEqualTo(Path.of("/p/src"));
+    Path src = Path.of("/p/src").toAbsolutePath(); // with a drive letter on Windows
+    assertThat(Workspace.sourceRoot(src.resolve("ledger/report/x.jsharp"), "ledger.report"))
+        .isEqualTo(src);
+    assertThat(Workspace.sourceRoot(src.resolve("report/x.jsharp"), "ledger.report"))
+        .isEqualTo(src);
+    assertThat(Workspace.sourceRoot(src.resolve("x.jsharp"), "ledger")).isEqualTo(src);
+    assertThat(Workspace.sourceRoot(src.resolve("x.jsharp"), "")).isEqualTo(src);
   }
 
   @Test
