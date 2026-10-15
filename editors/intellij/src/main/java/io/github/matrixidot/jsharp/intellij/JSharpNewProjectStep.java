@@ -3,7 +3,7 @@ package io.github.matrixidot.jsharp.intellij;
 import com.intellij.ide.wizard.AbstractNewProjectWizardStep;
 import com.intellij.ide.wizard.NewProjectWizardBaseData;
 import com.intellij.ide.wizard.NewProjectWizardStep;
-import com.intellij.openapi.fileEditor.FileEditorManager;
+import com.intellij.openapi.fileEditor.OpenFileDescriptor;
 import com.intellij.openapi.project.Project;
 import com.intellij.openapi.ui.ComboBox;
 import com.intellij.openapi.ui.ValidationInfo;
@@ -109,7 +109,7 @@ final class JSharpNewProjectStep extends AbstractNewProjectWizardStep {
           if (file != null) {
             com.intellij.openapi.application.ApplicationManager.getApplication()
                 .invokeLater(
-                    () -> FileEditorManager.getInstance(project).openFile(file, true),
+                    () -> new OpenFileDescriptor(project, file).navigate(true),
                     project.getDisposed());
           }
         });
