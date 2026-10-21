@@ -381,7 +381,7 @@ public final class Main {
     return comp.diagnostics().hasErrors() ? 1 : 0;
   }
 
-  /** {@code jsharp new <template> <dir> [--name n] [--package p]} (D098). */
+  /** {@code jsharp new <template> <dir> [--name n] [--package p] [--java v]} (D098). */
   private static int newProject(String[] args, PrintStream out, PrintStream err) {
     if (args.length == 1 && args[0].equals("--list")) {
       for (var t : ProjectTemplates.Template.values()) {
@@ -391,11 +391,24 @@ public final class Main {
     }
     String name = null;
     String pkg = null;
+    int java = LanguageInfo.JAVA_RELEASE;
     List<String> positional = new ArrayList<>();
     for (int i = 0; i < args.length; i++) {
       switch (args[i]) {
         case "--name" -> name = need(args, ++i, "--name");
         case "--package" -> pkg = need(args, ++i, "--package");
+        case "--java" -> {
+          String v = need(args, ++i, "--java");
+          List<Integer> releases = ProjectTemplates.javaReleases();
+          if (!releases.stream().map(String::valueOf).toList().contains(v)) {
+            throw new UsageException(
+                "--java takes one of "
+                    + String.join(", ", releases.stream().map(String::valueOf).toList())
+                    + ", not "
+                    + v);
+          }
+          java = Integer.parseInt(v);
+        }
         default -> {
           if (args[i].startsWith("-")) {
             throw new UsageException("unknown option " + args[i]);
@@ -406,7 +419,8 @@ public final class Main {
     }
     if (positional.size() != 2) {
       throw new UsageException(
-          "usage: new <template> <directory> [--name name] [--package pkg]; templates: "
+          "usage: new <template> <directory> [--name name] [--package pkg] [--java version];"
+              + " templates: "
               + String.join(
                   ", ", Arrays.stream(ProjectTemplates.Template.values()).map(t -> t.id).toList()));
     }
@@ -430,7 +444,7 @@ public final class Main {
       throw new UsageException(problem);
     }
     try {
-      ProjectTemplates.create(template, new ProjectTemplates.Project(name, pkg), dir);
+      ProjectTemplates.create(template, new ProjectTemplates.Project(name, pkg, java), dir);
     } catch (IOException e) {
       err.println(LanguageInfo.ID + ": " + e.getMessage());
       return 1;
@@ -453,8 +467,13 @@ public final class Main {
     out.println(
         "  lsp [-cp path]                       language server on stdin/stdout (for editors)");
     out.println(
-        "  new <template> <dir> [--name n]      start a project: app, library, paper, script");
-    out.println("        [--package p]                  ('new --list' describes them)");
+        "  new <template> <dir> [--name n]      start a project: app, library, paper, neoforge,");
+    out.println("        [--package p] [--java v]       script ('new --list' describes them); the");
+    out.println(
+        "                                       Java version it targets: "
+            + String.join(
+                " or ", ProjectTemplates.javaReleases().stream().map(String::valueOf).toList())
+            + " (Minecraft 26.x or 1.21)");
     out.println("  parse <file>                         print the syntax tree (debug)");
     out.println("  --version                            print version");
     out.println();

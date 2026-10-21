@@ -138,7 +138,8 @@ class MainTest {
           .contains("rootProject.name = \"demo-" + t.id + "\"");
       assertThat(Files.readString(project.resolve("build.gradle.kts")))
           .contains("id(\"io.github.matrixidot.jsharp\") version \"");
-      if (t != ProjectTemplates.Template.PAPER) { // Paper's API is not on this class path
+      // Minecraft's API is not on this class path
+      if (t != ProjectTemplates.Template.PAPER && t != ProjectTemplates.Template.NEOFORGE) {
         Path src = project.resolve("src/main/jsharp");
         Outcome checked = run("check", src.toString());
         assertThat(checked.code()).as(checked.out() + checked.err()).isZero();
@@ -148,6 +149,30 @@ class MainTest {
     assertThat(Files.readString(paper.resolve("src/main/resources/paper-plugin.yml")))
         .contains("main: org.demo.app.DemoPaper");
     assertThat(paper.resolve("src/main/jsharp/org/demo/app/DemoPaper.jsharp")).exists();
+    Path neoForge = dir.resolve("demo-neoforge");
+    assertThat(neoForge.resolve("src/main/resources/assets/demo_neoforge/lang/en_us.json"))
+        .exists();
+    assertThat(
+            Files.readString(neoForge.resolve("src/main/jsharp/org/demo/app/DemoNeoforge.jsharp")))
+        .contains("@Mod(DemoNeoforge.MOD_ID)")
+        .contains("MOD_ID = \"demo_neoforge\"");
+  }
+
+  /** {@code --java}: the toolchain, and for Minecraft templates the Minecraft version (D108). */
+  @Test
+  void newProjectsForJava21(@TempDir Path dir) throws IOException {
+    assertThat(run("new", "app", dir.resolve("a").toString(), "--java", "21").code()).isZero();
+    assertThat(Files.readString(dir.resolve("a/build.gradle.kts")))
+        .contains("JavaLanguageVersion.of(21)");
+    assertThat(run("new", "neoforge", dir.resolve("m").toString(), "--java", "21").code()).isZero();
+    assertThat(Files.readString(dir.resolve("m/build.gradle.kts")))
+        .contains("JavaLanguageVersion.of(21)")
+        .contains("version = \"21.1.264\"");
+    assertThat(run("new", "paper", dir.resolve("p").toString(), "--java", "21").code()).isZero();
+    assertThat(Files.readString(dir.resolve("p/build.gradle.kts")))
+        .contains("paper-api:1.21.11-R0.1-SNAPSHOT");
+    assertThat(run("new", "app", dir.resolve("x").toString(), "--java", "17").err())
+        .contains("--java takes one of");
   }
 
   @Test

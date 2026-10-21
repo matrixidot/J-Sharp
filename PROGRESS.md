@@ -163,3 +163,4 @@
 - One source tree builds for Java 25 and, with `-PjavaVersion=21`, for Java 21; CI tests both (D107).
 - `--release`: J# compiles for Java 21 or 25 whatever it runs on; the Gradle plugin follows the toolchain (D108).
 - Annotations are checked and written to class files (D109); a NeoForge 26.3 mod in J# loads and runs.
+- `jsharp new neoforge` and `--java 21|25` (Minecraft 1.21.1/1.21.11 or 26.3); both editors' wizards ask for the Java version (D110).

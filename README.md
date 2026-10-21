@@ -38,9 +38,11 @@ the newest is a pre-release). Java is included; nothing else needs installing.
 
   Running it again updates J#. (Or unpack `jsharp-<version>-<system>` from the release yourself.)
 
-New projects come from templates: an application, a library, a Minecraft (Paper) server plugin, or
-a single script. On the command line: `jsharp new app my-app` (`jsharp new --list` shows them all).
-Gradle projects download Java 25 and J# by themselves.
+New projects come from templates: an application, a library, a Minecraft mod (NeoForge), a
+Minecraft server plugin (Paper), or a single script. On the command line: `jsharp new app my-app`
+(`jsharp new --list` shows them all). A project targets Java 25 or, with `--java 21`, Java 21; for
+Minecraft that picks the game version too (26.3, or 1.21.1 for NeoForge and 1.21.11 for Paper).
+The IntelliJ and VS Code wizards ask for both. Gradle projects download Java and J# by themselves.
 
 ## Building from source
 
@@ -100,23 +102,29 @@ pluginManagement {
 
 // build.gradle.kts
 plugins {
-    id("io.github.matrixidot.jsharp") version "0.2.0-beta"
+    id("io.github.matrixidot.jsharp") version "0.2.2-beta"
     application
 }
 dependencies { implementation("com.example:some-java-library:1.0") }
 application { mainClass.set("app.MainModule") }
 ```
 
-Gradle must run on Java 25. `gradle/gradle-daemon-jvm.properties` with `toolchainVersion=25`
-(`./gradlew updateDaemonJvm --jvm-version=25`) makes Gradle download it.
+J# compiles for the project's Java toolchain (`java { toolchain.languageVersion = ... }`), 21 or
+newer: its class files and the Java API it sees are that version's, like javac's `--release`.
+Gradle itself must run on Java 25 to run J#. `gradle/gradle-daemon-jvm.properties` with
+`toolchainVersion=25` (`./gradlew updateDaemonJvm --jvm-version=25`) makes Gradle download it.
+
+Annotations work as in Java (`@Mod`, `@SubscribeEvent`, `@EventHandler`, ...); class literals are
+written `typeof(MyClass)`.
 
 When working on J# itself, `./gradlew publishToMavenLocal` installs the development version
-(`0.2.0-SNAPSHOT`, used with `mavenLocal()`), and `pluginManagement { includeBuild("path/to/J-Sharp") }`
+(`0.2.3-SNAPSHOT`, used with `mavenLocal()`), and `pluginManagement { includeBuild("path/to/J-Sharp") }`
 uses a checkout directly.
 
 After a build, the editors also know the project's dependencies: completion and hover work for
 your libraries' classes. [`examples/paper-plugin`](examples/paper-plugin) is a complete example:
-a Minecraft server plugin for Paper.
+a Minecraft server plugin for Paper; `jsharp new neoforge my-mod` creates a NeoForge mod (its jar
+carries the J# runtime inside, through NeoForge's jar-in-jar).
 
 ## Mixing Java and J# in one module
 

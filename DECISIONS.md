@@ -748,3 +748,12 @@ Format: **decision** — reason. *Rejected:* alternatives.
   record component's go where Java puts them (field, generated accessor, canonical constructor
   parameter). Not yet: nested annotations as values, repeatable annotations, and type
   annotations (a `TYPE_USE`-only annotation is accepted and not written).
+- **D110: Projects pick their Java version; a NeoForge template.** `jsharp new --java 21|25` (the
+  IntelliJ and VS Code wizards ask) sets the project's toolchain, which the Gradle plugin compiles
+  for (D108). For the Minecraft templates it also picks the game: Java 25 is Minecraft 26.3 (Paper
+  and NeoForge); Java 21 is NeoForge 21.1 for Minecraft 1.21.1, the version most mods and
+  modpacks use, and Paper 1.21.11, Paper's newest on Java 21. The NeoForge template uses
+  ModDevGradle and puts the J# runtime in the mod jar with `jarJar`, so mods share one copy
+  (shading it would put the same packages in two mods, which NeoForge rejects); in development
+  the runtime comes from the Gradle plugin, as for every project. Both lines were built and run:
+  `runServer`, and the 26.3 jar on an installed NeoForge server.

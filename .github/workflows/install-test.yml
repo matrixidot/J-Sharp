@@ -48,3 +48,10 @@ jobs:
           $jsharp new app "my app" && (cd "my app" && ./gradlew run --console=plain)
           $jsharp new paper MyPlugin --package io.github.example.myplugin
           (cd MyPlugin && ./gradlew build --console=plain && ls build/libs)
+      - name: A NeoForge mod for Minecraft 1.21.1 (Java 21)
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          set -eu
+          export JAVA_HOME="$HOME/.local/share/jsharp/runtime"
+          $HOME/.local/bin/jsharp new neoforge MyMod --java 21
+          (cd MyMod && ./gradlew build --console=plain && unzip -l build/libs/mymod-0.1.0.jar | grep jarjar)

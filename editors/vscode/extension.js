@@ -478,22 +478,29 @@ async function run(context, uri) {
 
 const TEMPLATES = [
   { id: "app", label: "Application", detail: "A program, built with Gradle (./gradlew run)" },
+  { id: "neoforge", label: "NeoForge mod", detail: "A Minecraft mod (./gradlew runClient)" },
   { id: "paper", label: "Paper plugin", detail: "A Minecraft server plugin (./gradlew runServer)" },
   { id: "library", label: "Library", detail: "Code for J# and Java projects, built with Gradle" },
   { id: "script", label: "Script", detail: "A single file, no build tool (the Run button)" },
 ];
 
+/** The Java versions a project can target (`jsharp new --java`, D108), and what they mean. */
+const JAVA_RELEASES = [
+  { release: "25", label: "Java 25", detail: "Minecraft 26.3" },
+  { release: "21", label: "Java 21", detail: "Minecraft 1.21.1 (NeoForge), 1.21.11 (Paper)" },
+];
+
 /** `jsharp new`, as a short series of prompts; then opens the new project (D098). */
 async function newProject(context) {
   const template = await vscode.window.showQuickPick(TEMPLATES, {
-    title: "New J# Project (1/3): template",
+    title: "New J# Project (1/4): template",
   });
   if (!template) {
     return;
   }
   const name = await vscode.window.showInputBox({
-    title: "New J# Project (2/3): name",
-    value: template.id === "paper" ? "MyPlugin" : "my-app",
+    title: "New J# Project (2/4): name",
+    value: template.id === "paper" ? "MyPlugin" : template.id === "neoforge" ? "MyMod" : "my-app",
     validateInput: (v) =>
       /^[A-Za-z0-9][A-Za-z0-9 ._-]*$/.test(v) ? undefined : "Letters, digits, '-', '_', '.' and spaces",
   });
@@ -501,10 +508,17 @@ async function newProject(context) {
     return;
   }
   let pkg = "";
+  let java;
   if (template.id !== "script") {
+    java = await vscode.window.showQuickPick(JAVA_RELEASES, {
+      title: "New J# Project (3/4): the Java version it runs on",
+    });
+    if (!java) {
+      return;
+    }
     const simple = name.toLowerCase().replace(/[^a-z0-9]/g, "") || "app";
     pkg = await vscode.window.showInputBox({
-      title: "New J# Project (3/3): package",
+      title: "New J# Project (4/4): package",
       value: `com.example.${/^[0-9]/.test(simple) ? "app" + simple : simple}`,
       validateInput: (v) =>
         /^[A-Za-z_][A-Za-z0-9_]*(\.[A-Za-z_][A-Za-z0-9_]*)*$/.test(v) ? undefined : "A package name, like com.example.app",
@@ -524,7 +538,15 @@ async function newProject(context) {
     return;
   }
   const dir = path.join(parent[0].fsPath, name);
-  const args = ["new", template.id, dir, "--name", name, ...(pkg ? ["--package", pkg] : [])];
+  const args = [
+    "new",
+    template.id,
+    dir,
+    "--name",
+    name,
+    ...(pkg ? ["--package", pkg] : []),
+    ...(java ? ["--java", java.release] : []),
+  ];
   const result = await new Promise((resolve) => {
     const command = launcher(context);
     const win = process.platform === "win32";
