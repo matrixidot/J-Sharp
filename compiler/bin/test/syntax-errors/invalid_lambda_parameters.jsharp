@@ -1,1 +1,0 @@
-var f = (int a, b) => a;

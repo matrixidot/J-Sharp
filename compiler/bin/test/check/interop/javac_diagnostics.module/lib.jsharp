@@ -1,3 +1,0 @@
-public class Lib {
-    public static int answer() => 42;
-}

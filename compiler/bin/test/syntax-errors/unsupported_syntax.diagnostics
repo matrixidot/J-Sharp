@@ -1,2 +1,0 @@
-error JS0109 4:8 'value class' is reserved for a future version (Valhalla value types)
-error JS0109 5:12 enum constants with bodies are not supported

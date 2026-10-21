@@ -1,3 +1,0 @@
-error JS0009 1:11 empty interpolation hole
-error JS0009 2:13 unescaped '}' in interpolated string; write '}}'
-error JS0009 3:16 unterminated interpolation hole; expected '}'

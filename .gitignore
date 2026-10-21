@@ -34,3 +34,6 @@ build/
 out/
 .kotlin/
 .claude/worktrees/
+
+# IDE build output (VS Code / Eclipse Java): compiler/bin, tests/bin, ...; the root bin/ is tracked
+/*/bin/

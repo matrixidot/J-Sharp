@@ -1,3 +1,0 @@
-public class Defaults2 {
-    public void g(int x = 1, int y) { }   //~ JS0420
-}

@@ -1,5 +1,0 @@
-import java.util.*;
-class Holder<T> {
-    List<var> a;
-    T<String> b;
-}

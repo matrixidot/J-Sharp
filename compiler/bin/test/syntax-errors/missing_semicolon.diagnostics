@@ -1,2 +1,0 @@
-error JS0100 1:10 expected ';', found identifier 'var'
-error JS0100 3:11 expected ';', found end of file

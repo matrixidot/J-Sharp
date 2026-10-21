@@ -1,4 +1,0 @@
-@file:ClassName("Helpers")
-package tools;
-
-public int answer() => 42;

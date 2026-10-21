@@ -1,3 +1,0 @@
-var s = $"{}";
-var t = $"a } b";
-var u = $"open {x";
