@@ -33,6 +33,12 @@ final class Infer {
   final Map<TypeVarSymbol, Bounds> bounds = new LinkedHashMap<>();
   boolean failed;
 
+  /**
+   * Instantiates the class type variables in the declared bounds of {@link #vars}: in {@code <I
+   * extends T> register(...)} on a {@code DeferredRegister<Item>}, I's bound is Item, not T.
+   */
+  private Map<TypeVarSymbol, Type> boundSubst = Map.of();
+
   Infer(Types types, List<TypeVarSymbol> vars) {
     this.types = types;
     this.vars = vars;
@@ -223,7 +229,7 @@ final class Infer {
       if (pickVar == null) {
         return sol;
       }
-      Type bound = Types.subst(pickVar.bounds().getFirst(), sol);
+      Type bound = Types.subst(declaredBound(pickVar.bounds().getFirst()), sol);
       sol.put(pickVar, mentionsVars(bound) ? types.syms().objectType() : bound);
     }
   }
@@ -297,11 +303,21 @@ final class Infer {
         }
       }
       for (Type declared : v.bounds()) {
-        if (!types.isSubtype(t, Types.subst(declared, sol))) {
+        if (!types.isSubtype(t, Types.subst(declaredBound(declared), sol))) {
           return false;
         }
       }
     }
     return true;
+  }
+
+  /** Sets the substitution of the class type variables in the variables' declared bounds. */
+  Infer withBoundSubstitution(Map<TypeVarSymbol, Type> subst) {
+    boundSubst = subst;
+    return this;
+  }
+
+  private Type declaredBound(Type declared) {
+    return boundSubst.isEmpty() ? declared : Types.subst(declared, boundSubst);
   }
 }

@@ -1,0 +1,9 @@
+import reg.Registry;
+
+// <I extends T> on a Registry<CharSequence>: I is bounded by CharSequence.
+val words = new Registry<CharSequence>();
+val hello = words.register("hello", () => "Hello");
+val shout = words.register("shout", name => new StringBuilder(name.toUpperCase()));
+Registry.Holder<CharSequence, String> typed = words.register("typed", () => "typed");
+println($"{hello.get()} {shout.get()} {typed.get().length()}");
+println(words.names());

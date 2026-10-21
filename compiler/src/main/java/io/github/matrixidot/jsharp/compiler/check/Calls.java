@@ -1094,7 +1094,9 @@ final class Calls {
       }
       explicitMap = Types.zip(m.typeParams(), explicit);
       vars = new ArrayList<>(extraInferenceVars);
-      if (violatedBound(m, explicitMap) != null) {
+      Map<TypeVarSymbol, Type> both = new HashMap<>(classSubst);
+      both.putAll(explicitMap);
+      if (violatedBound(m, both) != null) {
         return null;
       }
     }
@@ -1106,7 +1108,7 @@ final class Calls {
       }
       ptypes.add(t);
     }
-    Infer inf = vars.isEmpty() ? null : new Infer(types(), vars);
+    Infer inf = vars.isEmpty() ? null : new Infer(types(), vars).withBoundSubstitution(classSubst);
     Set<TypeVarSymbol> defaulted = new HashSet<>();
     // ---- check / constrain arguments
     for (int p = 0; p < n; p++) {
