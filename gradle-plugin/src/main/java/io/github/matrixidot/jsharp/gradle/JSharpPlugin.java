@@ -140,6 +140,29 @@ public class JSharpPlugin implements Plugin<Project> {
     project
         .getTasks()
         .named(sourceSet.getClassesTaskName(), t -> t.dependsOn(compile, classPathFile));
+    // IntelliJ's Gradle sync runs no tasks: it would take a build before editors knew the
+    // libraries. Write the listing while the sync configures the build (D106).
+    if (Boolean.parseBoolean(
+        project.getProviders().systemProperty("idea.sync.active").getOrElse("false"))) {
+      Runnable record =
+          () -> {
+            try {
+              JSharpClassPathFile.write(
+                  sourceSet.getCompileClasspath().getFiles(),
+                  classPathFile.get().getOutputFile().get().getAsFile());
+            } catch (RuntimeException e) {
+              project
+                  .getLogger()
+                  .warn(
+                      "J#: could not record the {} class path for editors: {}", name, e.toString());
+            }
+          };
+      if (project.getState().getExecuted()) {
+        record.run(); // a source set added after the build script ran
+      } else {
+        project.afterEvaluate(p -> record.run());
+      }
+    }
 
     // .jsharp files elsewhere under src/<set> (src/main/kotlin, ...) fail the build (D097).
     TaskProvider<JSharpSourceCheck> sourceCheck =

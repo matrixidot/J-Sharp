@@ -4,7 +4,6 @@ import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
-import java.util.stream.Collectors;
 import org.gradle.api.DefaultTask;
 import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.RegularFileProperty;
@@ -31,12 +30,18 @@ public abstract class JSharpClassPathFile extends DefaultTask {
 
   @TaskAction
   public void write() {
-    String text =
-        getClasspath().getFiles().stream()
-            .map(File::getAbsolutePath)
-            .collect(Collectors.joining("\n", "", "\n"));
+    write(getClasspath().getFiles(), getOutputFile().get().getAsFile());
+  }
+
+  /** Writes {@code classPath} to {@code listing}, one absolute path per line. */
+  static void write(Iterable<File> classPath, File listing) {
+    StringBuilder text = new StringBuilder();
+    for (File f : classPath) {
+      text.append(f.getAbsolutePath()).append('\n');
+    }
     try {
-      Files.writeString(getOutputFile().get().getAsFile().toPath(), text);
+      Files.createDirectories(listing.toPath().getParent());
+      Files.writeString(listing.toPath(), text);
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }

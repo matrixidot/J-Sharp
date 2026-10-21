@@ -219,4 +219,21 @@ class JSharpPluginFunctionalTest {
     assertThat(Files.readString(dir.resolve("solo.iml")))
         .contains("url=\"file://$MODULE_DIR$/src/main/jsharp\" isTestSource=\"false\"");
   }
+
+  /**
+   * IntelliJ's Gradle sync runs no tasks; the plugin records the class path for editors while the
+   * sync configures the build, so libraries are known before the first build (D106).
+   */
+  @Test
+  void recordsTheClassPathDuringIntelliJSync() throws IOException {
+    project();
+    Path listing = dir.resolve("app/build/jsharp/main.classpath");
+    runner("help").build();
+    assertThat(listing).doesNotExist();
+    runner("help", "-Didea.sync.active=true").build();
+    assertThat(listing).exists();
+    assertThat(Files.readString(listing))
+        .contains("runtime")
+        .contains(dir.resolve("lib").toString());
+  }
 }

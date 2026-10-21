@@ -708,3 +708,9 @@ Format: **decision** — reason. *Rejected:* alternatives.
   - JS0411 (two scripts, or two entry points) is reported at every entry point, each pointing
     to the others, not only at the second. An editor analyzes each file with itself first, so
     the error used to land in a file that was not being shown.
+- **D106: Editors know a project's libraries before its first build.** IntelliJ's Gradle sync
+  runs no tasks, so until a build wrote `build/jsharp/<set>.classpath` (D096) every library
+  import (Bukkit, ...) was an error in the editor. During a sync IntelliJ passes
+  `-Didea.sync.active=true`; the Gradle plugin then writes the listing after the project is
+  evaluated (with the project's lock, which Gradle 9 requires for resolving), and a failure there
+  only warns, never breaks the sync. Other editors still get it from the first build.
