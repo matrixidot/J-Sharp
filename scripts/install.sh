@@ -25,7 +25,7 @@ TAG=${JSHARP_VERSION:-}
 if [ -z "$TAG" ]; then
   # The newest release, pre-releases included (J# is in beta), from the releases feed: unlike
   # GitHub's API it has no per-address rate limit, which shared networks and CI runners reach.
-  TAG=$(curl -fsSL "https://github.com/$REPO/releases.atom" \
+  TAG=$(curl -fsSL --retry 3 --retry-all-errors "https://github.com/$REPO/releases.atom" \
     | grep -o "/$REPO/releases/tag/[^\"]*" | head -1 | sed 's|.*/||')
   [ -n "$TAG" ] || { echo "J#: no release found at https://github.com/$REPO/releases" >&2; exit 1; }
 fi
@@ -35,7 +35,7 @@ URL="https://github.com/$REPO/releases/download/$TAG/jsharp-$VERSION-$PLATFORM.t
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
 echo "Downloading J# $VERSION for $PLATFORM..."
-curl -fSL --progress-bar "$URL" -o "$TMP/jsharp.tar.gz"
+curl -fSL --retry 3 --retry-all-errors --progress-bar "$URL" -o "$TMP/jsharp.tar.gz"
 tar -xzf "$TMP/jsharp.tar.gz" -C "$TMP"
 rm -rf "$INSTALL_DIR"
 mkdir -p "$(dirname "$INSTALL_DIR")" "$BIN_DIR"
