@@ -5,8 +5,10 @@ import io.github.matrixidot.jsharp.compiler.classpath.ClassPath;
 import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.ClassType;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -20,6 +22,13 @@ public final class Symtab {
   private final ClassPath classPath;
   private final ClassFileLoader loader;
   private final Map<String, ClassSymbol> classes = new HashMap<>();
+
+  /**
+   * Source classes by package, in the order they were entered: the lookups by package that run for
+   * every call need not scan {@link #classes}, which also holds every class path class loaded.
+   */
+  private final Map<String, Map<String, ClassSymbol>> sourceByPackage = new HashMap<>();
+
   private final Set<String> sourcePackages = new HashSet<>();
   private final Set<String> javaSources = new HashSet<>();
   private final Map<String, ClassType> wellKnown = new HashMap<>();
@@ -58,8 +67,8 @@ public final class Symtab {
    */
   public List<ClassSymbol> moduleClassesIn(String dottedPkg) {
     TreeMap<String, ClassSymbol> out = new TreeMap<>();
-    for (ClassSymbol c : classes.values()) {
-      if (c != null && c.isSource() && c.packageName().equals(dottedPkg) && c.has(Flags.MODULE)) {
+    for (ClassSymbol c : sourceClassesIn(dottedPkg)) {
+      if (c.has(Flags.MODULE)) {
         out.put(c.binaryName(), c);
       }
     }
@@ -80,6 +89,9 @@ public final class Symtab {
   public void enterSource(ClassSymbol c) {
     classes.put(c.binaryName(), c);
     sourcePackages.add(c.packageName());
+    sourceByPackage
+        .computeIfAbsent(c.packageName(), k -> new LinkedHashMap<>())
+        .put(c.binaryName(), c);
   }
 
   /**
@@ -110,9 +122,25 @@ public final class Symtab {
     return classPath.hasPackage(dotted);
   }
 
-  /** All source classes entered so far. */
+  /** All J# source classes, package by package. */
   public List<ClassSymbol> sourceClasses() {
-    return classes.values().stream().filter(c -> c != null && c.isSource()).toList();
+    List<ClassSymbol> out = new ArrayList<>();
+    for (String p : sourceByPackage.keySet()) {
+      out.addAll(sourceClassesIn(p));
+    }
+    return out;
+  }
+
+  /** The J# source classes of a package (nested ones too), in the order they were entered. */
+  public List<ClassSymbol> sourceClassesIn(String dottedPkg) {
+    List<ClassSymbol> out = new ArrayList<>();
+    for (ClassSymbol c : sourceByPackage.getOrDefault(dottedPkg, Map.of()).values()) {
+      // A Java source class of the same name replaces it (enterJavaSource).
+      if (classes.get(c.binaryName()) == c && c.isSource()) {
+        out.add(c);
+      }
+    }
+    return out;
   }
 
   // ------------------------------------------------------------------ well-known types

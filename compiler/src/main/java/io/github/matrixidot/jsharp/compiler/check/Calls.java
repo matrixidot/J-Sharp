@@ -2429,8 +2429,8 @@ final class Calls {
     for (ClassSymbol m : a.packageModules.getOrDefault(env.cls.packageName(), List.of())) {
       addExtensions(m, name, out);
     }
-    for (ClassSymbol c : a.syms.sourceClasses()) {
-      if (c.packageName().equals(env.cls.packageName()) && c.outer() == null) {
+    for (ClassSymbol c : a.syms.sourceClassesIn(env.cls.packageName())) {
+      if (c.outer() == null) {
         addExtensions(c, name, out);
       }
     }

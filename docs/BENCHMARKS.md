@@ -122,3 +122,24 @@ Findings:
   (1.01).
 - **`interpolation` (1.09)** has overlapping error bars with the baseline (13.32 ± 0.19 vs
   12.26 ± 1.26); both use the same `StringConcatFactory` recipe.
+
+## Compiler speed
+
+`CompilerSpeedTest` compiles a generated 10,120-line project (88 files, the project of
+`scripts/gen_project.py`) in memory through code generation; the target is under 2 s warm. Best of
+30 warm runs, with `-Djsharp.timings=true` for the phases (2026-10-21, same machine):
+
+| Phase | Before | After |
+| --- | ---: | ---: |
+| parse | 9 ms | 10 ms |
+| enter | 15 ms | 15 ms |
+| check | 254 ms | 77 ms |
+| lower | 7 ms | 10 ms |
+| codegen | 57 ms | 59 ms |
+| **total** | **338 ms** | **171 ms** |
+
+Finding extension methods (every instance call whose receiver has no such member, and every
+call that may be an extension) scanned the whole symbol table, class path classes included, for
+the classes of the current package. `Symtab` now indexes source classes by package. The rest of
+the time is spread out; the largest single item is the JDK's `ClassFile.build` (constant pool and
+stack maps) in code generation.

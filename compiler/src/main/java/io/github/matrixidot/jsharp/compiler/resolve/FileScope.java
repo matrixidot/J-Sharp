@@ -365,8 +365,8 @@ public final class FileScope {
         }
       }
     }
-    for (ClassSymbol c : ctx.syms.sourceClasses()) {
-      if (c.packageName().equals(pkg) && c.outer() == null) {
+    for (ClassSymbol c : ctx.syms.sourceClassesIn(pkg)) {
+      if (c.outer() == null) {
         out.add(c.name());
       }
     }
