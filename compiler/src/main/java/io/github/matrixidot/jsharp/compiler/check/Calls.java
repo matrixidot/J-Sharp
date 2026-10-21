@@ -203,7 +203,7 @@ final class Calls {
       }
       case Expr.Member m -> {
         if (m.nullSafe()) {
-          return a.safeAccess(
+          return a.members.safeAccess(
               m.target(),
               span,
               recv ->
@@ -544,12 +544,12 @@ final class Calls {
     }
     List<MethodSymbol> members = a.lookup.findMethods(memberSite, name);
     if (!members.isEmpty()) {
-      Type captured = a.captureSite(memberSite);
+      Type captured = a.members.captureSite(memberSite);
       Overloads.Selected sel =
           a.overloads.select(
               members, captured, infos, explicit, pt, null, span, name, extensions.isEmpty());
       if (sel != null) {
-        a.checkReceiverNullness(memberRecv, nameSpan);
+        a.members.checkReceiverNullness(memberRecv, nameSpan);
         if (sel.method.isStatic()) {
           memberRecv = null;
         }
@@ -589,7 +589,7 @@ final class Calls {
         if (site.isReference()
             && site.nullness() == Nullness.NULLABLE
             && sel.method.params().getFirst().type().nullness() == Nullness.NON_NULL) {
-          a.checkReceiverNullness(recv, nameSpan);
+          a.members.checkReceiverNullness(recv, nameSpan);
           List<ArgInfo> retyped =
               withReceiver(
                   new BExpr.Conv(
@@ -604,7 +604,15 @@ final class Calls {
       }
       if (!members.isEmpty()) {
         a.overloads.select(
-            members, a.captureSite(memberSite), infos, explicit, pt, null, span, name, true);
+            members,
+            a.members.captureSite(memberSite),
+            infos,
+            explicit,
+            pt,
+            null,
+            span,
+            name,
+            true);
       } else {
         a.overloads.select(extensions, null, withRecv, explicit, pt, recv, span, name, true);
       }
@@ -613,7 +621,7 @@ final class Calls {
     // No method: maybe a property holding a function value, e.g. `obj.handler(x)`.
     if (a.lookup.findProperty(memberSite, name) != null
         || a.lookup.findField(memberSite, name) != null) {
-      BExpr f = a.member(recv, name, nameSpan, span);
+      BExpr f = a.members.member(recv, name, nameSpan, span);
       if (f.type() instanceof ClassType ct && types().findSam(ct.sym()) != null) {
         return invokeFunctionalPrepared(f, infos, span);
       }
@@ -629,7 +637,7 @@ final class Calls {
               + ", not a method");
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
-    a.checkReceiverNullness(recv, nameSpan);
+    a.members.checkReceiverNullness(recv, nameSpan);
     Diagnostic.Builder d =
         a.err(
             Code.UNRESOLVED_MEMBER,
@@ -664,7 +672,7 @@ final class Calls {
     }
     List<MethodSymbol> cands = new ArrayList<>(a.lookup.findMethods(site, name));
     if (cands.isEmpty()) {
-      a.reportNoMember(site, name, nameSpan);
+      a.members.reportNoMember(site, name, nameSpan);
       prepare(args);
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
@@ -710,7 +718,7 @@ final class Calls {
       }
     }
     if (cands.isEmpty()) {
-      a.reportNoMember(s.superType(), name, nameSpan);
+      a.members.reportNoMember(s.superType(), name, nameSpan);
       prepare(args);
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
@@ -826,15 +834,23 @@ final class Calls {
           "a value of type " + f.type().display() + " cannot be called");
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
-    a.checkReceiverNullness(f, f.span());
+    a.members.checkReceiverNullness(f, f.span());
     MethodSymbol sam = types().findSam(ct.sym());
     Overloads.Selected sel =
         a.overloads.select(
-            List.of(sam), a.captureSite(ct), infos, null, null, null, span, sam.name(), true);
+            List.of(sam),
+            a.members.captureSite(ct),
+            infos,
+            null,
+            null,
+            null,
+            span,
+            sam.name(),
+            true);
     if (sel == null) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
-    return finish(sel, f, a.captureSite(ct), infos, span, false);
+    return finish(sel, f, a.members.captureSite(ct), infos, span, false);
   }
 
   // ------------------------------------------------------------------ constructors
@@ -914,7 +930,7 @@ final class Calls {
       Span span,
       boolean isSpecial) {
     MethodSymbol m = sel.method;
-    a.checkDeprecated(m, span);
+    a.members.checkDeprecated(m, span);
     List<BExpr> finalArgs = finalArgs(sel, site, args, span);
     Type ret;
     if (m.has(Flags.INFERRED_TYPE) && m.returnType() == null) {
@@ -945,7 +961,7 @@ final class Calls {
       a.error(
           Code.INVALID_THIS, span, "cannot call abstract method " + m.signature() + " directly");
     }
-    BExpr.CallKind kind = isSpecial ? BExpr.CallKind.SPECIAL : Attr.callKind(m, recv, false);
+    BExpr.CallKind kind = isSpecial ? BExpr.CallKind.SPECIAL : Members.callKind(m, recv, false);
     if (m.isStatic()) {
       kind = BExpr.CallKind.STATIC;
       recv = null;
@@ -1306,7 +1322,8 @@ final class Calls {
           un =
               a.overloads.select(
                   instances,
-                  a.captureSite(recvType instanceof PrimType p ? a.syms.boxed(p) : recvType),
+                  a.members.captureSite(
+                      recvType instanceof PrimType p ? a.syms.boxed(p) : recvType),
                   argTypes.subList(1, argTypes.size()),
                   null,
                   null,
@@ -1337,7 +1354,7 @@ final class Calls {
               Types.subst(
                   Types.subst(
                       un.method.returnType(),
-                      a.overloads.siteSubst(a.captureSite(recvType), un.method)),
+                      a.overloads.siteSubst(a.members.captureSite(recvType), un.method)),
                   un.solution);
           checkRefReturn(types().uncapture(ret), ft, span);
           return new BExpr.MethodRef(fi, sam, un.method, BExpr.RefKind.UNBOUND, null, ret, span);
@@ -1353,8 +1370,8 @@ final class Calls {
         if (recv.type() instanceof PrimType p) {
           recv = a.coerce(recv, a.syms.boxed(p), recv.span());
         }
-        a.checkReceiverNullness(recv, mr.target().span());
-        Type site = a.captureSite(recv.type());
+        a.members.checkReceiverNullness(recv, mr.target().span());
+        Type site = a.members.captureSite(recv.type());
         List<MethodSymbol> all = a.lookup.findMethods(site, mr.name());
         Overloads.Selected sel =
             all.isEmpty()
@@ -1492,7 +1509,7 @@ final class Calls {
   private void reportRefMismatch(
       Type site, String name, List<MethodSymbol> all, Types.MethodType ft, Span span) {
     if (all.isEmpty()) {
-      a.reportNoMember(site, name, span);
+      a.members.reportNoMember(site, name, span);
       return;
     }
     StringBuilder sb = new StringBuilder("(");
@@ -1587,7 +1604,7 @@ final class Calls {
                     Overloads.Selected sel =
                         a.overloads.select(
                             List.of(m),
-                            a.captureSite(recvType),
+                            a.members.captureSite(recvType),
                             argTypes.subList(1, argTypes.size()),
                             null,
                             null,
@@ -1601,7 +1618,7 @@ final class Calls {
                               Types.subst(
                                   Types.subst(
                                       m.returnType(),
-                                      a.overloads.siteSubst(a.captureSite(recvType), m)),
+                                      a.overloads.siteSubst(a.members.captureSite(recvType), m)),
                                   sel.solution));
                     }
                   }
@@ -1609,7 +1626,7 @@ final class Calls {
                 return null;
               }
               if (target instanceof Attr.ValueTarget v) {
-                Type site = a.captureSite(types().boxIfPrimitive(v.expr().type()));
+                Type site = a.members.captureSite(types().boxIfPrimitive(v.expr().type()));
                 List<MethodSymbol> all = a.lookup.findMethods(site, mr.name());
                 Overloads.Selected sel =
                     all.isEmpty()

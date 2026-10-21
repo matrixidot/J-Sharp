@@ -554,7 +554,7 @@ final class Stmts {
     if (it.isError()) {
       elem = Type.ErrorType.INSTANCE;
     } else {
-      a.checkReceiverNullness(iterable, f.iterable().span());
+      a.members.checkReceiverNullness(iterable, f.iterable().span());
       elem = a.types.iterableElement(a.types.boxIfPrimitive(it));
       if (elem == null) {
         elem = a.patterns.iterableViaExtension(iterable, f.iterable().span());
@@ -957,7 +957,7 @@ final class Stmts {
           l.monitor().span(),
           "lock needs an object, found " + m.type().display());
     } else if (!m.type().isError()) {
-      a.checkReceiverNullness(m, l.monitor().span());
+      a.members.checkReceiverNullness(m, l.monitor().span());
     }
     BStmt body = block(l.body());
     return new BStmt.Sync(m, body, l.span());

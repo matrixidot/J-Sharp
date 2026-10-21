@@ -176,17 +176,17 @@ final class Creation {
           a.value(fi.value(), null);
           continue;
         }
-        a.checkAccess(p.setter(), p.owner(), site, fi.nameSpan());
-        Type pt = a.memberType(a.captureSite(site), p.owner(), p.type());
+        a.members.checkAccess(p.setter(), p.owner(), site, fi.nameSpan());
+        Type pt = a.members.memberType(a.members.captureSite(site), p.owner(), p.type());
         out.add(new BExpr.MemberInit(p, a.exprCoerced(fi.value(), pt, fi.value().span())));
         continue;
       }
       FieldSymbol f = a.lookup.findField(site, fi.name());
-      if (f != null && a.hiddenByAccessor(f, site, a.lookup.findSetter(site, fi.name()))) {
+      if (f != null && a.members.hiddenByAccessor(f, site, a.lookup.findSetter(site, fi.name()))) {
         f = null; // a property of a compiled J# class: its private field yields to the setter
       }
       if (f != null && !f.isStatic()) {
-        a.checkAccess(f, f.owner(), site, fi.nameSpan());
+        a.members.checkAccess(f, f.owner(), site, fi.nameSpan());
         if (f.has(Flags.FINAL)) {
           a.error(Code.NOT_ASSIGNABLE, fi.nameSpan(), "field '" + fi.name() + "' is final");
         }
@@ -194,18 +194,21 @@ final class Creation {
             new BExpr.MemberInit(
                 f,
                 a.exprCoerced(
-                    fi.value(), a.memberType(site, f.owner(), f.type()), fi.value().span())));
+                    fi.value(),
+                    a.members.memberType(site, f.owner(), f.type()),
+                    fi.value().span())));
         continue;
       }
       MethodSymbol setter = a.lookup.findSetter(site, fi.name());
       if (setter != null) {
-        a.checkAccess(setter, setter.owner(), site, fi.nameSpan());
+        a.members.checkAccess(setter, setter.owner(), site, fi.nameSpan());
         Type pt =
-            a.memberType(a.captureSite(site), setter.owner(), setter.params().getFirst().type());
+            a.members.memberType(
+                a.members.captureSite(site), setter.owner(), setter.params().getFirst().type());
         out.add(new BExpr.MemberInit(setter, a.exprCoerced(fi.value(), pt, fi.value().span())));
         continue;
       }
-      a.reportNoMember(site, fi.name(), fi.nameSpan());
+      a.members.reportNoMember(site, fi.name(), fi.nameSpan());
       a.value(fi.value(), null);
     }
     checkRequiredMembers(site, new ArrayList<>(seen), span);

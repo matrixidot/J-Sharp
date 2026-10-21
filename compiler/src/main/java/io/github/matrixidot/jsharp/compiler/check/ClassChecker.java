@@ -522,7 +522,7 @@ public final class ClassChecker {
   /** Evaluates constant initializers of static final fields (for inlining and ConstantValue). */
   private static void computeConstants(Attr a, ClassSymbol c) {
     for (FieldSymbol f : c.fields()) {
-      a.ensureConstant(f);
+      a.members.ensureConstant(f);
     }
   }
 

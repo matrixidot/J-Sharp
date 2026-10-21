@@ -325,7 +325,7 @@ final class Patterns {
       for (FieldSymbol f : ict.sym().fields()) {
         if (f.has(Flags.ENUM_CONSTANT) && f.name().equals(n.name())) {
           return new BPattern.Constant(
-              a.fieldGet(null, ict.withNullness(Nullness.NON_NULL), f, e.span()), c.span());
+              a.members.fieldGet(null, ict.withNullness(Nullness.NON_NULL), f, e.span()), c.span());
         }
       }
     }
@@ -537,7 +537,10 @@ final class Patterns {
         }
         out.add(
             new Accessor(
-                m, types().uncapture(a.memberType(a.captureSite(ct), ct.sym(), f.type()))));
+                m,
+                types()
+                    .uncapture(
+                        a.members.memberType(a.members.captureSite(ct), ct.sym(), f.type()))));
       }
       return out;
     }
@@ -549,7 +552,10 @@ final class Patterns {
         MethodSymbol m = entry.methods(n).getFirst();
         out.add(
             new Accessor(
-                m, types().uncapture(a.memberType(a.captureSite(site), entry, m.returnType()))));
+                m,
+                types()
+                    .uncapture(
+                        a.members.memberType(a.members.captureSite(site), entry, m.returnType()))));
       }
       return out;
     }
@@ -573,7 +579,9 @@ final class Patterns {
     PropertySymbol p = a.lookup.findProperty(site, name);
     if (p != null && p.getter() != null) {
       return new Accessor(
-          p.getter(), types().uncapture(a.memberType(a.captureSite(site), p.owner(), p.type())));
+          p.getter(),
+          types()
+              .uncapture(a.members.memberType(a.members.captureSite(site), p.owner(), p.type())));
     }
     MethodSymbol m = a.lookup.findRecordAccessor(site, name);
     if (m == null) {
@@ -594,11 +602,14 @@ final class Patterns {
             "property patterns on array length are not supported; use a guard");
         return null;
       }
-      a.reportNoMember(site, name, span);
+      a.members.reportNoMember(site, name, span);
       return null;
     }
     return new Accessor(
-        m, types().uncapture(a.memberType(a.captureSite(site), m.owner(), m.returnType())));
+        m,
+        types()
+            .uncapture(
+                a.members.memberType(a.members.captureSite(site), m.owner(), m.returnType())));
   }
 
   // ------------------------------------------------------------------ is
@@ -1035,7 +1046,7 @@ final class Patterns {
                 value,
                 acc.method(),
                 List.of(),
-                Attr.callKind(acc.method(), value, false),
+                Members.callKind(acc.method(), value, false),
                 acc.type(),
                 span));
       }
@@ -1117,7 +1128,7 @@ final class Patterns {
               .help("declare the type as a record"));
       return new BExpr.Error(t, w.span());
     }
-    a.checkReceiverNullness(recv, w.target().span());
+    a.members.checkReceiverNullness(recv, w.target().span());
     ClassSymbol c = ct.sym();
     List<FieldSymbol> comps = c.recordComponents();
     MethodSymbol canonical = null;
@@ -1160,7 +1171,7 @@ final class Patterns {
       if (args[idx] != null) {
         a.error(Code.DUPLICATE_MEMBER, fi.nameSpan(), "'" + fi.name() + "' is set twice");
       }
-      Type compType = a.memberType(ct, c, comps.get(idx).type());
+      Type compType = a.members.memberType(ct, c, comps.get(idx).type());
       args[idx] = a.exprCoerced(fi.value(), compType, fi.value().span());
     }
     List<Accessor> accs = positionalAccessors(ct, w.span());
@@ -1252,8 +1263,10 @@ final class Patterns {
               Type elem =
                   types()
                       .uncapture(
-                          a.memberType(
-                              a.captureSite(t), list, list.typeParams().getFirst().asType()));
+                          a.members.memberType(
+                              a.members.captureSite(t),
+                              list,
+                              list.typeParams().getFirst().asType()));
               Type result = new ClassType(list, List.of(elem), Nullness.NON_NULL);
               yield call(seq, "subList", List.of(from, to), result, span);
             }
@@ -1296,8 +1309,10 @@ final class Patterns {
               Type elem =
                   types()
                       .uncapture(
-                          a.memberType(
-                              a.captureSite(t), list, list.typeParams().getFirst().asType()));
+                          a.members.memberType(
+                              a.members.captureSite(t),
+                              list,
+                              list.typeParams().getFirst().asType()));
               yield call(seq, "get", List.of(idx), elem, span);
             }
           };
@@ -1318,7 +1333,7 @@ final class Patterns {
       if (m.params().size() == args.size()
           && !m.isStatic()
           && (args.isEmpty() || m.params().getFirst().type() == PrimType.INT)) {
-        return new BExpr.Call(recv, m, args, Attr.callKind(m, recv, false), type, span);
+        return new BExpr.Call(recv, m, args, Members.callKind(m, recv, false), type, span);
       }
     }
     throw new IllegalStateException("missing " + name + " on " + recv.type().display());
@@ -1349,7 +1364,7 @@ final class Patterns {
           "'await' needs a Task or Future, found " + v.type().display());
       return new BExpr.Error(Type.ErrorType.INSTANCE, aw.span());
     }
-    a.checkReceiverNullness(v, aw.expr().span());
+    a.members.checkReceiverNullness(v, aw.expr().span());
     Type result =
         asFuture.args().isEmpty()
             ? a.syms.objectType().withNullness(Nullness.PLATFORM)

@@ -1015,7 +1015,7 @@ final class Ops {
           a.value(i.index(), null);
           return errorLV();
         }
-        a.checkReceiverNullness(recv, i.target().span());
+        a.members.checkReceiverNullness(recv, i.target().span());
         if (i.index() instanceof Expr.Unary fe && fe.op() == Expr.UnaryOp.FROM_END) {
           return fromEndLValue(recv, fe, i.span());
         }
@@ -1044,7 +1044,7 @@ final class Ops {
             acc.setter(),
             List.of(acc.index()),
             elem,
-            Attr.callKind(acc.setter(), recv, false));
+            Members.callKind(acc.setter(), recv, false));
       }
       default -> {
         a.error(Code.NOT_ASSIGNABLE, span, "this expression cannot be assigned to");
@@ -1100,13 +1100,15 @@ final class Ops {
       }
     }
     BExpr len =
-        new BExpr.Call(recv, size, List.of(), Attr.callKind(size, recv, false), PrimType.INT, span);
+        new BExpr.Call(
+            recv, size, List.of(), Members.callKind(size, recv, false), PrimType.INT, span);
     BExpr idx = new BExpr.Binary(BExpr.BinOp.SUB, len, n, PrimType.INT, false, span);
     Type elem =
         a.types.uncapture(
-            a.memberType(a.captureSite(t), list, list.typeParams().getFirst().asType()));
+            a.members.memberType(
+                a.members.captureSite(t), list, list.typeParams().getFirst().asType()));
     return new BLValue.PropertyLV(
-        recv, null, get, set, List.of(idx), elem, Attr.callKind(set, recv, false));
+        recv, null, get, set, List.of(idx), elem, Members.callKind(set, recv, false));
   }
 
   private static BLValue errorLV() {
@@ -1266,7 +1268,7 @@ final class Ops {
     FieldSymbol f = p == null ? a.lookup.findField(site, name) : null;
     if (f != null
         && !c.has(Flags.MODULE)
-        && a.hiddenByAccessor(f, site, a.lookup.findSetter(site, name))) {
+        && a.members.hiddenByAccessor(f, site, a.lookup.findSetter(site, name))) {
       f = null;
     }
     MethodSymbol setter =
@@ -1300,7 +1302,7 @@ final class Ops {
     if (site.isError()) {
       return errorLV();
     }
-    a.checkReceiverNullness(recv, span);
+    a.members.checkReceiverNullness(recv, span);
     boolean onThis = recv instanceof BExpr.This;
     PropertySymbol p = a.lookup.findProperty(site, name);
     if (p != null) {
@@ -1319,7 +1321,7 @@ final class Ops {
       return errorLV();
     }
     FieldSymbol f = a.lookup.findField(site, name);
-    if (f != null && !a.hiddenByAccessor(f, site, a.lookup.findSetter(site, name))) {
+    if (f != null && !a.members.hiddenByAccessor(f, site, a.lookup.findSetter(site, name))) {
       return fieldLValue(recv, site, f, span, onThis);
     }
     MethodSymbol setter = a.lookup.findSetter(site, name);
@@ -1335,7 +1337,7 @@ final class Ops {
       a.error(Code.NOT_ASSIGNABLE, span, "'" + name + "' of " + site.display() + " is read-only");
       return errorLV();
     }
-    a.reportNoMember(site, name, span);
+    a.members.reportNoMember(site, name, span);
     return errorLV();
   }
 
@@ -1351,12 +1353,12 @@ final class Ops {
     if (f != null && f.isStatic()) {
       return fieldLValue(null, site, f, span, false);
     }
-    a.reportNoMember(site, name, span);
+    a.members.reportNoMember(site, name, span);
     return errorLV();
   }
 
   BLValue fieldLValue(BExpr recv, Type site, FieldSymbol f, Span span, boolean onThis) {
-    a.checkAccess(f, f.owner(), recv == null ? null : site, span);
+    a.members.checkAccess(f, f.owner(), recv == null ? null : site, span);
     Env env = a.env;
     if (f.has(Flags.SCRIPT_VAL)) {
       // A script's `val` used by its functions is stored in a field (D094) but stays a val.
@@ -1393,7 +1395,7 @@ final class Ops {
         env.flow.assignedFields.add(f);
       }
     }
-    Type t = a.memberType(a.captureSite(site), f.owner(), a.ensureFieldType(f));
+    Type t = a.members.memberType(a.members.captureSite(site), f.owner(), a.ensureFieldType(f));
     return new BLValue.FieldLV(f.isStatic() ? null : recv, f, t);
   }
 
@@ -1403,7 +1405,7 @@ final class Ops {
 
   BLValue propertyLValue(BExpr recv, Type site, PropertySymbol p, Span span, boolean onThis) {
     Env env = a.env;
-    Type t = a.memberType(a.captureSite(site), p.owner(), p.type());
+    Type t = a.members.memberType(a.members.captureSite(site), p.owner(), p.type());
     boolean inOwnInit =
         p.owner() == env.cls
             && onThis
@@ -1439,7 +1441,7 @@ final class Ops {
                       + " = ... }' or a 'with' expression"));
       return errorLV();
     }
-    a.checkAccess(p.setter(), p.owner(), recv == null ? null : site, span);
+    a.members.checkAccess(p.setter(), p.owner(), recv == null ? null : site, span);
     return new BLValue.PropertyLV(
         p.isStatic() ? null : recv,
         p,
@@ -1447,7 +1449,7 @@ final class Ops {
         p.setter(),
         List.of(),
         t,
-        Attr.callKind(p.setter(), recv, isSuperReceiver(recv)));
+        Members.callKind(p.setter(), recv, isSuperReceiver(recv)));
   }
 
   /** {@code super.p = v} must call the superclass setter non-virtually. */
@@ -1470,9 +1472,11 @@ final class Ops {
               .help("use 'new " + setter.owner().name() + "(...) { " + name + " = ... }'"));
       return errorLV();
     }
-    a.checkAccess(setter, setter.owner(), recv == null ? null : site, span);
+    a.members.checkAccess(setter, setter.owner(), recv == null ? null : site, span);
     MethodSymbol getter = a.lookup.findGetter(site, name);
-    Type t = a.memberType(a.captureSite(site), setter.owner(), setter.params().getFirst().type());
+    Type t =
+        a.members.memberType(
+            a.members.captureSite(site), setter.owner(), setter.params().getFirst().type());
     return new BLValue.PropertyLV(
         setter.isStatic() ? null : recv,
         null,
@@ -1480,6 +1484,6 @@ final class Ops {
         setter,
         List.of(),
         t,
-        Attr.callKind(setter, recv, false));
+        Members.callKind(setter, recv, false));
   }
 }
