@@ -12,9 +12,11 @@ $headers = @{ 'User-Agent' = 'jsharp-installer' }
 
 $tag = $env:JSHARP_VERSION
 if (-not $tag) {
-    # The newest release, pre-releases included (J# is in beta).
-    $releases = Invoke-RestMethod "https://api.github.com/repos/$repo/releases?per_page=20" -Headers $headers
-    $tag = ($releases | Where-Object { -not $_.draft } | Select-Object -First 1).tag_name
+    # The newest release, pre-releases included (J# is in beta), from the releases feed: unlike
+    # GitHub's API it has no per-address rate limit, which shared networks and CI runners reach.
+    # Invoke-RestMethod returns a feed's entries, newest first.
+    $entries = Invoke-RestMethod "https://github.com/$repo/releases.atom" -Headers $headers
+    $tag = (@($entries)[0].link.href -split '/')[-1]
     if (-not $tag) { throw "J#: no release found at https://github.com/$repo/releases" }
 }
 $version = $tag.TrimStart('v')

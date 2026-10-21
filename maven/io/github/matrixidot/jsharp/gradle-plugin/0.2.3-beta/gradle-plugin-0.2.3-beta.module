@@ -1,0 +1,76 @@
+{
+  "formatVersion": "1.1",
+  "component": {
+    "group": "io.github.matrixidot.jsharp",
+    "module": "gradle-plugin",
+    "version": "0.2.3-beta",
+    "attributes": {
+      "org.gradle.status": "release"
+    }
+  },
+  "createdBy": {
+    "gradle": {
+      "version": "9.8.0"
+    }
+  },
+  "variants": [
+    {
+      "name": "apiElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 25,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-api"
+      },
+      "files": [
+        {
+          "name": "gradle-plugin-0.2.3-beta.jar",
+          "url": "gradle-plugin-0.2.3-beta.jar",
+          "size": 19597,
+          "sha512": "45a4f2c601bdce61795072d057819003396f0706c849fef2b936fc79a1539cdefd9275a9274d836accd57ba58dc25507ab73abad720dfa6e7d65db71ae43a906",
+          "sha256": "78ef3e083463ac9d5b397aef59d16442f79db79434c58e8891ed53462f635dc7",
+          "sha1": "90cb6a5d6b3eeae9a51f0f87180feff8f2696780",
+          "md5": "d0e4949a48c9359ea077680ebed3c90a"
+        }
+      ]
+    },
+    {
+      "name": "runtimeElements",
+      "attributes": {
+        "org.gradle.category": "library",
+        "org.gradle.dependency.bundling": "external",
+        "org.gradle.jvm.version": 25,
+        "org.gradle.libraryelements": "jar",
+        "org.gradle.usage": "java-runtime"
+      },
+      "dependencies": [
+        {
+          "group": "io.github.matrixidot.jsharp",
+          "module": "compiler",
+          "version": {
+            "requires": "0.2.3-beta"
+          }
+        },
+        {
+          "group": "io.github.matrixidot.jsharp",
+          "module": "runtime",
+          "version": {
+            "requires": "0.2.3-beta"
+          }
+        }
+      ],
+      "files": [
+        {
+          "name": "gradle-plugin-0.2.3-beta.jar",
+          "url": "gradle-plugin-0.2.3-beta.jar",
+          "size": 19597,
+          "sha512": "45a4f2c601bdce61795072d057819003396f0706c849fef2b936fc79a1539cdefd9275a9274d836accd57ba58dc25507ab73abad720dfa6e7d65db71ae43a906",
+          "sha256": "78ef3e083463ac9d5b397aef59d16442f79db79434c58e8891ed53462f635dc7",
+          "sha1": "90cb6a5d6b3eeae9a51f0f87180feff8f2696780",
+          "md5": "d0e4949a48c9359ea077680ebed3c90a"
+        }
+      ]
+    }
+  ]
+}

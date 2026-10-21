@@ -3,13 +3,14 @@
   <groupId>io.github.matrixidot.jsharp</groupId>
   <artifactId>io.github.matrixidot.jsharp.gradle.plugin</artifactId>
   <versioning>
-    <latest>0.2.2-beta</latest>
-    <release>0.2.2-beta</release>
+    <latest>0.2.3-beta</latest>
+    <release>0.2.3-beta</release>
     <versions>
       <version>0.2.0-beta</version>
       <version>0.2.1-beta</version>
       <version>0.2.2-beta</version>
+      <version>0.2.3-beta</version>
     </versions>
-    <lastUpdated>20261021155755</lastUpdated>
+    <lastUpdated>20261021173932</lastUpdated>
   </versioning>
 </metadata>
