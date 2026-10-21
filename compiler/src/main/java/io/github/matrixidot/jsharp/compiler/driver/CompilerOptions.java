@@ -69,11 +69,6 @@ public record CompilerOptions(
         classPath, dir, warningsAsErrors, strictPlatformNullness, emitDebugInfo, release);
   }
 
-  public CompilerOptions withWarningsAsErrors(boolean on) {
-    return new CompilerOptions(
-        classPath, outputDir, on, strictPlatformNullness, emitDebugInfo, release);
-  }
-
   public CompilerOptions withStrictPlatformNullness(boolean on) {
     return new CompilerOptions(classPath, outputDir, warningsAsErrors, on, emitDebugInfo, release);
   }
