@@ -66,6 +66,7 @@ public sealed interface Type {
       return keyword;
     }
 
+    /** The JVM descriptor, e.g. {@code I}. */
     public String descriptor() {
       return descriptor;
     }
@@ -75,10 +76,12 @@ public sealed interface Type {
       return this;
     }
 
+    /** True for every primitive type except {@code boolean} and {@code void}. */
     public boolean isNumeric() {
       return this != BOOLEAN && this != VOID;
     }
 
+    /** True for {@code byte}, {@code short}, {@code char}, {@code int} and {@code long}. */
     public boolean isIntegral() {
       return this == BYTE || this == SHORT || this == CHAR || this == INT || this == LONG;
     }
@@ -108,10 +111,12 @@ public sealed interface Type {
       args = List.copyOf(args);
     }
 
+    /** The non-null class type of a symbol, without type arguments. */
     public static ClassType of(ClassSymbol sym) {
       return new ClassType(sym, List.of(), Nullness.NON_NULL);
     }
 
+    /** True for a generic class used without type arguments. */
     public boolean isRaw() {
       return args.isEmpty() && !sym.typeParams().isEmpty();
     }
@@ -154,6 +159,7 @@ public sealed interface Type {
 
   /** {@code T[]}. */
   record ArrayType(Type elem, Nullness nullness) implements Type {
+    /** The non-null array type of an element type. */
     public static ArrayType of(Type elem) {
       return new ArrayType(elem, Nullness.NON_NULL);
     }

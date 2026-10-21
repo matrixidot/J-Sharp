@@ -34,10 +34,12 @@ public final class Types {
   private final Set<ClassSymbol> notFunctional = new HashSet<>();
   private int captureCounter;
 
+  /** Type operations over the classes of {@code syms}. */
   public Types(Symtab syms) {
     this.syms = syms;
   }
 
+  /** The symbol table. */
   public Symtab syms() {
     return syms;
   }
@@ -114,6 +116,7 @@ public final class Types {
     };
   }
 
+  /** The substitution of {@code args} for {@code vars} (pairwise, as far as both go). */
   public static Map<TypeVarSymbol, Type> zip(List<TypeVarSymbol> vars, List<Type> args) {
     Map<TypeVarSymbol, Type> m = new IdentityHashMap<>();
     for (int i = 0; i < vars.size() && i < args.size(); i++) {
@@ -214,6 +217,7 @@ public final class Types {
     return new ClassType(tt.erasedSym(), args, tt.nullness());
   }
 
+  /** The box of a primitive type ({@code int} to {@code Integer}); other types unchanged. */
   public Type boxIfPrimitive(Type t) {
     return t instanceof PrimType p && p != PrimType.VOID ? syms.boxed(p) : t;
   }
@@ -415,11 +419,13 @@ public final class Types {
     return t instanceof PrimType p ? p : unboxedType(t);
   }
 
+  /** True for numeric primitives and their boxes. */
   public boolean isNumeric(Type t) {
     PrimType p = primitiveView(t);
     return p != null && p.isNumeric();
   }
 
+  /** True for {@code boolean} and {@code Boolean}. */
   public boolean isBoolean(Type t) {
     return primitiveView(t) == PrimType.BOOLEAN;
   }
@@ -853,6 +859,7 @@ public final class Types {
     return new MethodType(ps, subst(sam.returnType(), m));
   }
 
+  /** {@code t} with each wildcard argument replaced by its bound (or the parameter's bound). */
   public ClassType nonWildcard(ClassType t) {
     if (t.args().stream().noneMatch(a -> a instanceof WildcardType)) {
       return t;

@@ -104,6 +104,7 @@ public final class ClassSymbol implements Symbol {
     return state == State.HEADER;
   }
 
+  /** Completes the header and the members now (they are otherwise completed on first use). */
   public void completeAll() {
     ensureMembers();
   }
@@ -115,10 +116,12 @@ public final class ClassSymbol implements Symbol {
     return simpleName;
   }
 
+  /** The JVM internal name, e.g. {@code java/util/Map$Entry}. */
   public String binaryName() {
     return binaryName;
   }
 
+  /** The dotted package name; empty for the unnamed package. */
   public String packageName() {
     return packageName;
   }
@@ -136,6 +139,7 @@ public final class ClassSymbol implements Symbol {
     return o != null ? o.displayName() + "." + simpleName : simpleName;
   }
 
+  /** The directly enclosing class, or null for a top-level class. */
   public ClassSymbol outer() {
     if (!outerKnown) {
       ensureHeader();
@@ -143,6 +147,7 @@ public final class ClassSymbol implements Symbol {
     return outer;
   }
 
+  /** Sets the enclosing class (null: top level). */
   public void setOuter(ClassSymbol o) {
     this.outer = o;
     this.outerKnown = true;
@@ -155,6 +160,7 @@ public final class ClassSymbol implements Symbol {
     }
   }
 
+  /** The top-level class this class is nested in, or itself. */
   public ClassSymbol outermost() {
     ClassSymbol c = this;
     while (c.outer() != null) {
@@ -174,30 +180,37 @@ public final class ClassSymbol implements Symbol {
     return flags;
   }
 
+  /** Replaces the flags ({@link Flags}). */
   public void setFlags(long f) {
     this.flags = f;
   }
 
+  /** Adds flags ({@link Flags}). */
   public void addFlags(long f) {
     this.flags |= f;
   }
 
+  /** True for interfaces and annotation types. */
   public boolean isInterface() {
     return has(Flags.INTERFACE);
   }
 
+  /** True for enums. */
   public boolean isEnum() {
     return has(Flags.ENUM);
   }
 
+  /** True for records. */
   public boolean isRecord() {
     return has(Flags.RECORD);
   }
 
+  /** True for abstract classes and interfaces. */
   public boolean isAbstract() {
     return has(Flags.ABSTRACT);
   }
 
+  /** True if the class cannot be extended. */
   public boolean isFinal() {
     return has(Flags.FINAL);
   }
@@ -218,10 +231,12 @@ public final class ClassSymbol implements Symbol {
     return javaSpan;
   }
 
+  /** True for a class declared in J# source of this compilation. */
   public boolean isSource() {
     return (flags & Flags.SOURCE) != 0;
   }
 
+  /** True for annotation types. */
   public boolean isAnnotation() {
     return has(Flags.ANNOTATION);
   }
@@ -235,6 +250,7 @@ public final class ClassSymbol implements Symbol {
     return annotations;
   }
 
+  /** Sets the checked annotations (D109). */
   public void setAnnotations(List<AnnotationUse> anns) {
     annotations = List.copyOf(anns);
   }
@@ -258,6 +274,7 @@ public final class ClassSymbol implements Symbol {
     return annotationTargets;
   }
 
+  /** Sets an annotation type's retention and targets (null: every declaration). */
   public void setAnnotationInfo(String retention, Set<String> targets) {
     this.retention = retention;
     this.annotationTargets = targets == null ? null : Set.copyOf(targets);
@@ -265,11 +282,13 @@ public final class ClassSymbol implements Symbol {
 
   // ------------------------------------------------------------------ header
 
+  /** The declared type parameters, in order. */
   public List<TypeVarSymbol> typeParams() {
     ensureHeader();
     return typeParams;
   }
 
+  /** Sets the declared type parameters. */
   public void setTypeParams(List<TypeVarSymbol> tps) {
     this.typeParams = List.copyOf(tps);
     this.thisType = null;
@@ -281,38 +300,46 @@ public final class ClassSymbol implements Symbol {
     return superclass;
   }
 
+  /** Sets the superclass type (null for {@code Object}, and for interfaces from class files). */
   public void setSuperclass(ClassType t) {
     this.superclass = t;
   }
 
+  /** The directly implemented or extended interfaces. */
   public List<ClassType> interfaces() {
     ensureHeader();
     return interfaces;
   }
 
+  /** Sets the directly implemented or extended interfaces. */
   public void setInterfaces(List<ClassType> is) {
     this.interfaces = List.copyOf(is);
   }
 
+  /** The permitted subclasses of a sealed class; empty otherwise. */
   public List<ClassSymbol> permitted() {
     ensureHeader();
     return permitted;
   }
 
+  /** Sets the permitted subclasses. */
   public void setPermitted(List<ClassSymbol> p) {
     this.permitted = List.copyOf(p);
   }
 
+  /** The member class of that simple name, or null (inherited ones are not included). */
   public ClassSymbol memberType(String name) {
     ensureStructure();
     return memberTypes.get(name);
   }
 
+  /** The member classes declared here. */
   public Collection<ClassSymbol> memberTypes() {
     ensureStructure();
     return memberTypes.values();
   }
 
+  /** Adds a member class. */
   public void addMemberType(ClassSymbol c) {
     memberTypes.put(c.name(), c);
   }
@@ -331,11 +358,13 @@ public final class ClassSymbol implements Symbol {
 
   // ------------------------------------------------------------------ members
 
+  /** The methods and constructors ({@code <init>}) of that name declared here. */
   public List<MethodSymbol> methods(String name) {
     ensureMembers();
     return methods.getOrDefault(name, List.of());
   }
 
+  /** All methods and constructors declared here (not inherited ones). */
   public List<MethodSymbol> allMethods() {
     ensureMembers();
     List<MethodSymbol> out = new ArrayList<>();
@@ -343,47 +372,57 @@ public final class ClassSymbol implements Symbol {
     return out;
   }
 
+  /** Adds a method or constructor. */
   public void addMethod(MethodSymbol m) {
     methods.computeIfAbsent(m.name(), k -> new ArrayList<>()).add(m);
   }
 
+  /** The field of that name declared here, or null. */
   public FieldSymbol field(String name) {
     ensureMembers();
     return fields.get(name);
   }
 
+  /** The fields declared here, enum constants and synthetic fields included. */
   public Collection<FieldSymbol> fields() {
     ensureMembers();
     return fields.values();
   }
 
+  /** Adds a field. */
   public void addField(FieldSymbol f) {
     fields.put(f.name(), f);
   }
 
+  /** The property of that name declared here, or null. */
   public PropertySymbol property(String name) {
     ensureMembers();
     return properties.get(name);
   }
 
+  /** The properties declared here. */
   public Collection<PropertySymbol> properties() {
     ensureMembers();
     return properties.values();
   }
 
+  /** Adds a property. */
   public void addProperty(PropertySymbol p) {
     properties.put(p.name(), p);
   }
 
+  /** A record's component fields, in declaration order; empty otherwise. */
   public List<FieldSymbol> recordComponents() {
     ensureMembers();
     return recordComponents;
   }
 
+  /** Adds a record component (in order). */
   public void addRecordComponent(FieldSymbol f) {
     recordComponents.add(f);
   }
 
+  /** An enum's constants, in declaration order; empty otherwise. */
   public List<FieldSymbol> enumConstants() {
     List<FieldSymbol> out = new ArrayList<>();
     for (FieldSymbol f : fields()) {
@@ -396,14 +435,17 @@ public final class ClassSymbol implements Symbol {
 
   // ------------------------------------------------------------------ source link
 
+  /** The declaration of a source class; null for class files and module classes. */
   public Decl.TypeDecl decl() {
     return decl;
   }
 
+  /** The file of a source class; null for class files. */
   public CompilationUnit unit() {
     return unit;
   }
 
+  /** Records the declaration and file of a source class. */
   public void setSource(Decl.TypeDecl decl, CompilationUnit unit) {
     this.decl = decl;
     this.unit = unit;
@@ -414,6 +456,7 @@ public final class ClassSymbol implements Symbol {
     return sourceFileName;
   }
 
+  /** Sets the file name written to the SourceFile attribute. */
   public void setSourceFileName(String n) {
     this.sourceFileName = n;
   }

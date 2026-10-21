@@ -16,6 +16,7 @@ public final class FieldSymbol implements Symbol {
   private VarDeclarator declarator;
   private PropertySymbol property;
 
+  /** A field of {@code owner}; {@code type} may be set later ({@link #setType}). */
   public FieldSymbol(String name, ClassSymbol owner, long flags, Type type) {
     this.name = name;
     this.owner = owner;
@@ -28,6 +29,7 @@ public final class FieldSymbol implements Symbol {
     return name;
   }
 
+  /** The declaring class. */
   public ClassSymbol owner() {
     return owner;
   }
@@ -37,14 +39,17 @@ public final class FieldSymbol implements Symbol {
     return flags;
   }
 
+  /** Adds flags ({@link Flags}). */
   public void addFlags(long f) {
     flags |= f;
   }
 
+  /** The declared (or inferred) type. */
   public Type type() {
     return type;
   }
 
+  /** Sets the type (once inferred from the initializer). */
   public void setType(Type t) {
     this.type = t;
   }
@@ -54,6 +59,7 @@ public final class FieldSymbol implements Symbol {
     return constantValue;
   }
 
+  /** Sets the compile-time constant value (a boxed primitive or String). */
   public void setConstantValue(Object v) {
     this.constantValue = v;
   }
@@ -67,27 +73,33 @@ public final class FieldSymbol implements Symbol {
     return annotations;
   }
 
+  /** Sets the checked annotations (D109). */
   public void setAnnotations(List<AnnotationUse> anns) {
     annotations = List.copyOf(anns);
   }
 
+  /** The declaration in source, or null. */
   public Decl decl() {
     return decl;
   }
 
+  /** The declarator ({@code name = init}) in source, or null. */
   public VarDeclarator declarator() {
     return declarator;
   }
 
+  /** Records the declaration in source. */
   public void setSource(Decl decl, VarDeclarator declarator) {
     this.decl = decl;
     this.declarator = declarator;
   }
 
+  /** The property this field backs, or null. */
   public PropertySymbol property() {
     return property;
   }
 
+  /** Marks the field as the backing field of a property. */
   public void setProperty(PropertySymbol p) {
     this.property = p;
   }

@@ -25,10 +25,14 @@ public final class MethodSymbol implements Symbol {
       Expr defaultExpr,
       boolean hasDefault,
       Object defaultValue) {
+    /** A plain parameter: no varargs, no default. */
     public static Param of(String name, Type type) {
       return new Param(name, type, false, null, false, null);
     }
 
+    /**
+     * This parameter with a default argument (a constant, or null for one computed at the call).
+     */
     public Param withDefault(Object value) {
       return new Param(name, type, isVarargs, defaultExpr, true, value);
     }
@@ -44,6 +48,7 @@ public final class MethodSymbol implements Symbol {
   private PropertySymbol property;
   private Type jvmReturnType;
 
+  /** A method (or constructor, named {@link #CONSTRUCTOR}) of {@code owner}. */
   public MethodSymbol(String name, ClassSymbol owner, long flags) {
     this.name = name;
     this.owner = owner;
@@ -55,6 +60,7 @@ public final class MethodSymbol implements Symbol {
     return name;
   }
 
+  /** The declaring class. */
   public ClassSymbol owner() {
     return owner;
   }
@@ -64,50 +70,62 @@ public final class MethodSymbol implements Symbol {
     return flags;
   }
 
+  /** Replaces the flags ({@link Flags}). */
   public void setFlags(long f) {
     this.flags = f;
   }
 
+  /** Adds flags ({@link Flags}). */
   public void addFlags(long f) {
     this.flags |= f;
   }
 
+  /** True for constructors ({@code <init>}). */
   public boolean isConstructor() {
     return name.equals(CONSTRUCTOR);
   }
 
+  /** True for abstract methods. */
   public boolean isAbstract() {
     return has(Flags.ABSTRACT);
   }
 
+  /** True if the last parameter takes a variable number of arguments. */
   public boolean isVarargs() {
     return has(Flags.VARARGS);
   }
 
+  /** True for extension methods (their first parameter is the receiver). */
   public boolean isExtension() {
     return has(Flags.EXTENSION);
   }
 
+  /** The declared type parameters, in order. */
   public List<TypeVarSymbol> typeParams() {
     return typeParams;
   }
 
+  /** Sets the declared type parameters. */
   public void setTypeParams(List<TypeVarSymbol> tps) {
     this.typeParams = List.copyOf(tps);
   }
 
+  /** The parameters, in order. */
   public List<Param> params() {
     return params;
   }
 
+  /** Sets the parameters. */
   public void setParams(List<Param> ps) {
     this.params = List.copyOf(ps);
   }
 
+  /** The return type ({@code void} for constructors). */
   public Type returnType() {
     return returnType;
   }
 
+  /** Sets the return type. */
   public void setReturnType(Type t) {
     this.returnType = t;
   }
@@ -117,6 +135,7 @@ public final class MethodSymbol implements Symbol {
     return jvmReturnType;
   }
 
+  /** Sets a JVM return type that differs from the J# one (see {@link #jvmReturnType()}). */
   public void setJvmReturnType(Type t) {
     this.jvmReturnType = t;
   }
@@ -131,6 +150,7 @@ public final class MethodSymbol implements Symbol {
     return sourceView;
   }
 
+  /** Sets the declared view of a hoisted local function (see {@link #sourceView()}). */
   public void setSourceView(MethodSymbol m) {
     this.sourceView = m;
   }
@@ -144,6 +164,7 @@ public final class MethodSymbol implements Symbol {
     return annotations;
   }
 
+  /** Sets the checked annotations (D109). */
   public void setAnnotations(List<AnnotationUse> anns) {
     annotations = List.copyOf(anns);
   }
@@ -155,22 +176,27 @@ public final class MethodSymbol implements Symbol {
     return parameterAnnotations;
   }
 
+  /** Sets the checked annotations of each parameter (D109). */
   public void setParameterAnnotations(List<List<AnnotationUse>> anns) {
     parameterAnnotations = anns.stream().map(List::copyOf).toList();
   }
 
+  /** The declaration in source (a method, constructor or property), or null. */
   public Decl decl() {
     return decl;
   }
 
+  /** Records the declaration in source. */
   public void setDecl(Decl d) {
     this.decl = d;
   }
 
+  /** The property this method is an accessor of, or null. */
   public PropertySymbol property() {
     return property;
   }
 
+  /** Marks the method as an accessor of a property. */
   public void setProperty(PropertySymbol p) {
     this.property = p;
   }

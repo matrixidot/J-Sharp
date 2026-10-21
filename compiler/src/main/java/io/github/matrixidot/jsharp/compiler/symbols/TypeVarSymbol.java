@@ -15,6 +15,7 @@ public final class TypeVarSymbol implements Symbol {
   private Type lowerBound;
   private boolean captured;
 
+  /** A type parameter of {@code owner} (a class or method); bounds are set later. */
   public TypeVarSymbol(String name, Symbol owner, TypeParam.Variance variance) {
     this.name = name;
     this.owner = owner;
@@ -26,10 +27,12 @@ public final class TypeVarSymbol implements Symbol {
     return name;
   }
 
+  /** The class or method declaring it. */
   public Symbol owner() {
     return owner;
   }
 
+  /** The declaration-site variance ({@code in}, {@code out} or invariant). */
   public TypeParam.Variance variance() {
     return variance;
   }
@@ -55,6 +58,7 @@ public final class TypeVarSymbol implements Symbol {
     this.erasedBound = erasedBound;
   }
 
+  /** The erasure of the first bound: the type at the JVM level. */
   public Type erasedBound() {
     return erasedBound;
   }
@@ -78,6 +82,7 @@ public final class TypeVarSymbol implements Symbol {
     return tv;
   }
 
+  /** The type variable as a (non-null) type. */
   public Type asType() {
     return new Type.TypeVar(this, Nullness.NON_NULL);
   }

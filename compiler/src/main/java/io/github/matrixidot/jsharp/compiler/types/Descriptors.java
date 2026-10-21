@@ -6,6 +6,7 @@ import java.util.List;
 public final class Descriptors {
   private Descriptors() {}
 
+  /** The JVM descriptor of a type's erasure, e.g. {@code Ljava/lang/String;}. */
   public static String of(Type t) {
     return switch (t) {
       case Type.PrimType p -> p.descriptor();
@@ -21,6 +22,7 @@ public final class Descriptors {
     };
   }
 
+  /** A method descriptor, e.g. {@code (ILjava/lang/String;)V}. */
   public static String method(List<Type> params, Type ret) {
     StringBuilder sb = new StringBuilder("(");
     for (Type p : params) {

@@ -24,6 +24,7 @@ public final class VarSymbol implements Symbol {
   private boolean reassigned;
   private VarSymbol cell;
 
+  /** A local variable of a body; {@code id} is unique within the body. */
   public VarSymbol(String name, Type type, long flags, Kind kind, Span span, int id) {
     this.name = name;
     this.type = type;
@@ -38,10 +39,12 @@ public final class VarSymbol implements Symbol {
     return name;
   }
 
+  /** The declared (or inferred) type. */
   public Type type() {
     return type;
   }
 
+  /** Sets the type (once inferred). */
   public void setType(Type t) {
     this.type = t;
   }
@@ -51,10 +54,12 @@ public final class VarSymbol implements Symbol {
     return flags;
   }
 
+  /** What declared it: a local, parameter, catch parameter, pattern binding, ... */
   public Kind kind() {
     return kind;
   }
 
+  /** Where it is declared. */
   public Span span() {
     return span;
   }
@@ -64,6 +69,7 @@ public final class VarSymbol implements Symbol {
     return id;
   }
 
+  /** True for {@code val} and final variables. */
   public boolean isFinal() {
     return has(Flags.FINAL);
   }
@@ -77,18 +83,22 @@ public final class VarSymbol implements Symbol {
     return cell;
   }
 
+  /** Sets the atomic cell that holds this variable (see {@link #cell()}). */
   public void setCell(VarSymbol c) {
     this.cell = c;
   }
 
+  /** True for {@code atomic} locals (D084). */
   public boolean isAtomic() {
     return has(Flags.ATOMIC);
   }
 
+  /** True if the variable is assigned after its declaration. */
   public boolean reassigned() {
     return reassigned;
   }
 
+  /** Records an assignment after the declaration. */
   public void markReassigned() {
     reassigned = true;
   }

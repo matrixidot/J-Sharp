@@ -33,11 +33,13 @@ public final class Symtab {
   private final Set<String> javaSources = new HashSet<>();
   private final Map<String, ClassType> wellKnown = new HashMap<>();
 
+  /** A table that loads missing classes from {@code classPath}. */
   public Symtab(ClassPath classPath) {
     this.classPath = classPath;
     this.loader = new ClassFileLoader(this);
   }
 
+  /** The class path classes are loaded from. */
   public ClassPath classPath() {
     return classPath;
   }
@@ -110,6 +112,7 @@ public final class Symtab {
     return c != null && (c.isSource() || javaSources.contains(binaryName));
   }
 
+  /** True if the package, or a subpackage, exists in source or on the class path. */
   public boolean packageExists(String dotted) {
     if (dotted.isEmpty() || sourcePackages.contains(dotted)) {
       return true;
@@ -160,18 +163,22 @@ public final class Symtab {
     return t;
   }
 
+  /** {@code java.lang.Object}. */
   public ClassType objectType() {
     return wellKnown("java/lang/Object");
   }
 
+  /** The symbol of {@code java.lang.Object}. */
   public ClassSymbol objectSym() {
     return objectType().sym();
   }
 
+  /** {@code java.lang.String}. */
   public ClassType stringType() {
     return wellKnown("java/lang/String");
   }
 
+  /** {@code java.lang.Throwable}. */
   public ClassType throwableType() {
     return wellKnown("java/lang/Throwable");
   }
