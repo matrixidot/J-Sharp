@@ -1,0 +1,25 @@
+// Narrowing never happens implicitly for non-constant expressions.
+byte b = 1;
+char c = 'a';
+int i = 3;
+long l = 4L;
+float f = 1f;
+double d = 2.0;
+
+byte byteSum = b + b;                  //~ JS0600
+short shortProduct = b * 2;            //~ JS0600
+int intPlusLong = i + l;               //~ JS0600
+long longTimesFloat = l * f;           //~ JS0600
+float floatPlusDouble = f + d;         //~ JS0600
+char charFromInt = i;                  //~ JS0600
+int intFromDouble = d;                 //~ JS0600
+char charPlusOne = c + 1;              //~ JS0600
+short shortFromChar = c;               //~ JS0600
+char charFromByte = b;                 //~ JS0600
+String charsAdded = 'a' + 'b';         //~ JS0600
+Integer boxedFromLong = l;             //~ JS0600
+int fromHalf = i / 2.0;                //~ JS0600
+int takesInt(int x) => x;
+println(takesInt(l));                  //~ JS0600
+println(takesInt(d));                  //~ JS0600
+long returnsLong() => 1.5;             //~ JS0600

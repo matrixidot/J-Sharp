@@ -1,0 +1,27 @@
+import java.util.*;
+
+public class Box<T> {
+    private T value;
+    public Box(T value) { this.value = value; }
+    public T get() => value;
+    public void set(T v) { value = v; }
+}
+
+public class Util {
+    public static T max<T : Comparable<T>>(T a, T b) => a.compareTo(b) >= 0 ? a : b;
+    public static T first<T>(List<T> xs) => xs.get(0);
+    public static T make<T>() => throw new UnsupportedOperationException();
+    public static void both<T>(T a, T b) { }
+}
+
+void main2() {
+    var b = new Box<String>("s");
+    b.set(5);                                        //~ JS0600
+    int n = b.get();                                 //~ JS0600
+    Box<Object> bo = b;                              //~ JS0600
+    String s = Util.first(List.of(1, 2));            //~ JS0616
+    var x = Util.first<String>(List.of(1));          //~ JS0600
+    var y = Util.max(new Object(), new Object());    //~ JS0616
+    var w = Util.first<String, int>(List.of("a"));   //~ JS0405
+    var bad = new Box<String, String>("a");          //~ JS0405
+}

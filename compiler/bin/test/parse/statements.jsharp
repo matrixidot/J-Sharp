@@ -1,0 +1,62 @@
+var x = 5;
+val y = 10;
+int a = 1, b = 2;
+String? maybe = lookup(id);
+int len = maybe?.length ?? 0;
+String s = maybe!;
+if (maybe != null) { maybe.length(); }
+maybe ??= "default";
+final var z = 3;
+List<String> xs = new();
+List<List<String>> nested = new ArrayList<>();
+int[] arr = { 1, 2, 3 };
+int[][] grid = new int[3][4];
+var (px, py) = point;
+(int id, String name) = tuple;
+(int, String) t = (1, "a");
+
+while (x > 0) x--;
+do { x++; } while (x < 10);
+for (int i = 0, j = 10; i < j; i++, j--) { continue; }
+for (;;) { break; }
+outer: for (var i = 0; i < 3; i++) {
+    for (var j = 0; j < 3; j++) {
+        if (j == 1) continue outer;
+        if (i == 2) break outer;
+    }
+}
+foreach (String item in xs) println(item);
+foreach (var (k, v) in map.entries()) println(k);
+
+switch (color) {
+    case Color.Red:
+    case Color.Green:
+        println("warm-ish");
+        break;
+    case Color.Blue when cold:
+        println("blue");
+        break;
+    default:
+        println("other");
+        break;
+}
+
+try {
+    risky();
+} catch (IOException | SQLException e) {
+    log(e);
+} catch (Exception e) when (e.getMessage() != null) {
+    throw;
+} catch {
+    println("anything");
+} finally {
+    cleanup();
+}
+
+using (var r = open()) { r.read(); }
+using var r2 = open();
+using (connection) { }
+lock (obj) { counter++; }
+checked { total = total + 1; }
+var c = checked(a * b);
+throw new IllegalStateException("bad");

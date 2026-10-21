@@ -1,0 +1,9 @@
+class Broken {
+    public int a() { return 1 }
+    public int b() { var x = ; return x; }
+    public void c() { foo(1, 2; }
+    public int ok() => 42;
+}
+var after = 1
+println(after);
+}

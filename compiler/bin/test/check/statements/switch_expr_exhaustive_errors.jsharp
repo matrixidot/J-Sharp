@@ -1,0 +1,90 @@
+public sealed interface Shape;
+public record Circle(double r) : Shape;
+public record Rect(double w, double h) : Shape;
+public record Square(double s) : Shape;
+
+public sealed interface Tree;
+public record Leaf(int value) : Tree;
+public sealed interface Branch : Tree;
+public record Two(Tree l, Tree r) : Branch;
+public record Three(Tree a, Tree b, Tree c) : Branch;
+
+public enum Dir { North, East, South, West }
+
+String missingSubtype(Shape s) => s switch {         //~ JS0650
+    Circle c => "c",
+    Rect r => "r",
+};
+
+String missingNested(Tree t) => t switch {           //~ JS0650
+    Leaf l => "leaf",
+    Two t2 => "two",
+};
+
+String missingEnum(Dir d) => d switch {              //~ JS0650
+    Dir.North => "n",
+    Dir.South => "s",
+    Dir.East => "e",
+};
+
+String missingBool(boolean b) => b switch {          //~ JS0650
+    true => "yes",
+};
+
+String intsNeedDefault(int x) => x switch {          //~ JS0650
+    0 => "zero",
+    1 => "one",
+};
+
+String stringsNeedDefault(String s) => s switch {    //~ JS0650
+    "a" => "A",
+};
+
+String onlyGuarded(Shape s) => s switch {            //~ JS0650
+    Circle c when c.r > 1 => "big",
+    Rect r => "r",
+    Square q => "q",
+};
+
+String nullableSealed(Shape? s) => s switch {        //~ JS0650
+    Circle c => "c",
+    Rect r => "r",
+    Square q => "q",
+};
+
+String nullableEnum(Dir? d) => d switch {            //~ JS0650
+    Dir.North => "n",
+    Dir.South => "s",
+    Dir.East => "e",
+    Dir.West => "w",
+};
+
+String nullableBool(Boolean? b) => b switch {        //~ JS0650
+    true => "t",
+    false => "f",
+};
+
+// a record pattern with a non-total sub-pattern does not cover the record
+String partialRecord(Shape s) => s switch {          //~ JS0650
+    Circle(0.0) => "dot",
+    Rect r => "r",
+    Square q => "q",
+};
+
+String nestedPositional(Tree t) => t switch {        //~ JS0650
+    Leaf l => "leaf",
+    Two(Leaf a, var b) => "two",
+    Three th => "three",
+};
+
+// arms must produce compatible values
+int armTypes(boolean b) => b switch {
+    true => 1,
+    false => "two",                                  //~ JS0600
+};
+
+void statementUse(Dir d) {
+    var x = d switch {                               //~ JS0650
+        Dir.North => 1,
+    };
+}

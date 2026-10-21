@@ -1,0 +1,19 @@
+// `!` and `??` on values that can never be null are flagged (JS0633 warning).
+String? find() => null;
+String sure = "x";
+int count = 3;
+
+String r1 = sure!;                       //~ JS0633
+String r2 = sure ?? "y";                 //~ JS0633
+String r3 = "literal"!;                  //~ JS0633
+int r4 = sure!.length();                 //~ JS0633
+String r5 = (sure + "y")!;               //~ JS0633
+String? maybe = find();
+if (maybe != null) {
+    String r6 = maybe!;                  //~ JS0633
+}
+String ok1 = find()!;
+String ok2 = find() ?? "y";
+var sb = new StringBuilder();
+String fromPlatform = sb.toString()!;
+String fromPlatform2 = System.getProperty("user.home") ?? "/";

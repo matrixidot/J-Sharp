@@ -1,0 +1,26 @@
+unresolved.jsharp:5:5 JS0401 cannot find type 'Lisst' [help: did you mean 'List'?]
+unresolved.jsharp:6:5 JS0401 cannot find type 'Strng' [help: did you mean 'String'?]
+unresolved.jsharp:7:5 JS0401 cannot find type 'Path' [help: add 'import java.nio.file.Path;']
+unresolved.jsharp:8:5 JS0401 cannot find type 'Mapp' in package java.util
+unresolved.jsharp:9:5 JS0401 cannot find type 'nope.pkg.Thing'
+unresolved.jsharp:10:5 JS0405 interface Map expects 2 type arguments <K, V>, found 1
+unresolved.jsharp:11:5 JS0413 interface Map needs 2 type arguments [help: write Map<K, V>]
+unresolved.jsharp:12:5 JS0405 class String is not generic
+unresolved.jsharp:13:5 JS0404 'List' is ambiguous: java.util.List and java.awt.List [help: import the one you mean explicitly, e.g. import java.util.List;]
+unresolved.jsharp:14:9 JS0401 cannot find type 'Entri' in Map [help: did you mean 'Entry'?]
+unresolved.jsharp:15:9 JS0417 'var' needs an initializer to infer the type of 'k'
+---
+class Holder : Object [final]
+  field a: <error>
+  field b: <error>
+  field c: <error>
+  field d: <error>
+  field e: <error>
+  field f: <error>
+  field g: <error>
+  field h: <error>
+  field i: <error>
+  field j: <error>
+  field k: <inferred> [inferred]
+  field l: Runnable
+  method <init>(): void [generated]

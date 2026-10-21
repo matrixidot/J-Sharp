@@ -80,6 +80,42 @@ class WorkspaceTest {
     assertThat(ws.unit(js.toUri()).comp.diagnostics().all()).isEmpty();
   }
 
+  /**
+   * In a Gradle source set the editor analyzes what the build compiles together: other files see
+   * the script's functions, and a second script is an error, as in the build.
+   */
+  @Test
+  void gradleSourceSetsAreOneProgram(@TempDir Path dir) throws java.io.IOException {
+    Path pkg = dir.resolve("src/main/jsharp/app");
+    Files.createDirectories(pkg);
+    Path main = pkg.resolve("main.jsharp");
+    Files.writeString(main, "package app;\nprintln(useScript());\npublic int fromScript() => 5;\n");
+    Path other = pkg.resolve("other.jsharp");
+    Files.writeString(
+        other, "package app;\npublic int useScript() => fromScript() + Helper.twice(1);\n");
+    Path java = dir.resolve("src/main/java/app/Helper.java");
+    Files.createDirectories(java.getParent());
+    Files.writeString(
+        java,
+        "package app;\npublic class Helper { public static int twice(int x) { return 2 * x; } }\n");
+    Workspace ws = new Workspace(List.of());
+    assertThat(ws.unit(other.toUri()).comp.diagnostics().all()).isEmpty();
+    assertThat(ws.unit(main.toUri()).comp.diagnostics().all()).isEmpty();
+
+    Path second = pkg.resolve("second.jsharp");
+    Files.writeString(second, "package app;\nprintln(\"another program\");\n");
+    ws.change(main.toUri(), Files.readString(main));
+    assertThat(ws.unit(main.toUri()).comp.diagnostics().all())
+        .anySatisfy(d -> assertThat(d.code().id()).isEqualTo("JS0411"));
+
+    // Outside a Gradle source set, each script is its own program.
+    Path loose = dir.resolve("scripts");
+    Files.createDirectories(loose);
+    Files.writeString(loose.resolve("a.jsharp"), "println(1);\n");
+    Files.writeString(loose.resolve("b.jsharp"), "println(2);\n");
+    assertThat(ws.unit(loose.resolve("a.jsharp").toUri()).comp.diagnostics().all()).isEmpty();
+  }
+
   @Test
   void detectsTopLevelStatements() {
     assertThat(Workspace.hasTopLevelStatements("println(1);")).isTrue();

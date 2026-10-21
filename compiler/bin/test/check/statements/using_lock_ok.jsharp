@@ -1,0 +1,81 @@
+import java.io.*;
+import java.util.concurrent.locks.*;
+
+public class Resource : AutoCloseable {
+    public String name { get; }
+    public Resource(String name) { this.name = name; }
+    public override void close() { println("closing " + name); }
+}
+
+String readFirstLine(String path) {
+    using (var reader = new BufferedReader(new FileReader(path))) {
+        return reader.readLine() ?? "";
+    }
+}
+
+void usingTyped() {
+    using (Resource r = new Resource("typed")) {
+        println(r.name);
+    }
+}
+
+void usingExpression(Resource existing) {
+    using (existing) {
+        println("borrowed");
+    }
+}
+
+void usingNested() {
+    using (var a = new Resource("a")) {
+        using (var b = new Resource("b")) {
+            println(a.name + b.name);
+        }
+    }
+}
+
+void usingDeclaration() {
+    using var r = new Resource("decl");
+    using var w = new StringWriter();
+    w.write(r.name);
+    println(w.toString());
+}
+
+void usingWithoutBraces() {
+    using (var r = new Resource("stmt")) println(r.name);
+}
+
+int usingDeclarationThenReturn() {
+    using val r = new Resource("v");
+    return r.name.length();
+}
+
+var monitor = new Object();
+lock (monitor) {
+    println("critical section");
+}
+
+public class Counter {
+    private final Object gate = new Object();
+    private int value;
+    public int increment() {
+        lock (gate) {
+            value++;
+            return value;
+        }
+    }
+    public void reset() {
+        lock (this) {
+            value = 0;
+        }
+    }
+}
+
+// `lock` is contextual: Java's Lock.lock() stays callable.
+var rl = new ReentrantLock();
+rl.lock();
+try {
+    println("locked");
+} finally {
+    rl.unlock();
+}
+usingTyped();

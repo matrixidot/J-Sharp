@@ -1,0 +1,2 @@
+var s = "bad \q escape";
+var u = "\u12";

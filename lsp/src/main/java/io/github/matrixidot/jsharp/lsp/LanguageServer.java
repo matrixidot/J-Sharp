@@ -21,6 +21,7 @@ import java.io.PrintStream;
 import java.net.URI;
 import java.nio.file.Path;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -99,6 +100,10 @@ public final class LanguageServer {
   private final PrintStream log;
   private final List<Path> classPath;
   private Workspace workspace;
+
+  /** The client's spelling of each document URI, by the server's (see {@link #canonical}). */
+  private final Map<URI, String> clientUris = new HashMap<>();
+
   private boolean shutdown;
 
   public LanguageServer(InputStream in, OutputStream out, PrintStream log, List<Path> classPath) {
@@ -183,7 +188,7 @@ public final class LanguageServer {
       }
       case "textDocument/didOpen" -> {
         Map<String, Object> doc = map(p, "textDocument");
-        workspace().open(URI.create((String) doc.get("uri")), (String) doc.get("text"));
+        workspace().open(canonical((String) doc.get("uri")), (String) doc.get("text"));
         publishAll();
         yield null;
       }
@@ -201,7 +206,7 @@ public final class LanguageServer {
         workspace().close(u);
         notify(
             "textDocument/publishDiagnostics",
-            Json.obj("uri", u.toString(), "diagnostics", List.of()));
+            Json.obj("uri", client(u), "diagnostics", List.of()));
         yield null;
       }
       case "textDocument/hover" -> hover(uri(p), map(p, "position"));
@@ -283,7 +288,7 @@ public final class LanguageServer {
           out.add(diagnostic(d, f.content()));
         }
       }
-      notify("textDocument/publishDiagnostics", Json.obj("uri", u.toString(), "diagnostics", out));
+      notify("textDocument/publishDiagnostics", Json.obj("uri", client(u), "diagnostics", out));
     }
   }
 
@@ -464,7 +469,7 @@ public final class LanguageServer {
     }
     String text = loc.get().file().content();
     return Json.obj(
-        "uri", target.toString(),
+        "uri", client(target),
         "range", Workspace.range(text, loc.get().span().start(), loc.get().span().end()));
   }
 
@@ -570,7 +575,7 @@ public final class LanguageServer {
       }
       @SuppressWarnings("unchecked")
       List<Object> edits =
-          (List<Object>) changes.computeIfAbsent(target.toString(), k -> new ArrayList<>());
+          (List<Object>) changes.computeIfAbsent(client(target), k -> new ArrayList<>());
       edits.add(
           Json.obj(
               "range",
@@ -581,10 +586,10 @@ public final class LanguageServer {
     return Json.obj("changes", changes);
   }
 
-  private static Map<String, Object> location(URI uri, SourceIndex.Location loc) {
+  private Map<String, Object> location(URI uri, SourceIndex.Location loc) {
     return Json.obj(
         "uri",
-        uri.toString(),
+        client(uri),
         "range",
         Workspace.range(loc.file().content(), loc.span().start(), loc.span().end()));
   }
@@ -965,7 +970,7 @@ public final class LanguageServer {
                 "command",
                 "jsharp.run",
                 "arguments",
-                List.of(uri.toString(), programFiles(uri)))));
+                List.of(client(uri), programFiles(uri)))));
   }
 
   /** The files {@code jsharp run} needs for the program in {@code uri}: its unit. */
@@ -1212,8 +1217,34 @@ public final class LanguageServer {
     return m.get(key) instanceof List<?> x ? (List<Object>) x : List.of();
   }
 
-  private static URI uri(Map<String, Object> p) {
-    return URI.create((String) map(p, "textDocument").get("uri"));
+  private URI uri(Map<String, Object> p) {
+    return canonical((String) map(p, "textDocument").get("uri"));
+  }
+
+  /**
+   * One URI per file. Clients spell file URIs their own way: IntelliJ and VS Code send a Windows
+   * drive as {@code file:///d%3A/...}, where {@code Path.toUri}, which the workspace uses for the
+   * files it finds, gives {@code file:///D:/...}. Compared as they are, the open document and the
+   * same file found on disk were two files: every class in it a duplicate of itself.
+   */
+  private URI canonical(String spelled) {
+    URI u = URI.create(spelled);
+    if (!"file".equalsIgnoreCase(u.getScheme())) {
+      return u;
+    }
+    URI c;
+    try {
+      c = Path.of(u).toAbsolutePath().normalize().toUri();
+    } catch (RuntimeException e) {
+      return u;
+    }
+    clientUris.put(c, spelled);
+    return c;
+  }
+
+  /** {@code u} as the client spells it, for the documents it named. */
+  private String client(URI u) {
+    return clientUris.getOrDefault(u, u.toString());
   }
 
   private void respond(Object id, Object result) throws IOException {

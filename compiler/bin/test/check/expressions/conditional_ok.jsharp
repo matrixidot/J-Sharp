@@ -1,0 +1,31 @@
+// `c ? a : b` and `if (c) a else b` expressions: the result type is the common type of the
+// branches (numeric promotion, nullable when a branch is null, common supertype otherwise).
+int a = 5;
+var label = a > 3 ? "big" : "small";
+String checkLabel = label;
+var promotedLong = a > 3 ? 1 : 2L;
+long checkLong = promotedLong;
+var promotedDouble = a > 3 ? 1 : 2.5;
+double checkDouble = promotedDouble;
+var ifExpr = if (a > 3) "yes" else "no";
+String checkIfExpr = ifExpr;
+var chained = a > 10 ? "huge" : a > 3 ? "big" : "small";
+var elseIf = if (a > 10) 3 else if (a > 3) 2 else 1;
+int checkElseIf = elseIf;
+String? maybe = a > 3 ? "x" : null;
+var nullableBranch = a > 3 ? "x" : null;
+String? checkNullable = nullableBranch;
+var ifNullable = if (a > 3) null else "y";
+String? checkIfNullable = ifNullable;
+Object mixed = a > 3 ? "str" : 42;
+CharSequence common = a > 3 ? "s" : new StringBuilder();
+int fromCalls = a > 0 ? Math.abs(a) : Math.max(a, 0);
+var boxedOrNull = a > 3 ? 1 : null;
+int? checkBoxedOrNull = boxedOrNull;
+char letter = a > 3 ? 'y' : 'n';
+boolean flag = a > 3 ? true : false;
+println(a > 3 ? "printed" : "also printed");
+println(if (a % 2 == 0) "even" else "odd");
+String sign(int x) => if (x > 0) "+" else if (x < 0) "-" else "0";
+int clamp(int x, int lo, int hi) => x < lo ? lo : x > hi ? hi : x;
+println(sign(a) + clamp(a, 0, 3));

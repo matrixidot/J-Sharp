@@ -211,7 +211,8 @@ public final class Compilation {
 
   /**
    * A program has at most one entry point: top-level statements or one {@code static void
-   * main(String[])}. More than one is an error rather than an arbitrary choice.
+   * main(String[])}. More than one is an error rather than an arbitrary choice, reported at each of
+   * them so it shows in whichever file an editor analyzes.
    */
   private void checkSingleEntryPoint(
       List<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> classes) {
@@ -230,8 +231,7 @@ public final class Compilation {
     if (mains.size() < 2) {
       return;
     }
-    for (int i = 1; i < mains.size(); i++) {
-      var m = mains.get(i);
+    for (var m : mains) {
       var d =
           Diagnostic.error(
               Code.MULTIPLE_ENTRY_POINTS,

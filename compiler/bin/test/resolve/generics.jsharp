@@ -1,0 +1,22 @@
+import java.util.*;
+import java.io.Serializable;
+
+public class Box<T : Comparable<T>> where T : Serializable {
+    public T value { get; set; }
+}
+
+public interface Source<out T> { T next(); }
+public interface Sink<in T> { void accept(T value); }
+public interface Pair<out A, out B> { A first(); B second(); }
+
+public class Util {
+    public static T max<T : Comparable<T>>(T a, T b) => a;
+    public static List<R> map<T, R>(List<T> xs, java.util.function.Function<T, R> f) => List.of();
+    public static void sortAll<T>(List<T> xs) where T : Comparable<T> { }
+}
+
+public class Node<T> {
+    public T value;
+    public Node<T>? next;
+    public Map<T, List<Node<T>>> children;
+}

@@ -1,0 +1,6 @@
+// Class headers respect Java's final, sealed and abstract declarations.
+import lib.Api;
+import lib.Api.*;
+
+class Sub : Api { }                                                        //~ JS0407
+class Bird : Animal { }                                                    //~ JS0412

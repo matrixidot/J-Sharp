@@ -3,6 +3,7 @@ package io.github.matrixidot.jsharp.intellij;
 import com.intellij.codeInsight.CodeInsightSettings;
 import com.intellij.execution.actions.ConfigurationContext;
 import com.intellij.execution.actions.ConfigurationFromContext;
+import com.intellij.openapi.vfs.VirtualFile;
 import com.intellij.platform.lsp.api.LspClient;
 import com.intellij.platform.lsp.api.LspClientManager;
 import com.intellij.platform.lsp.api.LspServerState;
@@ -159,6 +160,46 @@ public class JSharpPluginTest extends BasePlatformTestCase {
   public void testLanguageServerAnswers() throws Exception {
     myFixture.configureByText("program.jsharp", "int x = 41;\nvar y = x + 1;\n");
     var file = myFixture.getFile().getVirtualFile();
+    LspClient running = startServer(file);
+    var params =
+        new org.eclipse.lsp4j.HoverParams(
+            running.getDocumentIdentifier(file), new org.eclipse.lsp4j.Position(1, 4));
+    org.eclipse.lsp4j.Hover hover = null;
+    for (int i = 0; i < 50 && hover == null; i++) {
+      UIUtil.dispatchAllInvocationEvents();
+      hover = running.sendRequestSync(10000, ls -> ls.getTextDocumentService().hover(params));
+      if (hover == null) {
+        Thread.sleep(200); // the document may still be on its way to the server
+      }
+    }
+    assertNotNull("no hover from the server", hover);
+    assertTrue(
+        hover.getContents().getRight().getValue(),
+        hover.getContents().getRight().getValue().contains("var y: int"));
+  }
+
+  /** Completion (Ctrl+Space) in the editor shows the server's items. */
+  public void testCompletion() throws Exception {
+    myFixture.configureByText(
+        "program.jsharp",
+        "public class Point {\n    public int x;\n    public int twice() => x * 2;\n"
+            + "    public int triple() => x * 3;\n}\n"
+            + "var p = new Point();\nprintln(p.t<caret>);\n");
+    startServer(myFixture.getFile().getVirtualFile());
+    java.util.List<String> items = null;
+    for (int i = 0; i < 50 && (items == null || !items.contains("twice")); i++) {
+      UIUtil.dispatchAllInvocationEvents();
+      myFixture.completeBasic();
+      items = myFixture.getLookupElementStrings();
+      if (items == null || !items.contains("twice")) {
+        Thread.sleep(200); // the document may still be on its way to the server
+      }
+    }
+    assertNotNull("no completion items", items);
+    assertTrue(items.toString(), items.containsAll(java.util.List.of("twice", "triple")));
+  }
+
+  private LspClient startServer(VirtualFile file) throws InterruptedException {
     new JSharpLspProvider()
         .fileOpened(
             getProject(),
@@ -178,22 +219,7 @@ public class JSharpPluginTest extends BasePlatformTestCase {
               .orElse(null);
     }
     assertNotNull("the J# language server did not start", client);
-    LspClient running = client;
-    var params =
-        new org.eclipse.lsp4j.HoverParams(
-            running.getDocumentIdentifier(file), new org.eclipse.lsp4j.Position(1, 4));
-    org.eclipse.lsp4j.Hover hover = null;
-    for (int i = 0; i < 50 && hover == null; i++) {
-      UIUtil.dispatchAllInvocationEvents();
-      hover = running.sendRequestSync(10000, ls -> ls.getTextDocumentService().hover(params));
-      if (hover == null) {
-        Thread.sleep(200); // the document may still be on its way to the server
-      }
-    }
-    assertNotNull("no hover from the server", hover);
-    assertTrue(
-        hover.getContents().getRight().getValue(),
-        hover.getContents().getRight().getValue().contains("var y: int"));
+    return client;
   }
 
   /** Names are colored from the server's semantic tokens: classes, properties, parameters. */

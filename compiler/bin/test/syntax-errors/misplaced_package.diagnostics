@@ -1,0 +1,2 @@
+error JS0108 2:1 imports must come before all declarations and statements
+error JS0108 3:1 package declaration must be the first declaration in the file

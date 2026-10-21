@@ -1,0 +1,38 @@
+public class Plain {
+    public void close() { }
+}
+
+void notCloseable() {
+    using (var p = new Plain()) { }          //~ JS0600
+    using (var s = "text") { }               //~ JS0600
+    using (int n = 1) { }                    //~ JS0600
+}
+
+void notCloseableDeclaration() {
+    using var p = new Plain();               //~ JS0600
+    println(p);
+}
+
+void resourceIsFinal() {
+    using (var w = new java.io.StringWriter()) {
+        w = new java.io.StringWriter();      //~ JS0903
+    }
+    using var w2 = new java.io.StringWriter();
+    w2 = new java.io.StringWriter();         //~ JS0903
+}
+
+void resourceScope() {
+    using (var w = new java.io.StringWriter()) {
+        println(w);
+    }
+    println(w);                              //~ JS0602
+}
+
+void lockOnPrimitive() {
+    var n = 1;
+    lock (n) { }                             //~ JS0600
+}
+
+void lockOnNullable(Object? o) {
+    lock (o) { }                             //~ JS0608
+}

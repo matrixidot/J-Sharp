@@ -1,0 +1,3 @@
+error JS0005 1:9 malformed numeric literal '12abc'
+error JS0005 2:9 malformed hexadecimal literal
+error JS0005 3:9 misplaced '_' in numeric literal

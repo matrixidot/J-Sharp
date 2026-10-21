@@ -1,0 +1,9 @@
+public class Cell<out T> {                          //~ JS0426
+    public T value;
+}
+
+public record Wrapper<in T>(T inner);               //~ JS0426
+
+public interface Ok<out T> { T get(); }
+
+public static T id<out T>(T x) => x;                 //~ JS0426

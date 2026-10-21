@@ -312,31 +312,39 @@ public final class Enter {
     return true;
   }
 
+  /**
+   * At most one file has top-level statements. Each of them gets the error, so it shows in
+   * whichever file an editor analyzes, whatever the order of the files.
+   */
   private void checkSingleEntryPoint() {
-    CompilationUnit first = null;
+    List<CompilationUnit> scripts = new ArrayList<>();
+    List<Decl.TopLevelStmt> firsts = new ArrayList<>();
     for (CompilationUnit u : units) {
-      Decl.TopLevelStmt stmt = null;
       for (Decl d : u.members()) {
         if (d instanceof Decl.TopLevelStmt t) {
-          stmt = t;
+          scripts.add(u);
+          firsts.add(t);
           break;
         }
       }
-      if (stmt == null) {
-        continue;
+    }
+    if (scripts.size() < 2) {
+      return;
+    }
+    for (int i = 0; i < scripts.size(); i++) {
+      var d =
+          ctx.error(
+              Code.MULTIPLE_ENTRY_POINTS,
+              scripts.get(i).file(),
+              firsts.get(i).span(),
+              "only one file may contain top-level statements");
+      for (int j = 0; j < scripts.size(); j++) {
+        if (j != i) {
+          d.note("top-level statements also appear in " + scripts.get(j).file().path());
+        }
       }
-      if (first == null) {
-        first = u;
-      } else {
-        ctx.error(
-                Code.MULTIPLE_ENTRY_POINTS,
-                u.file(),
-                stmt.span(),
-                "only one file may contain top-level statements")
-            .note("top-level statements also appear in " + first.file().path())
-            .help("move these statements into a function, or compile the files separately")
-            .report(ctx.diags);
-      }
+      d.help("move these statements into a function, or compile the files separately")
+          .report(ctx.diags);
     }
   }
 

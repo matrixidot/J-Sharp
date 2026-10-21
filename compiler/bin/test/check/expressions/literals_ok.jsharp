@@ -1,0 +1,55 @@
+// Every literal form from spec 3.1, plus the boundary values that only work through the
+// checker's literal range rules (D011).
+int dec = 42;
+long lng = 42L;
+int hex = 0xFF;
+int hexMixed = 0xCafe;
+int bin = 0b1010;
+int grouped = 1_000_000;
+long groupedHex = 0xFFFF_FFFF_FFFFL;
+int maxInt = 2147483647;
+int minInt = -2147483648;
+int minIntSpaced = - 2147483648;
+long maxLong = 9223372036854775807L;
+long minLong = -9223372036854775808L;
+int allOnes = 0xFFFFFFFF;
+int signBit = 0x80000000;
+int signBitBinary = 0b10000000000000000000000000000000;
+long allOnesLong = 0xFFFFFFFFFFFFFFFFL;
+long widenedMin = -2147483648;
+double pi = 3.14;
+double avogadro = 6.02e23;
+double tiny = 1.5e-10;
+double upperExp = 1E9;
+float f = 3.14f;
+float upperF = 2.5F;
+float wholeF = 1f;
+float fromInt = 16777216;
+char c = 'c';
+char newline = '\n';
+char quote = '\'';
+char backslash = '\\';
+char unicode = '\u0041';
+char maxChar = '\uFFFF';
+boolean yes = true;
+boolean no = false;
+String text = "text";
+String escapes = "tab\there \"quoted\" newline\n";
+String raw = """C:\no\escapes\here""";
+String empty = "";
+
+// `var` infers the literal's own type.
+var vi = 1;
+int checkInt = vi;
+var vl = 1L;
+long checkLong = vl;
+var vd = 1.0;
+double checkDouble = vd;
+var vf = 1.0f;
+float checkFloat = vf;
+var vc = 'x';
+char checkChar = vc;
+var vs = "s";
+String checkString = vs;
+var vb = true;
+boolean checkBool = vb;

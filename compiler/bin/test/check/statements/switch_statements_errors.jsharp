@@ -1,0 +1,82 @@
+void fallthrough(int x) {
+    switch (x) {
+        case 1:                              //~ JS0906
+            println("one");
+        case 2:
+            println("two");
+            break;
+        default:
+            println("other");
+    }
+}
+
+void fallthroughInMiddle(String s) {
+    switch (s) {
+        case "a":
+            break;
+        case "b":                            //~ JS0906
+            println("b");
+        default:
+            println("d");
+            break;
+    }
+}
+
+void duplicateLabels(int x) {
+    switch (x) {
+        case 1:
+            break;
+        case 1:                              //~ JS0652
+            break;
+    }
+}
+
+void duplicateDefault(int x) {
+    switch (x) {
+        default:
+            break;
+        default:                             //~ JS0652
+            break;
+    }
+}
+
+void bindingNotInNextSection(Object o) {
+    switch (o) {
+        case String s:
+            println(s);
+            break;
+        default:
+            println(s);                      //~ JS0602
+            break;
+    }
+}
+
+void bindingsInSharedLabels(Object o) {
+    switch (o) {
+        case String s:                       //~ JS0651
+        case Integer i:                      //~ JS0651
+            println(s);
+            break;
+        default:
+            break;
+    }
+}
+
+void wrongConstantType(int x) {
+    switch (x) {
+        case "one":                          //~ JS0651
+            break;
+        default:
+            break;
+    }
+}
+
+void unreachableAfterBreak(int x) {
+    switch (x) {
+        case 1:
+            break;
+            println("dead");                 //~ JS0901
+        default:
+            break;
+    }
+}

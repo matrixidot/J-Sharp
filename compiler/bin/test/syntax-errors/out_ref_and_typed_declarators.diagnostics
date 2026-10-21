@@ -1,0 +1,7 @@
+error JS0113 2:8 all variables of a declaration share its type
+error JS0113 3:28 J# has no 'out' parameters
+error JS0113 4:11 J# has no 'ref' parameters
+error JS0113 4:22 J# has no 'ref' parameters
+error JS0113 5:19 J# has no 'out' arguments
+error JS0113 6:6 J# has no 'ref' arguments
+error JS0113 6:13 J# has no 'ref' arguments

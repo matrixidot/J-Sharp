@@ -1,0 +1,34 @@
+// Classic constant switches are not exhaustive (Java rule): code after them is reachable.
+// Unqualified enum constants work as case labels and switch-expression patterns.
+public enum Dir { North, South, East }
+String name(Dir d) {
+    switch (d) {
+        case North: return "n";
+        case South:
+        case East: return "other";
+    }
+    return "?";
+}
+String missing(Dir d) {                                    //~ JS0902
+    switch (d) {
+        case North: return "n";
+        case South: return "s";
+        case East: return "e";
+    }
+}
+boolean vertical(Dir d) => d switch { North or South => true, East => false };
+boolean partial(Dir d) => d switch { North => true };     //~ JS0650
+sealed interface S permits A, B;
+record A() : S;
+record B() : S;
+int total(S s) {
+    switch (s) {
+        case A a: return 1;
+        case B b: return 2;
+    }
+}
+int? nb = 9;
+nb++;
+String describe(Object? o) => o switch { null => "null", _ => o.toString() };
+interface I { default String f() => "i"; }
+interface J : I { override default String f() => "j"; }

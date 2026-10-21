@@ -1,0 +1,10 @@
+import java.utill.List;
+import java.util.Lisst;
+import java.util.nothere.*;
+import static java.lang.Math.maxx;
+import java.util.List;
+import java.awt.List;
+import java.util.Map.Entry;
+import java.util.HashMap as Dict;
+
+class Ok { Entry<String, String> e; Dict<String, int> d; }

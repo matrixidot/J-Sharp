@@ -1,0 +1,6 @@
+import java.util.*;
+
+// Spec 3.4 gives `List<String> xs = new();` as the canonical target-typed new example.
+List<String> xs = new();
+xs.add("a");
+println(xs.size());

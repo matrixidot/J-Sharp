@@ -1,0 +1,22 @@
+// Collection and map literals are typed by their target (D080).
+import java.util.*;
+List<int> a = [1, 2];
+Set<String> b = ["x"];
+int[] c = [1, 2];
+var d = [1, 2.5];                                          // List<Double>
+ArrayList<String> e = ["m"];
+Map<String, int> f = {"one": 1};
+var g = {"k": [1, 2]};                                     // Map<String, List<Integer>>
+List<Number> h = [1, 2.5];
+var spread = [..a, ..c, 3];
+List<String> wrong = [1];                                  //~ JS0600
+var empty = [];                                            //~ JS0659
+var emptyMap = {};                                         //~ JS0616
+Map<String, int> notAList = ["a"];                         //~ JS0659
+String notACollection = [1];                               //~ JS0659
+int[] spreadArray = [..a];                                 //~ JS0659
+var badSpread = [..5];                                     //~ JS0659
+var dup = {"a": 1, "a": 2};                                //~ JS0659
+List<String> badSpreadType = [..a];                        //~ JS0600
+var orphan = ..a;                                          //~ JS0654
+Map<String, int> emptyTyped = {};

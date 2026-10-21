@@ -1,0 +1,63 @@
+public record Point(int x, int y);
+public record Line(Point from, Point to);
+public record Named(String name, Object value);
+
+int sumOf(Object o) {
+    if (o is Point(var x, var y)) {
+        return x + y;
+    }
+    return 0;
+}
+
+int typedComponents(Object o) {
+    if (o is Point(int x, int y) && x > 0) {
+        return x * y;
+    }
+    return 0;
+}
+
+int nested(Object o) => o switch {
+    Line(Point(var x1, var y1), Point(var x2, var y2)) => (x2 - x1) + (y2 - y1),
+    Point(0, 0) => 0,
+    Point(var x, _) when x > 10 => x,
+    Point p => p.x,
+    _ => -1,
+};
+
+String named(Named n) => n switch {
+    Named(var name, String s) => name + s,
+    Named(var name, Integer i) => name + i,
+    Named(_, null) => "null value",
+    Named(var name, _) => name,
+};
+
+String withBinding(Object o) {
+    if (o is Point(var x, var y) p) {
+        return p.toString() + x + y;
+    }
+    return "";
+}
+
+int deconstructLocal(Point p) {
+    var (x, y) = p;
+    int sum = x + y;
+    val (a, b) = new Point(3, 4);
+    return sum + a + b;
+}
+
+int deconstructTyped(Point p) {
+    (int px, int py) = (p.x, p.y);
+    return px + py;
+}
+
+// errors
+boolean wrongArity(Object o) => o is Point(var x);               //~ JS0651
+boolean tooMany(Object o) => o is Point(var x, var y, var z);    //~ JS0651
+boolean notRecord(Object o) => o is String(var s);               //~ JS0651
+boolean wrongComponentType(Point p) => p is Point(String s, _);  //~ JS0651
+void badDeconstruct(String s) {
+    var (a, b) = s;                                              //~ JS0651
+}
+void deconstructArity(Point p) {
+    var (a, b, c) = p;                                           //~ JS0656
+}

@@ -1,0 +1,41 @@
+String? maybe() => null;
+String sure() => "x";
+
+String? m = maybe();
+String s1 = m;                   //~ JS0601
+int n1 = m.length();             //~ JS0608
+int n2 = m?.length() ?? 0;
+int? n3 = m?.length();
+String s2 = m!;
+String s3 = m ?? "default";       //~ JS0633
+if (m != null) {
+    println(m.length());
+}
+if (m == null) {
+    println("none");
+} else {
+    println(m.length());
+}
+String? m2 = maybe();
+if (m2 == null) return;
+println(m2.length());
+String? m3 = maybe();
+m3 ??= "filled";
+println(m3.length());
+String sure2 = sure()!;          //~ JS0633
+int? boxed = null;
+int unboxed = boxed;             //~ JS0601
+int added = boxed + 1;           //~ JS0601
+int safe = (boxed ?? 0) + 1;
+String? m4 = maybe();
+var len = m4 is String ? 1 : 0;
+String? m5 = maybe();
+if (m5 is not null) { println(m5.length()); }
+String? m6 = maybe();
+println(m6 != null && m6.length() > 2);
+String? m7 = maybe();
+println(m7 == null || m7.isEmpty());
+String nn = null;                //~ JS0601
+var sb = new StringBuilder();
+String fromJava = sb.toString();
+int fromJavaLen = sb.toString().length();

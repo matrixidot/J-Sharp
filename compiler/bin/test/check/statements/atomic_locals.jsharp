@@ -1,0 +1,19 @@
+// Atomic locals (D084): needless atomics, atomic val, two-step updates, hints, no smart casts.
+import java.util.*;
+List<int> xs = [1, 2];
+atomic var unused = 0;                                                 //~ JS0661
+unused = 5;
+atomic var constant = 1;                                               //~ JS0661
+xs.forEach(x => println(constant));
+atomic val v = 1;                                                      //~ JS0410
+atomic var counter = 0;
+xs.forEach(x => { counter = counter + x; });                           //~ JS0660
+var plain = 0;
+xs.forEach(x => plain++);                                              //~ JS0631
+atomic String? name = null;
+xs.forEach(x => name = "n");
+if (name != null) println(name.length());                              //~ JS0608
+int atomic(int x) => x;
+println(atomic(3));
+var atomic = 2;
+println(atomic);

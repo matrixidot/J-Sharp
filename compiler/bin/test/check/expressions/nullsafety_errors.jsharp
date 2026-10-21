@@ -1,0 +1,28 @@
+// Nullable values cannot flow into non-null positions or be dereferenced without a check.
+public class Box {
+    public String? label;
+    public String name = "";
+}
+
+String? find(int id) => if (id > 0) "x" else null;
+void takesString(String s) { }
+
+String? maybe = find(1);
+int n = maybe.length();                  //~ JS0608
+String s = maybe;                        //~ JS0601
+String direct = null;                    //~ JS0601
+takesString(maybe);                      //~ JS0601
+takesString(null);                       //~ JS0601
+int viaSafeCall = maybe?.length();       //~ JS0601
+String coalescedNullable = maybe ?? find(2);  //~ JS0601
+String returnsNullable(String? p) => p;  //~ JS0601
+String returnsNull() { return null; }    //~ JS0601
+Box box = new Box();
+int labelLength = box.label.length();    //~ JS0608
+String label = box.label;                //~ JS0601
+box.name = maybe;                        //~ JS0601
+box.name = null;                         //~ JS0601
+box.label = null;
+String? other = find(3);
+other ??= 5;                             //~ JS0600
+String fromCoalesce = maybe ?? 5;        //~ JS0600

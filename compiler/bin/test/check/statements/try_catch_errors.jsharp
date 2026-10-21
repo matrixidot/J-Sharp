@@ -1,0 +1,89 @@
+import java.io.*;
+
+void rethrowOutsideCatch() {
+    throw;                                   //~ JS0908
+}
+
+void rethrowInTryBody() {
+    try {
+        throw;                               //~ JS0908
+    } catch (Exception e) {
+        println(e);
+    }
+}
+
+void rethrowInFinally() {
+    try {
+        println("x");
+    } finally {
+        throw;                               //~ JS0908
+    }
+}
+
+void rethrowInLambdaInsideCatch() {
+    try {
+        println("x");
+    } catch (Exception e) {
+        Runnable r = () => { throw; };       //~ JS0908
+    }
+}
+
+void throwNonThrowable() {
+    throw "oops";                            //~ JS0600
+}
+
+void throwNullable(RuntimeException? e) {
+    throw e;                                 //~ JS0601
+}
+
+void catchNonThrowable() {
+    try {
+        println("x");
+    } catch (String s) {                     //~ JS0600
+        println(s);
+    }
+}
+
+void multiCatchVarIsFinal() {
+    try {
+        println("x");
+    } catch (IOException | RuntimeException e) {
+        e = new RuntimeException();          //~ JS0903
+    }
+}
+
+void catchVarScope() {
+    try {
+        println("x");
+    } catch (Exception e) {
+        println(e);
+    }
+    println(e);                              //~ JS0602
+}
+
+void filterMustBeBoolean() {
+    try {
+        println("x");
+    } catch (Exception e) when (1) {         //~ JS0600
+        println(e);
+    }
+}
+
+void duplicateCatchName() {
+    var e = 1;
+    try {
+        println("x");
+    } catch (Exception e) {                  //~ JS0909
+        println(e);
+    }
+}
+
+void subtypeAfterSupertypeMulti() {
+    try {
+        println("x");
+    } catch (Exception e) {
+        println(e);
+    } catch (IOException | IllegalStateException e) {   //~ JS0901 JS0901
+        println(e);
+    }
+}

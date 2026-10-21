@@ -1,0 +1,6 @@
+// Overriding a get-only property may add a setter (C# rule); a lone setter still overrides nothing.
+interface HasLabel { String label { get; } }
+class Tag : HasLabel { public override String label { get; set; } = "x"; }
+abstract class Titled { public abstract String title { get; } }
+class Doc : Titled { public override String title { get; set; } = "t"; }
+class NoBase { public override String name { get; set; } = "n"; }   //~ JS0618 JS0618

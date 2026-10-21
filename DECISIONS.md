@@ -693,3 +693,18 @@ Format: **decision** — reason. *Rejected:* alternatives.
     (no name highlighting, completion or errors; keywords, from the plugin's own lexer, still
     worked), nor did run configurations. It is now a string. `windows.yml` runs the two IntelliJ
     tests that start the CLI on Windows.
+- **D105: The editor sees what the build compiles, on Windows too.**
+  - Clients spell file URIs their own way. IntelliJ and VS Code send a Windows drive as
+    `file:///d%3A/...`; `Path.toUri`, which the workspace uses for the files it finds, gives
+    `file:///D:/...`. Compared as strings, the open document and the same file found on disk were
+    two files, so on Windows every class was a duplicate of itself, and definition, completion
+    and hover broke. The server now keys documents by `Path.of(uri).toAbsolutePath().normalize()`
+    and answers in the client's spelling.
+  - In a Gradle source set (`src/<set>/jsharp` or `src/<set>/java`), a file is analyzed with
+    everything the build compiles with it: both directories, scripts included. So other files
+    can use the script's functions, and a second script or a second `main` is an error in the
+    editor as in the build. A folder outside a Gradle source set keeps D072's units: each script
+    with the library files next to it. The Run button takes the same files from the server.
+  - JS0411 (two scripts, or two entry points) is reported at every entry point, each pointing
+    to the others, not only at the second. An editor analyzes each file with itself first, so
+    the error used to land in a file that was not being shown.

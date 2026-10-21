@@ -1,0 +1,63 @@
+import java.util.*;
+
+public class Inventory {
+    private final String name;
+    private final List<String> items = new ArrayList<>();
+    private final int capacity;
+    private final boolean limited;
+    public static final int DEFAULT_CAPACITY = 16;
+    private static final Map<String, Integer> REGISTRY = new HashMap<>();
+
+    public Inventory(String name, int capacity) {
+        this.name = name;
+        if (capacity > 0) {
+            this.capacity = capacity;
+            limited = true;
+        } else {
+            this.capacity = DEFAULT_CAPACITY;
+            limited = false;
+        }
+        REGISTRY.put(name, this.capacity);
+    }
+
+    public Inventory(String name) {
+        this(name, DEFAULT_CAPACITY);
+    }
+
+    public boolean add(String item) {
+        if (limited && items.size() >= capacity) {
+            return false;
+        }
+        items.add(item);
+        return true;
+    }
+
+    public String name() => name;
+}
+
+public class Temperature {
+    private final double celsius;
+    public Temperature(double value, boolean fahrenheit) {
+        celsius = fahrenheit ? (value - 32) * 5 / 9 : value;
+    }
+    public double kelvin() => celsius + 273.15;
+}
+
+public class Config {
+    private final String mode;
+    public Config(String? m) {
+        if (m == null) {
+            mode = "default";
+        } else {
+            mode = m;
+        }
+    }
+    public String mode() => mode;
+}
+
+void main2() {
+    var inv = new Inventory("tools");
+    println(inv.add("hammer"));
+    println(new Temperature(212, true).kelvin());
+    println(new Config(null).mode());
+}

@@ -1,0 +1,85 @@
+int afterReturn() {
+    return 1;
+    println("dead");                         //~ JS0901
+}
+
+void afterThrow() {
+    throw new RuntimeException("boom");
+    println("dead");                         //~ JS0901
+}
+
+void afterBreak(int[] xs) {
+    foreach (var x in xs) {
+        break;
+        println(x);                          //~ JS0901
+    }
+}
+
+void afterContinue(int[] xs) {
+    foreach (var x in xs) {
+        continue;
+        println(x);                          //~ JS0901
+    }
+}
+
+void afterInfiniteLoop() {
+    while (true) {
+        println("spin");
+    }
+    println("never");                        //~ JS0901
+}
+
+void afterInfiniteFor() {
+    for (;;) { }
+    println("never");                        //~ JS0901
+}
+
+void afterBothBranchesReturn(boolean c) {
+    if (c) {
+        return;
+    } else {
+        return;
+    }
+    println("dead");                         //~ JS0901
+}
+
+void onlyFirstDeadStatementReported() {
+    return;
+    println("a");                            //~ JS0901
+    println("b");
+    println("c");
+}
+
+int afterSwitchAllReturn(int k) {
+    switch (k) {
+        case 1:
+            return 1;
+        default:
+            return 2;
+    }
+    return 3;                                //~ JS0901
+}
+
+void afterErrorCall() {
+    throw error("unsupported");
+    println("dead");                         //~ JS0901
+}
+
+void afterTryFinallyReturn() {
+    try {
+        println("x");
+    } finally {
+        return;
+    }
+    println("dead");                         //~ JS0901
+}
+
+void unreachableCatch() {
+    try {
+        println("x");
+    } catch (RuntimeException e) {
+        println("rt");
+    } catch (IllegalArgumentException e) {   //~ JS0901
+        println("never");
+    }
+}

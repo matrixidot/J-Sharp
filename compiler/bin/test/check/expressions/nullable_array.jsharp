@@ -1,0 +1,9 @@
+// Arrays whose elements are nullable: `T?[]`, created with `new T?[n]`.
+String?[] holes = new String?[3];
+String? hole = holes[0];
+holes[1] = null;
+String?[] literal = { "a", null };
+String?[] viaNew = new String?[] { null, "b" };
+int firstLength = holes[0]?.length() ?? 0;
+String first = holes[0];                 //~ JS0601
+println(hole + firstLength + literal.length + viaNew.length + first);

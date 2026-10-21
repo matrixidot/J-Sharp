@@ -1,0 +1,26 @@
+// Operators applied to operand types they do not support.
+String s = "a";
+boolean t = true;
+Object o = new Object();
+double d = 1.0;
+float f = 1f;
+
+var timesString = s * 2;                 //~ JS0607
+var minusString = s - "b";               //~ JS0607
+var modString = s % 2;                   //~ JS0607
+var boolPlus = t + t;                    //~ JS0607
+var objectPlus = o + 1;                  //~ JS0607
+var negateString = -s;                   //~ JS0607
+var negateBool = -t;                     //~ JS0607
+var complementDouble = ~d;               //~ JS0607
+var complementBool = ~t;                 //~ JS0607
+var shiftDouble = d << 1;                //~ JS0607
+var shiftByDouble = 1 << 1.5;            //~ JS0607
+var shiftFloat = f >>> 2;                //~ JS0607
+var maskDouble = d & 1;                  //~ JS0607
+var mixedBitwise = t | 1;                //~ JS0607
+var compareStrings = s < "b";            //~ JS0607
+var compareBools = t < false;            //~ JS0607
+var compareObject = o >= 1;              //~ JS0607
+var multiplyObjects = o * o;             //~ JS0607
+var fine = d * f + 1;

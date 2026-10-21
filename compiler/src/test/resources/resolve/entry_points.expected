@@ -1,3 +1,4 @@
+entry_points/One.jsharp:1:1 JS0411 only one file may contain top-level statements [help: move these statements into a function, or compile the files separately]
 entry_points/Two.jsharp:1:1 JS0411 only one file may contain top-level statements [help: move these statements into a function, or compile the files separately]
 entry_points/Two.jsharp:2:13 JS0409 a file with top-level statements cannot also declare main(String[])
 ---

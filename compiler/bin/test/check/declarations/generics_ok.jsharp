@@ -1,0 +1,91 @@
+import java.util.*;
+import java.util.function.*;
+
+public class Box<T> {
+    private T value;
+    public Box(T value) { this.value = value; }
+    public T get() => value;
+    public void set(T v) { value = v; }
+    public Box<R> map<R>(Function<T, R> f) => new Box<>(f.apply(value));
+    public static Box<T> of<T>(T v) => new Box<>(v);
+}
+
+public class SortedBag<T : Comparable<T>> {
+    private final List<T> items = new ArrayList<>();
+    public void add(T item) {
+        items.add(item);
+        Collections.sort(items);
+    }
+    public T? min() => items.isEmpty() ? null : items.get(0);
+}
+
+public class Cache<K, V> where K : Comparable<K> {
+    private final TreeMap<K, V> map = new TreeMap<>();
+    public V getOrPut(K key, Supplier<V> make) {
+        var v = map.get(key);
+        if (v != null) return v;
+        var made = make.get();
+        map.put(key, made);
+        return made;
+    }
+}
+
+public class Algorithms {
+    public static T max<T>(List<T> xs) where T : Comparable<T> {
+        T best = xs.get(0);
+        foreach (var x in xs) {
+            if (x.compareTo(best) > 0) best = x;
+        }
+        return best;
+    }
+    public static void swap<T>(T[] arr, int i, int j) {
+        T t = arr[i];
+        arr[i] = arr[j];
+        arr[j] = t;
+    }
+    public static Map<K, List<V>> groupBy<K, V>(List<V> xs, Function<V, K> key) {
+        var out = new HashMap<K, List<V>>();
+        foreach (var x in xs) {
+            out.computeIfAbsent(key.apply(x), k => new ArrayList<>()).add(x);
+        }
+        return out;
+    }
+    public static N sum<N : Number>(List<N> xs, N zero) => xs.isEmpty() ? zero : xs.get(0);
+}
+
+public interface Mapper<A, B> { B apply(A a); }
+public class Lengths : Mapper<String, int> {
+    public override Integer apply(String s) => s.length();
+}
+
+public class Node<T> {
+    public T value;
+    public Node<T>? next;
+    public Node(T value, Node<T>? next) { this.value = value; this.next = next; }
+}
+
+void main2() {
+    var b = new Box<String>("hi");
+    Box<int> len = b.map(s => s.length());
+    println(len.get() + 1);
+    var b2 = Box.of(3.5);
+    double d = b2.get();
+    var b3 = Box.of<String>("x");
+    println(b3.get().length());
+    var bag = new SortedBag<String>();
+    bag.add("pear");
+    println(bag.min());
+    var cache = new Cache<String, List<int>>();
+    cache.getOrPut("a", () => new ArrayList<>()).add(1);
+    println(Algorithms.max(List.of(3, 9, 2)));
+    println(Algorithms.max<String>(List.of("a", "z")));
+    var arr = new String[] { "a", "b" };
+    Algorithms.swap(arr, 0, 1);
+    Map<int, List<String>> byLen = Algorithms.groupBy(List.of("a", "bb", "cc"), s => s.length());
+    println(byLen.get(2));
+    println(Algorithms.sum(List.of(1, 2), 0));
+    Mapper<String, int> m = new Lengths();
+    println(m.apply("four"));
+    var n = new Node<String>("a", new Node<String>("b", null));
+    println(n.next?.value);
+}

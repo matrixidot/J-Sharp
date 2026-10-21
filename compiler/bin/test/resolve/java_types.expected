@@ -1,0 +1,21 @@
+---
+class Holder : Object [final]
+  field s: String
+  field lower: String
+  field maybe: String?
+  field boxed: Integer?
+  field names: List<String>
+  field index: Map<String, List<Integer>>
+  field opt: Optional<String?>
+  field inc: Function<Integer, Integer>
+  field grid: int[][]
+  field sparse: String?[]
+  field pair: (int, String)
+  field named: (int id, String name)
+  field concurrent: ConcurrentHashMap<String, Long>
+  field entry: Map.Entry<String, Integer>
+  field bi: BiFunction<Integer, Integer, Long>
+  field numbers: List<out Number>
+  field cmp: Comparator<in String>
+  field anything: List<?>
+  method <init>(): void [generated]

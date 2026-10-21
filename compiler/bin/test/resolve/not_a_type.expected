@@ -1,0 +1,7 @@
+not_a_type.jsharp:3:10 JS0425 'var' can only declare local variables and fields with an initializer
+not_a_type.jsharp:4:5 JS0425 type parameter 'T' cannot have type arguments or members
+---
+class Holder<T : Object> : Object [final]
+  field a: <error>
+  field b: <error>
+  method <init>(): void [generated]

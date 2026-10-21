@@ -1,0 +1,10 @@
+bad_imports.jsharp:1:1 JS0402 package java.utill does not exist
+bad_imports.jsharp:2:1 JS0403 cannot find class Lisst in package java.util [help: did you mean 'java.util.List'?]
+bad_imports.jsharp:3:1 JS0402 package java.util.nothere does not exist
+bad_imports.jsharp:4:1 JS0403 cannot find static member 'maxx' in java.lang.Math
+bad_imports.jsharp:6:1 JS0404 'List' is already imported as java.util.List [help: use an alias: import java.awt.List as OtherList;]
+---
+class Ok : Object [final]
+  field e: Map.Entry<String, String>
+  field d: HashMap<String, Integer>
+  method <init>(): void [generated]

@@ -1,0 +1,62 @@
+import java.util.*;
+
+public enum Suit { Clubs, Diamonds, Hearts, Spades }
+
+public enum Planet(double mass, double radius) {
+    Mercury(3.303e23, 2.4397e6),
+    Earth(5.976e24, 6.37814e6);
+
+    public static final double G = 6.67300E-11;
+    public double surfaceGravity() => G * mass / (radius * radius);
+    public double weight(double otherMass) => otherMass * surfaceGravity();
+}
+
+public enum Op(String symbol) : java.util.function.IntBinaryOperator {
+    Add("+"), Mul("*");
+
+    public override int applyAsInt(int a, int b) => this switch {
+        Add => a + b,
+        Mul => a * b,
+    };
+    public static Op parse(String s) {
+        foreach (var op in values()) {
+            if (op.symbol == s) return op;
+        }
+        throw new IllegalArgumentException(s);
+    }
+}
+
+public enum Level {
+    Low, Medium, High;
+    public Level next() => values()[(ordinal() + 1) % values().length];
+    public boolean atLeast(Level other) => compareTo(other) >= 0;
+}
+
+public static String color(Suit s) => s switch {
+    Suit.Hearts or Suit.Diamonds => "red",
+    Suit.Clubs or Suit.Spades => "black",
+};
+
+void main2() {
+    Suit s = Suit.Hearts;
+    println(s.ordinal());
+    println(s.name());
+    println(Suit.valueOf("Spades"));
+    println(Suit.values().length);
+    println(color(s));
+    println(s == Suit.Hearts);
+    foreach (var p in Planet.values()) {
+        println($"{p}: {p.weight(70):F2} {p.mass}");
+    }
+    println(Op.parse("*").applyAsInt(6, 7));
+    println(Op.Add.symbol);
+    println(Level.Low.next().atLeast(Level.Medium));
+    var counts = new EnumMap<Suit, int>(typeof(Suit));
+    counts.put(Suit.Clubs, 1);
+    Set<Level> levels = EnumSet.allOf(typeof(Level));
+    println(levels.contains(Level.Medium));
+    switch (s) {
+        case Suit.Hearts: println("h"); break;
+        default: println("other"); break;
+    }
+}

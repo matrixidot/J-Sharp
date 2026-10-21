@@ -1,0 +1,5 @@
+public class Strings2 {
+    public int wordCount(this String s) => s.split(" ").length;       //~ JS0416
+    public static int ok(this String s) => 1;
+    public static int late(int a, this String s) => a;              //~ JS0416
+}

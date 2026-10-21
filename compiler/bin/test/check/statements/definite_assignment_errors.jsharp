@@ -1,0 +1,94 @@
+import java.util.*;
+
+int onlyThen(boolean c) {
+    int x;
+    if (c) {
+        x = 1;
+    }
+    return x;                                //~ JS0900
+}
+
+int onlyElse(boolean c) {
+    int x;
+    if (c) {
+    } else {
+        x = 1;
+    }
+    return x;                                //~ JS0900
+}
+
+int loopMayNotRun(int n) {
+    int x;
+    for (var i = 0; i < n; i++) {
+        x = i;
+    }
+    return x;                                //~ JS0900
+}
+
+int whileMayNotRun(int n) {
+    int x;
+    while (n > 0) {
+        x = n;
+        n--;
+    }
+    return x;                                //~ JS0900
+}
+
+int foreachMayNotRun(List<int> xs) {
+    int x;
+    foreach (var v in xs) {
+        x = v;
+    }
+    return x;                                //~ JS0900
+}
+
+String switchMissingDefault(int k) {
+    String s;
+    switch (k) {
+        case 1:
+            s = "one";
+            break;
+        case 2:
+            break;
+        default:
+            s = "many";
+            break;
+    }
+    return s;                                //~ JS0900
+}
+
+int tryOnly() {
+    int x;
+    try {
+        x = Integer.parseInt("1");
+    } catch (NumberFormatException e) {
+        println("bad");
+    }
+    return x;                                //~ JS0900
+}
+
+int shortCircuitOr(boolean c) {
+    int n;
+    if (c || (n = 1) > 0) {
+        return n;                            //~ JS0900
+    }
+    return 0;
+}
+
+int readBeforeAssign() {
+    int x;
+    x = x + 1;                               //~ JS0900
+    return x;
+}
+
+void compoundBeforeAssign() {
+    int x;
+    x += 1;                                  //~ JS0900
+    String s;
+    println(s.length());                     //~ JS0900
+}
+
+void lambdaReadsUnassigned() {
+    int x;
+    Runnable r = () => println(x);           //~ JS0900
+}

@@ -1,0 +1,52 @@
+void unknownLabels(int[] xs) {
+    foreach (var x in xs) {
+        if (x == 1) break missing;           //~ JS0905
+        if (x == 2) continue nowhere;        //~ JS0905
+    }
+}
+
+void outsideLoop(boolean c) {
+    if (c) {
+        break;                               //~ JS0904
+    }
+}
+
+void continueOutsideLoop() {
+    continue;                                //~ JS0904
+}
+
+void continueInSwitchOnly(int k) {
+    switch (k) {
+        case 1:
+            continue;                        //~ JS0904
+        default:
+            break;
+    }
+}
+
+void continueToBlockLabel(int[] xs) {
+    block:
+    {
+        foreach (var x in xs) {
+            if (x > 0) continue block;       //~ JS0904
+        }
+    }
+}
+
+void labelNotVisibleAfterLoop(int[] xs) {
+    outer:
+    foreach (var x in xs) {
+        break outer;
+    }
+    foreach (var y in xs) {
+        break outer;                         //~ JS0905
+    }
+}
+
+void lambdaCannotBreakOuter(int[] xs) {
+    foreach (var x in xs) {
+        Runnable r = () => { break; };       //~ JS0904
+    }
+}
+
+break;                                       //~ JS0904

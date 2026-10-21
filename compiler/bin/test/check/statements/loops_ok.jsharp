@@ -1,0 +1,97 @@
+import java.util.*;
+
+var total = 0;
+for (var i = 0; i < 10; i++) {
+    if (i % 2 == 0) {
+        continue;
+    }
+    total += i;
+}
+for (int i = 0, j = 10; i < j; i++, j--) {
+    total += j - i;
+}
+var k = 0;
+for (; k < 3; ) {
+    k++;
+}
+for (;;) {
+    if (total > 100) {
+        break;
+    }
+    total *= 2;
+}
+var n = 5;
+while (n > 0) {
+    n--;
+}
+do {
+    n++;
+} while (n < 3);
+while (true) {
+    n++;
+    if (n == 10) break;
+}
+println(n);
+
+int[] arr = new int[] { 3, 1, 2 };
+var acc = 0;
+foreach (var x in arr) {
+    acc += x;
+}
+foreach (int x in arr) {
+    acc -= x;
+}
+long wide = 0;
+foreach (long x in arr) {
+    wide += x;
+}
+var words = List.of("a", "bb", "ccc");
+foreach (String w in words) {
+    println(w.length());
+}
+foreach (val w in words) {
+    println(w.toUpperCase());
+}
+foreach (var c in "hey".toCharArray()) {
+    char copy = c;
+    println(copy);
+}
+var nested = new int[][] { new int[] { 1, 2 }, new int[] { 3 } };
+foreach (var row in nested) {
+    foreach (var cell in row) {
+        acc += cell;
+    }
+}
+var set = new TreeSet<String>(words);
+foreach (var s in set) {
+    println(s);
+}
+Iterable<Integer> it = List.of(1, 2, 3);
+foreach (var v in it) {
+    int unboxed = v;
+    acc += unboxed;
+}
+println(acc + wide);
+
+int firstNegative(int[] xs) {
+    for (var i = 0; i < xs.length; i++) {
+        if (xs[i] < 0) {
+            return i;
+        }
+    }
+    return -1;
+}
+
+int loopForever() {
+    while (true) {
+        if (System.nanoTime() < 0) {
+            return 1;
+        }
+    }
+}
+
+int loopForeverFor() {
+    for (;;) {
+        return 2;
+    }
+}

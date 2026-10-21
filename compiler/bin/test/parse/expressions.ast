@@ -1,0 +1,97 @@
+(unit
+  (top
+    (local
+      var
+      (= lits (tuple 42 42L 0xFF 0b1010 1_000_000 3.14 3.14f 'c' "text" true null '\n' 1e10 2.5d))))
+  (top (local var (= raw "raw text\n  indented \"quotes\" \\n not escaped\n")))
+  (top (local var (= inline "single \"line\" raw")))
+  (top
+    (local
+      var
+      (=
+        greet
+        (interp
+          "Hello "
+          (hole name)
+          ", "
+          (hole (+ x 1) format="F2")
+          " {braces} "
+          (hole (call (. obj method) 1 2))
+          " "
+          (hole (interp "nested " (hole n)))))))
+  (top
+    (local var (= str (interp "Dear " (hole name) ",\n  total: " (hole total format="N2") "\n"))))
+  (top (local var (= arith (- (+ a (* b c)) (% (/ d e) f)))))
+  (top (local var (= shifts (+ (+ (paren (<< a 2)) (paren (>> b 1))) (paren (>>> c 3))))))
+  (top (local var (= logic (|| (&& (! a) b) (| (^ c (& d e)) f)))))
+  (top
+    (local
+      var
+      (=
+        cmp
+        (&&
+          (&&
+            (&& (&& (&& (&& (&& (< a b) (> c d)) (<= e f)) (>= g h)) (== i j)) (!= k l))
+            (=== m n))
+          (!== o p)))))
+  (top (local var (= cond (?: (> x 0) "pos" "neg"))))
+  (top (local var (= ifx (if-expr (> x 0) "pos" "neg"))))
+  (top (local var (= coalesce (?? a (?? b c)))))
+  (top (local var (= safe (?. (call (?. (?. a b) c)) d))))
+  (top (local var (= idx (+ ([] xs 0) (?[] ys 1)))))
+  (top (local var (= range ([] xs (.. 1 3)))))
+  (top (local var (= end ([] xs (^ 1)))))
+  (top (local var (= open1 ([] xs (.. _ 2)))))
+  (top (local var (= open2 ([] xs (.. 2 _)))))
+  (top (local var (= all ([] xs (.. _ _)))))
+  (top (local var (= casted (+ (+ (cast int d) (cast String o)) (cast List<String> obj)))))
+  (top (local var (= neg (+ (+ (- x) (+ y)) (~ z)))))
+  (top (local var (= incs (- (- (+ (post++ x) (++ y)) (post-- z)) (-- w)))))
+  (top (local var (= lambda1 (lambda (params (param x)) (=> (+ x 1))))))
+  (top (local var (= lambda2 (lambda (params (param x) (param y)) (=> (* x y))))))
+  (top
+    (local var (= lambda3 (lambda (params (param int x) (param int y)) (block (return (+ x y)))))))
+  (top (local var (= lambda4 (lambda (params) (=> (call println "hi"))))))
+  (top (local var (= lambda5 (async-lambda (params) (=> (await (call fetch "u")))))))
+  (top (local Function<int, int> (= inc (lambda (params (param x)) (=> (+ x 1))))))
+  (top (expr (call (. list forEach) (:: (. System out) println))))
+  (top (local var (= ctor (:: ArrayList new))))
+  (top (local var (= lenRef (:: String length))))
+  (top (local var (= arrCtor (:: int[] new))))
+  (top (local var (= gen (call (. Collections emptyList<String>)))))
+  (top (local var (= gen2 (call foo<int, String> 1))))
+  (top (local var (= tup (tuple (named id 1) (named name "a")))))
+  (top (local var (= p2 (with p (= x 5)))))
+  (top (local var (= obj2 (new Person (init (= name "Ann") (= age 30))))))
+  (top (local var (= obj3 (new Person (args "Ann") (init (= age 3))))))
+  (top
+    (local
+      var
+      (=
+        anon
+        (new
+          Runnable
+          (args)
+          (anon-body (method run (mods public) void (params) (block (expr (call println "run")))))))))
+  (top (local var (= arr2 (new-array int (array-init 1 2 3)))))
+  (top (local var (= arr3 (new-array String (dim n) []))))
+  (top (local var (= t1 (typeof String))))
+  (top (local var (= n1 (nameof x))))
+  (top (local var (= isStr (&& (is o (type-pat String s)) (> (call (. s length)) 3)))))
+  (top (local var (= asStr (as o String))))
+  (top (local var (= thrower (?? maybe (throw-expr (new IllegalArgumentException (args)))))))
+  (top (local var (= assigned (paren (= a (= b c))))))
+  (top (expr (+= x 1)))
+  (top (expr (-= x 1)))
+  (top (expr (*= x 2)))
+  (top (expr (/= x 2)))
+  (top (expr (%= x 3)))
+  (top (expr (&= x 1)))
+  (top (expr (|= x 2)))
+  (top (expr (^= x 3)))
+  (top (expr (<<= x 1)))
+  (top (expr (>>= x 1)))
+  (top (expr (>>>= x 1)))
+  (top (local var (= awaited (await (call (. Task whenAll) (call a) (call b) (call c))))))
+  (top (local var (= qualifiedThis (. Outer.this value))))
+  (top (local var (= sup (call (. super toString))))))

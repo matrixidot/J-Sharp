@@ -1,0 +1,32 @@
+import java.util.*;
+
+var x = 1;
+var list = new ArrayList<String>();
+String? maybe = null;
+int[] arr = new int[2];
+Object obj = "o";
+
+// valid expression statements
+x = 2;
+x += 3;
+x++;
+--x;
+list.add("a");
+new ArrayList<String>();
+maybe?.length();
+println(x);
+
+// invalid expression statements
+x + 1;                                       //~ JS0621
+x == 2;                                      //~ JS0621
+"literal";                                   //~ JS0621
+x;                                           //~ JS0621
+arr.length;                                  //~ JS0621
+-x;                                          //~ JS0621
+!true;                                       //~ JS0621
+x > 0 ? 1 : 2;                               //~ JS0621
+obj is String;                               //~ JS0621
+(x);                                         //~ JS0621
+maybe ?? "d";                                //~ JS0621
+y => y;                                      //~ JS0615
+for (var i = 0; i < 3; i + 1) { }            //~ JS0621

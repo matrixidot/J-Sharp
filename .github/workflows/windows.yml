@@ -46,6 +46,7 @@ jobs:
           ./gradlew -p editors/intellij test --console=plain
           --tests "*.testRunningAProgramWithItsLibraryFiles"
           --tests "*.testLanguageServerAnswers"
+          --tests "*.testCompletion"
       - name: Test reports
         if: always()
         uses: actions/upload-artifact@v4

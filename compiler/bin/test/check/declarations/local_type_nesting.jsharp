@@ -1,0 +1,6 @@
+// A local class cannot declare nested types (not yet supported).
+void f() {
+    class Local {
+        class Inner { }                                      //~ JS0658
+    }
+}

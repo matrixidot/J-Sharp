@@ -1,0 +1,33 @@
+import java.util.*;
+
+public class Window {
+    public String title { get; set; } = "untitled";
+    public int width { get; set; }
+    public int height { get; set; }
+    public boolean resizable;
+    public final String kind;
+    public String summary => $"{title} {width}x{height}";
+    public Window() { kind = "plain"; }
+    public Window(String kind) { this.kind = kind; }
+}
+
+public class Point2 {
+    public int x;
+    public int y;
+}
+
+void main2() {
+    var w = new Window { title = "Editor", width = 800, height = 600 };
+    var w2 = new Window("dialog") { resizable = true };
+    Window w3 = new() { title = "target typed" };
+    var p = new Point2 { x = 1, y = 2 };
+    var list = new ArrayList<Window>();
+    list.add(new Window { width = 1 });
+    println(w.summary + w2.kind + w3.title + p.x + list.size());
+
+    var bad1 = new Window { depth = 3 };              //~ JS0603
+    var bad2 = new Window { width = "wide" };         //~ JS0600
+    var bad3 = new Window { summary = "x" };          //~ JS0609
+    var bad4 = new Window { kind = "k" };             //~ JS0609
+    var bad5 = new Point2 { x = 1, x = 2 };           //~ JS0409
+}

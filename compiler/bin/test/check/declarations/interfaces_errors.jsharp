@@ -1,0 +1,37 @@
+public interface Cache {
+    String get(String key);
+    void put(String key, String value);
+    default int size() => 0;
+    private String norm(String k) => k.toLowerCase();
+    static Cache empty() => new NullCache();
+}
+
+public class NullCache : Cache {
+    public override String get(String key) => "";
+    public void put(String key, String value) { }    //~ JS0617
+}
+
+public class Partial : Cache {                       //~ JS0620
+    public override String get(String key) => key;
+}
+
+public class Weaker : Cache {
+    public override String get(String key) => key;
+    internal override void put(String key, String value) { }   //~ JS0619
+}
+
+public class BadReturn : Cache {
+    public override int get(String key) => 0;        //~ JS0600
+    public override void put(String key, String value) { }
+}
+
+public interface Left { default String hello() => "left"; }
+public interface Right { default String hello() => "right"; }
+public class Conflict : Left, Right { }              //~ JS0620
+
+void main2() {
+    Cache c = Cache.empty();
+    println(c.norm("A"));                            //~ JS0611
+    println(NullCache.empty());                      //~ JS0603
+    println(Cache.size());                           //~ JS0612
+}

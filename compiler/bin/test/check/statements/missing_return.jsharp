@@ -1,0 +1,93 @@
+int empty() { }                              //~ JS0902
+
+int onlyIf(int a) {                          //~ JS0902
+    if (a > 0) {
+        return 1;
+    }
+}
+
+String loopMayExit(int n) {                  //~ JS0902
+    while (n > 0) {
+        return "pos";
+    }
+}
+
+int loopWithBreak() {                        //~ JS0902
+    while (true) {
+        break;
+    }
+}
+
+int switchNoDefault(int k) {                 //~ JS0902
+    switch (k) {
+        case 1:
+            return 1;
+        case 2:
+            return 2;
+    }
+}
+
+int catchFallsOff() {                        //~ JS0902
+    try {
+        return Integer.parseInt("1");
+    } catch (NumberFormatException e) {
+        println("bad");
+    }
+}
+
+// These all complete abruptly on every path and need no trailing return.
+int ok1(boolean c) {
+    if (c) return 1; else return 2;
+}
+
+int ok2() {
+    while (true) { }
+}
+
+int ok3() {
+    throw new UnsupportedOperationException();
+}
+
+int ok4(int k) {
+    switch (k) {
+        case 1:
+            return 1;
+        default:
+            throw new IllegalArgumentException();
+    }
+}
+
+int ok5() {
+    try {
+        return 1;
+    } finally {
+        println("cleanup");
+    }
+}
+
+int ok6() {
+    try {
+        return Integer.parseInt("1");
+    } catch (NumberFormatException e) {
+        return 0;
+    }
+}
+
+int ok7(Object o) {
+    if (o is String s) {
+        return s.length();
+    }
+    throw error("not a string");
+}
+
+void voidNeedsNoReturn(boolean c) {
+    if (c) {
+        println("c");
+    }
+}
+
+int ok8(boolean flag) {
+    do {
+        return 1;
+    } while (flag);
+}

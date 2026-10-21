@@ -1,0 +1,11 @@
+// Literals that cannot be represented at all are rejected by the lexer (JS0008): floats that
+// overflow to infinity, and hex/binary literals wider than their type.
+float tooBigFloat = 1e40f;               //~ JS0008
+double tooBigDouble = 1e400;             //~ JS0008
+float maxFloat = 3.4028235e38f;
+double maxDouble = 1.7976931348623157e308;
+double smallest = 4.9e-324;
+float smallFloat = 1.4e-45f;
+int hexOver = 0x1_0000_0000;                        //~ JS0008
+int binOver = 0b1_00000000_00000000_00000000_00000000; //~ JS0008
+long hexLongOver = 0x1_0000_0000_0000_0000L;        //~ JS0008

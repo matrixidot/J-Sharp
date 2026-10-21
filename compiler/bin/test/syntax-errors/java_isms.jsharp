@@ -1,0 +1,6 @@
+class A extends B implements C { }
+void f() throws IOException { }
+for (String s : xs) { }
+try (var r = open()) { }
+var c = String.class;
+void g(int... xs) { }

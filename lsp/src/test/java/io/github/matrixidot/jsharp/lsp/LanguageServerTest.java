@@ -428,6 +428,50 @@ class LanguageServerTest {
     notifyServer("exit", null);
   }
 
+  /**
+   * Clients spell file URIs their own way (IntelliJ and VS Code send a Windows drive as {@code
+   * file:///d%3A/...}, Path.toUri gives {@code file:///D:/...}): it is still one file, not the open
+   * document plus a duplicate of it from the disk, and answers use the client's spelling.
+   */
+  @Test
+  @SuppressWarnings("unchecked")
+  void clientSpellingsOfFileUris() throws Exception {
+    Path file = dir.resolve("Point.jsharp");
+    String text = "public class Point {\n    public static Point origin() => new Point();\n}\n";
+    Files.writeString(file, text);
+    String plain = file.toUri().toString();
+    var drive = java.util.regex.Pattern.compile("file:///([A-Za-z]):(.*)").matcher(plain);
+    String spelled =
+        drive.matches()
+            ? "file:///"
+                + drive.group(1).toLowerCase(java.util.Locale.ROOT)
+                + "%3A"
+                + drive.group(2)
+            : plain.substring(0, plain.length() - "t.jsharp".length()) + "%74.jsharp";
+    assertThat(spelled).isNotEqualTo(plain);
+
+    request("initialize", Json.obj("rootUri", dir.toUri().toString()));
+    notifyServer("initialized", Json.obj());
+    notifyServer(
+        "textDocument/didOpen",
+        Json.obj(
+            "textDocument",
+            Json.obj("uri", spelled, "languageId", "jsharp", "version", 1, "text", text)));
+    assertThat(nextDiagnostics(URI.create(spelled))).isEmpty();
+
+    int col = "    public static Point origin() => new ".length();
+    Map<String, Object> def =
+        (Map<String, Object>)
+            request(
+                "textDocument/definition",
+                Json.obj("textDocument", Json.obj("uri", spelled), "position", pos(1, col)));
+    assertThat(def).isNotNull();
+    assertThat(def.get("uri")).isEqualTo(spelled);
+
+    request("shutdown", null);
+    notifyServer("exit", null);
+  }
+
   @Test
   void jsonRoundTrip() {
     Object v = Json.parse("{\"a\":[1,2.5,\"x\\n\\u0041\",true,null],\"b\":{}}");

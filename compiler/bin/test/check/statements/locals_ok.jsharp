@@ -1,0 +1,63 @@
+import java.util.*;
+
+// var, val, typed and multi-declarator locals that must all check cleanly.
+var count = 0;
+count = count + 1;
+count += 2;
+count++;
+val name = "J#";
+int a = 1, b = 2, c = a + b;
+String first = "x", second = first + "y";
+long big = 10;
+double ratio = 1;
+var list = new ArrayList<String>();
+list.add(name);
+val frozen = list;
+frozen.add("still mutable contents");
+String? maybe = null;
+maybe = "now set";
+ArrayList<String> xs = new();
+int[] nums = new int[] { 1, 2, 3 };
+var grid = new int[2][3];
+grid[0][1] = 5;
+char ch = 'q';
+byte small = 12;
+short mid = 300;
+float f = 1.5f;
+boolean flag = a < b;
+println($"{count} {name} {c} {second} {big} {ratio} {xs.size()} {nums.length} {ch} {small} {mid} {f} {flag} {maybe}");
+
+int sum(int n) {
+    var total = 0;
+    for (var i = 0; i < n; i++) {
+        val sq = i * i;
+        total += sq;
+    }
+    return total;
+}
+
+boolean xs0() => System.nanoTime() > 0;
+
+void shadowingInSiblingBlocks() {
+    {
+        var t = 1;
+        println(t);
+    }
+    {
+        var t = "two";
+        println(t);
+    }
+    if (xs0()) { val u = 1; println(u); } else { val u = 2; println(u); }
+}
+
+void valLateInit(boolean cond) {
+    final int v;
+    if (cond) {
+        v = 1;
+    } else {
+        v = 2;
+    }
+    println(v);
+}
+
+println(sum(4));

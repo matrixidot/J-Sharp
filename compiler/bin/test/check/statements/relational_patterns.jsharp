@@ -1,0 +1,36 @@
+boolean digit(int x) => x is >= 0 and <= 9;
+boolean outside(int x) => x is < 0 or > 100;
+boolean notZero(int x) => x is not 0;
+boolean small(double d) => d is > 0.0 and < 1.0;
+boolean letter(char c) => c is (>= 'a' and <= 'z') or (>= 'A' and <= 'Z');
+boolean weekend(String day) => day is "Sat" or "Sun";
+boolean bigLong(long v) => v is > 1_000_000L;
+boolean boxed(Integer i) => i is > 0 and < 10;
+boolean objectRange(Object o) => o is int n and > 5;
+
+String grade(int score) => score switch {
+    >= 90 => "A",
+    >= 80 and < 90 => "B",
+    >= 70 => "C",
+    _ => "F",
+};
+
+String bucket(Object o) => o switch {
+    int i when i < 0 => "negative",
+    int and (0 or 1) => "bit",
+    double d and > 1.0 => "big double",
+    String s and not "" => s,
+    _ => "other",
+};
+
+void conditions(int x) {
+    if (x is > 0 and < 10) {
+        println("single digit");
+    }
+}
+
+// relational patterns need a comparable primitive or boxed input
+boolean onString(String s) => s is > 3;          //~ JS0651
+boolean wrongConstType(int x) => x is > "a";     //~ JS0651
+boolean nonConstant(int x, int y) => x is > y;   //~ JS0651
+boolean boolRelational(boolean b) => b is > 0;   //~ JS0651

@@ -1,0 +1,54 @@
+// Binary numeric promotion and widening primitive conversions.
+byte b = 1;
+short s = 2;
+char c = 'a';
+int i = 3;
+long l = 4L;
+float f = 5f;
+double d = 6.0;
+
+int byteShort = b + s;
+int charPlusOne = c + 1;
+int charPlusChar = c + c;
+long intLong = i + l;
+float longFloat = l + f;
+double floatDouble = f + d;
+long widenedInt = i;
+float widenedLong = l;
+double widenedFloat = f;
+double widenedInt2 = i;
+int widenedChar = c;
+long widenedChar2 = c;
+short widenedByte = b;
+double widenedByte2 = b;
+
+var mixed = i * l;
+long checkMixed = mixed;
+var intDivision = 7 / 2;
+int checkIntDivision = intDivision;
+var floatDivision = 7 / 2.0;
+double checkFloatDivision = floatDivision;
+var remainder = 7.5 % 2;
+double checkRemainder = remainder;
+var negatedByte = -b;
+int checkNegatedByte = negatedByte;
+var plusChar = +c;
+int checkPlusChar = plusChar;
+var complementLong = ~l;
+long checkComplementLong = complementLong;
+var floatTimesInt = f * i;
+float checkFloatTimesInt = floatTimesInt;
+
+Integer boxed = i;
+int unboxed = boxed;
+long unboxedWidened = boxed;
+double boxedPlusDouble = boxed + d;
+Double boxedDouble = d;
+double sum = boxedDouble + boxed;
+
+double takesDouble(double x) => x * 2;
+long takesLong(long x) => x + 1;
+println(takesDouble(i));
+println(takesDouble(f));
+println(takesLong(c));
+println(takesLong(b));

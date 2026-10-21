@@ -1,0 +1,99 @@
+import java.util.*;
+
+int describe(Object o) {
+    if (o is String s) {
+        return s.length();
+    }
+    if (o is Integer i && i > 10) {
+        return i * 2;
+    }
+    if (o is int n) {
+        return n;
+    }
+    if (o is List<?> list && !list.isEmpty()) {
+        return list.size();
+    }
+    return -1;
+}
+
+// binding is definitely assigned after a negated test that returns
+int earlyExit(Object o) {
+    if (!(o is String s)) {
+        return 0;
+    }
+    return s.length();
+}
+
+int earlyExitIsNot(Object o) {
+    if (o is not String) {
+        return 0;
+    }
+    return o.length();
+}
+
+// binding is in scope in the else branch of a negated test
+String elseBranch(Object o) {
+    if (!(o is Integer n)) {
+        return "not int";
+    } else {
+        return "int " + (n + 1);
+    }
+}
+
+// binding flows through || when the left side is the negation
+boolean orForm(Object o) => !(o is String s) || s.isEmpty();
+
+// conditional expression
+int ternary(Object o) => o is String s ? s.length() : 0;
+
+// while condition binding
+void loopBinding(Iterator<Object> it) {
+    while (it.hasNext() && it.next() is String s) {
+        println(s.trim());
+    }
+}
+
+// same binding name in independent branches
+String twice(Object a, Object b) {
+    if (a is String s) {
+        return s;
+    }
+    if (b is String s) {
+        return s;
+    }
+    return "";
+}
+
+// type test without binding
+boolean isNumber(Object o) => o is Number;
+boolean isNotNumber(Object o) => o is not Number;
+
+// `as` yields a nullable result
+int asCast(Object o) {
+    String? s = o as String;
+    return s?.length() ?? 0;
+}
+
+// `is null` / `is not null`
+String nulls(String? s) {
+    if (s is null) {
+        return "none";
+    }
+    return s.trim();
+}
+
+int notNull(String? s) {
+    if (s is not null) {
+        return s.length();
+    }
+    return 0;
+}
+
+int notNullBinding(Object? o) {
+    if (o is not null && o is String str) {
+        return str.length();
+    }
+    return 0;
+}
+
+println(describe("abc") + earlyExit(1) + earlyExitIsNot("x") + ternary("t") + asCast(1));

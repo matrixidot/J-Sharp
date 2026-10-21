@@ -1,0 +1,5 @@
+invalid_top_level.jsharp:1:12 JS0422 properties cannot be declared at the top level [help: use a top-level value ('public val counter = ...;') or a function]
+---
+class InvalidTopLevelModule : Object [public final module]
+  method ok(): int [static]
+  method <init>(): void [private generated]

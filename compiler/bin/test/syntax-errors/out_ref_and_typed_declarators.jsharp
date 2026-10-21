@@ -1,0 +1,6 @@
+(int, float) f() => (1, 2f);
+int x, float y = f();
+boolean tryParse(String s, out int value) => false;
+void swap(ref int a, ref int b) { }
+if (tryParse("1", out var n)) println(n);
+swap(ref x, ref x);

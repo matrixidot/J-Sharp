@@ -158,3 +158,4 @@
 - A bundled Java runtime for the CLI and VS Code on five platforms (D099); the IntelliJ plugin uses the IDE's.
 - A release workflow publishing the Maven repository (GitHub Pages), GitHub release downloads, and marketplaces when tokens exist (D100).
 - The IntelliJ plugin uses no internal or experimental APIs; `verifyPlugin` runs in releases (D104).
+- Windows editors: one URI per file; Gradle source sets are analyzed as the build compiles them; JS0411 at every entry point (D105).

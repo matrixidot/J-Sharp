@@ -1,0 +1,38 @@
+import java.util.*;
+
+public record Size(int w, int h);
+public class Person {
+    public String name { get; set; }
+    public int age { get; set; }
+    public Person(String name, int age) { this.name = name; this.age = age; }
+}
+
+boolean longString(Object o) => o is String { length: > 3 };
+boolean emptyList(List<String> xs) => xs is { empty: true };
+boolean square(Size s) => s is { w: var w, h: var h } && w == h;
+boolean adult(Person p) => p is { age: >= 18 };
+boolean adultNamed(Person p) => p is { age: >= 18, name: "Ann" };
+boolean nonNull(Object? o) => o is { };
+
+String classify(Object o) => o switch {
+    Size { w: 0 } or Size { h: 0 } => "degenerate",
+    Size { w: var w, h: var h } when w == h => "square " + w,
+    Size(var w, var h) => "rect " + (w * h),
+    Person { name: var n, age: < 18 } => "minor " + n,
+    Person { name: { length: > 10 } } => "long name",
+    String { length: 0 } => "empty",
+    String s => s,
+    _ => "?",
+};
+
+String bound(Object o) {
+    if (o is Size { w: > 10 } big) {
+        return "big " + big.w;
+    }
+    return "";
+}
+
+// errors
+boolean noSuchProperty(Size s) => s is { depth: 1 };              //~ JS0603
+boolean wrongValueType(Size s) => s is { w: "wide" };             //~ JS0651
+boolean nestedWrongType(Person p) => p is { name: { length: "x" } };  //~ JS0651

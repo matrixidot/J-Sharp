@@ -1,0 +1,8 @@
+// `out` and `ref` stay ordinary names (J# has no out/ref parameter modes, D079).
+var out = 3;
+var ref = 4;
+int sum(int out, int ref) => out + ref;
+println(sum(out, ref));
+int a, b = 5;                                  // Java multi-declaration keeps its meaning
+(int, float) pair() => (1, 2f);
+(int i, float f) = pair();

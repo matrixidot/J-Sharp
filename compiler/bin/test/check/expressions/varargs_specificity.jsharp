@@ -1,0 +1,12 @@
+// With no variable arguments, String... is more specific than Object... (JLS 15.12.2.5).
+class V {
+    public static String count(params Object[] xs) => "objects";
+    public static String count(params String[] xs) => "strings";
+    public static String nums(params int[] xs) => "ints";
+    public static String nums(params long[] xs) => "longs";
+    public static String pick(params String[] xs) => "s";
+    public static String pick(params Integer[] xs) => "i";
+}
+String a = V.count();
+String b = V.nums();
+String c = V.pick();                                       //~ JS0605

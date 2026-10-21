@@ -1,6 +1,6 @@
 // A program has one entry point; two main methods are an error, not an arbitrary choice.
 public class App {
-    public static void main(String[] args) { }
+    public static void main(String[] args) { }            //~ JS0411
 }
 public class Other {
     public static void main(String[] args) { }            //~ JS0411

@@ -1,0 +1,28 @@
+// J# enforces the rules of Java declarations read from source: access, nullness, bounds,
+// abstract classes, sealed hierarchies and deprecation.
+import lib.Api;
+import lib.Api.*;
+
+Api.hidden();                                                              //~ JS0611
+Api.packagePrivate();                                                      //~ JS0611
+var n = Api.maybe().length();                                              //~ JS0608
+var m = Api.maybe()?.length() ?? 0;
+var p = Api.platform().length();
+println(Api.sum(1, 2, 3) + Api.sum());
+int big = Api.first([1, 2]);
+Api.first(["a"]);                                                          //~ JS0600
+new Api();
+new Base();                                                                //~ JS0613
+var api = (Api) null;
+class Square : Shape {
+    public override double area() => 4.0;
+}
+println(new Square().describe());
+String name(Animal a) => a switch {                                        //~ JS0650
+    Dog d => d.name(),
+};
+String name2(Animal a) => a switch {
+    Dog d => d.name(),
+    Cat c => c.name(),
+};
+Api.old();                                                                 //~ JS0639

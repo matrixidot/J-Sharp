@@ -1,0 +1,43 @@
+member_errors.jsharp:5:12 JS0409 'x' is already declared as a field in Dup
+member_errors.jsharp:7:10 JS0409 duplicate method 'f' with the same parameter types (after erasure)
+member_errors.jsharp:9:19 JS0409 duplicate method 'getName' with the same parameter types (after erasure)
+member_errors.jsharp:10:23 JS0419 duplicate parameter 'a'
+member_errors.jsharp:11:27 JS0420 parameter 'b' without a default value follows a parameter with one [help: move parameters with default values to the end]
+member_errors.jsharp:12:12 JS0420 a 'params' parameter must be the last parameter
+member_errors.jsharp:13:19 JS0420 a 'params' parameter must have an array type
+member_errors.jsharp:14:19 JS0416 only the first parameter can be the extension receiver 'this'
+member_errors.jsharp:15:9 JS0416 extension method 'ext' must be static [help: add 'static', or declare it at the top level of a file]
+member_errors.jsharp:16:5 JS0418 method 'helper' must declare a return type [help: return types may only be omitted on private expression-bodied methods]
+member_errors.jsharp:17:13 JS0418 method 'block' must declare a return type [help: return types may only be omitted on private expression-bodied methods]
+member_errors.jsharp:18:9 JS0417 property 'noGet' needs a 'get' accessor
+member_errors.jsharp:19:25 JS0417 a static property cannot have an 'init' accessor
+member_errors.jsharp:20:34 JS0417 only auto-properties can have an initializer
+member_errors.jsharp:21:12 JS0415 'void' is only allowed as a return type
+member_errors.jsharp:22:9 JS0417 'var' needs an initializer to infer the type of 'noInit'
+---
+class Dup : Object [final]
+  field x: int
+  field name: String [private backing]
+  field s: int [private static backing]
+  field noInit: <inferred> [inferred]
+  property name: String get=getName set=setName backed [public]
+  property s: int get=getS set=setS backed [static init-only]
+  property computed: int get=getComputed set=-
+  method f(List<String> a): void
+  method f(List<Integer> b): void
+  method getName(): String [public getter]
+  method getName(): String [public]
+  method setName(String value): void [public setter]
+  method g(int a, int a): void
+  method h(int a = ?, int b): void
+  method i(int[] xs, int y): void
+  method j(int xs): void
+  method k(int a, int b): void
+  method ext(int x): int [extension]
+  method helper(int x): <error> [inferred]
+  method block(int x): <error> [private inferred]
+  method getS(): int [static getter]
+  method setS(int value): void [static setter init-only synthetic]
+  method getComputed(): int [getter]
+  method v(<error> x): void
+  method <init>(): void [generated]

@@ -172,19 +172,12 @@ final class Workspace {
     } catch (RuntimeException e) {
       return classPath;
     }
-    Path root = sourceRoot(file, packageOf(text(uri)));
-    if (root == null
-        || root.getFileName() == null
-        || !(root.getFileName().toString().equals("jsharp")
-            || root.getFileName().toString().equals("java"))
-        || root.getParent() == null
-        || root.getParent().getParent() == null
-        || root.getParent().getParent().getFileName() == null
-        || !root.getParent().getParent().getFileName().toString().equals("src")) {
+    Path sourceSet = gradleSourceSet(sourceRoot(file, packageOf(text(uri))));
+    if (sourceSet == null) {
       return classPath;
     }
-    String set = root.getParent().getFileName().toString();
-    Path project = root.getParent().getParent().getParent();
+    String set = sourceSet.getFileName().toString();
+    Path project = sourceSet.getParent().getParent();
     Path listing = project.resolve("build").resolve("jsharp").resolve(set + ".classpath");
     java.nio.file.attribute.FileTime modified;
     List<Path> entries = new ArrayList<>(baseClassPath);
@@ -234,22 +227,37 @@ final class Workspace {
     if (root == null || !Files.isDirectory(root)) {
       return out;
     }
-    try (Stream<Path> s = Files.walk(root, 12)) {
-      for (Path p :
-          s.filter(x -> x.toString().endsWith(LanguageInfo.FILE_EXTENSION))
-              .filter(x -> !skipped(root, x))
-              .sorted()
-              .toList()) {
-        URI u = p.toUri();
-        if (!u.equals(uri) && !hasTopLevelStatements(text(u))) {
-          out.add(u);
-        }
+    // In a Gradle source set, the files the build compiles together: its jsharp and java
+    // directories, scripts included, so the editor reports what the build does (one entry point;
+    // other files can use the script's functions). Elsewhere, a folder of scripts: each script
+    // with the library files (no top-level statements) next to it.
+    Path sourceSet = gradleSourceSet(root);
+    List<Path> roots =
+        sourceSet == null
+            ? List.of(root)
+            : List.of(sourceSet.resolve("jsharp"), sourceSet.resolve("java"));
+    for (Path r : roots) {
+      if (!Files.isDirectory(r)) {
+        continue;
       }
-    } catch (IOException e) {
-      throw new UncheckedIOException(e);
+      try (Stream<Path> s = Files.walk(r, 12)) {
+        for (Path p :
+            s.filter(x -> x.toString().endsWith(LanguageInfo.FILE_EXTENSION))
+                .filter(x -> !skipped(r, x))
+                .sorted()
+                .toList()) {
+          URI u = p.toUri();
+          if (!u.equals(uri) && (sourceSet != null || !hasTopLevelStatements(text(u)))) {
+            out.add(u);
+          }
+        }
+      } catch (IOException e) {
+        throw new UncheckedIOException(e);
+      }
     }
-    List<Path> javaRoots = new ArrayList<>(List.of(root));
-    if (root.getFileName() != null
+    List<Path> javaRoots = new ArrayList<>(roots);
+    if (sourceSet == null
+        && root.getFileName() != null
         && root.getFileName().toString().equals("jsharp")
         && root.getParent() != null) {
       javaRoots.add(root.getParent().resolve("java"));
@@ -268,6 +276,29 @@ final class Workspace {
       }
     }
     return out;
+  }
+
+  /**
+   * {@code src/<set>} when {@code root} is a Gradle source set's {@code src/<set>/jsharp} or {@code
+   * src/<set>/java} (the Gradle plugin compiles .jsharp files from both); else null.
+   */
+  static Path gradleSourceSet(Path root) {
+    if (root == null
+        || root.getFileName() == null
+        || !(root.getFileName().toString().equals("jsharp")
+            || root.getFileName().toString().equals("java"))) {
+      return null;
+    }
+    Path set = root.getParent();
+    if (set == null
+        || set.getFileName() == null
+        || set.getParent() == null
+        || set.getParent().getFileName() == null
+        || !set.getParent().getFileName().toString().equals("src")
+        || set.getParent().getParent() == null) {
+      return null;
+    }
+    return set;
   }
 
   private static boolean skipped(Path root, Path p) {

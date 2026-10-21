@@ -1,0 +1,32 @@
+// int? is a boxed Integer; using it as an int needs a null check, ?? or !.
+int? parse(String s) => if (s.isEmpty()) null else Integer.parseInt(s);
+
+int? boxed = parse("4");
+int unboxed = boxed;                     //~ JS0601
+long widened = boxed;                    //~ JS0601
+int plusOne = boxed + 1;                 //~ JS0601
+int times = 2 * boxed;                   //~ JS0601
+boolean positive = boxed > 0;            //~ JS0601
+var negated = -boxed;                    //~ JS0601
+int[] arr = new int[3];
+int element = arr[boxed];                //~ JS0601
+int takesInt(int x) => x;
+println(takesInt(boxed));                //~ JS0601
+double? ratio = null;
+double half = ratio / 2;                 //~ JS0601
+boolean? flag = null;
+if (flag) { }                            //~ JS0601
+
+int fine1 = boxed ?? 0;
+int fine3 = (boxed ?? 0) + 1;
+if (boxed != null) {
+    int fine4 = boxed + 1;
+    println(fine4);
+}
+boolean equalsNull = boxed == null;
+boolean equalsFive = boxed == 5;
+int? nullableSum = boxed != null ? boxed + 1 : null;
+Integer platformLike = Integer.valueOf(3);
+int fromNonNullBoxed = platformLike;
+int fine2 = boxed!;
+int afterAssertion = boxed + 1;
