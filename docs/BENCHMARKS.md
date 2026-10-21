@@ -143,3 +143,42 @@ call that may be an extension) scanned the whole symbol table, class path classe
 the classes of the current package. `Symtab` now indexes source classes by package. The rest of
 the time is spread out; the largest single item is the JDK's `ClassFile.build` (constant pool and
 stack maps) in code generation.
+
+## 0.2.3 — after the cleanup (2026-10-21)
+
+All 20 pairs, 2 forks, 3×2 s warmup, 5×2 s measurement, µs/op, OpenJDK 25.0.4. The J# side
+includes this release's changes: the runtime library built for Java 21 (D108), annotations (D109)
+and the refactored checker. Ratio is J# / baseline.
+
+| Benchmark | J# | Java | Ratio |
+| --- | ---: | ---: | ---: |
+| array | 8.08 ± 0.43 | 8.28 ± 0.53 | 0.98 |
+| asyncFanOut | 135.62 ± 3.10 | 180.96 ± 13.22 | 0.75 |
+| boxed | 18.58 ± 1.09 | 13.67 ± 0.57 | 1.36 |
+| fib | 30.67 ± 1.54 | 30.41 ± 1.31 | 1.01 |
+| firstMatch | 0.03 ± 0.00 | 0.12 ± 0.00 | 0.29 |
+| groupBy | 189.43 ± 8.67 | 205.90 ± 4.49 | 0.92 |
+| intSwitch | 73.29 ± 19.51 | 132.63 ± 8.40 | 0.55 |
+| interpolation | 28.00 ± 0.26 | 27.94 ± 0.49 | 1.00 |
+| mapFilterCollect | 59.71 ± 1.55 | 52.44 ± 1.22 | 1.14 |
+| patternSwitch | 17.14 ± 0.89 | 18.40 ± 0.88 | 0.93 |
+| primitive | 7.93 ± 0.37 | 10.45 ± 0.44 | 0.76 |
+| properties | 27.85 ± 1.54 | 27.29 ± 0.76 | 1.02 |
+| records | 136.01 ± 2.91 | 137.32 ± 2.58 | 0.99 |
+| streamPipeline | 13.73 ± 0.70 | 20.00 ± 10.22 | 0.69 |
+| stringSwitch | 193.33 ± 10.57 | 218.41 ± 14.04 | 0.89 |
+| sumArray | 1.59 ± 0.08 | 1.61 ± 0.08 | 0.99 |
+| topTen | 1752.63 ± 69.68 | 1752.64 ± 83.32 | 1.00 |
+| widePatternSwitch | 149.24 ± 16.73 | 160.26 ± 13.65 | 0.93 |
+| wideSwitch | 165.49 ± 5.42 | 162.60 ± 5.90 | 1.02 |
+| wordCount | 331.63 ± 12.39 | 332.12 ± 16.06 | 1.00 |
+
+- **No regression from this release.** `boxed` and `mapFilterCollect`, the two pairs above 1.05,
+  measured the same on 0.2.2-beta in a 3-fork rerun (`boxed` 18.7 vs 13.8 µs then, 18.3 vs 14.1
+  now; `mapFilterCollect` 56.8 vs 54.3 then, 57.2 vs 54.3 now).
+- **`boxed` is a real 1.33× gap, not noise** (M7 called it noise after one rerun). It reproduces
+  across forks and versions on this JDK. The lambdas compile to the same bytecode as javac's,
+  C2 inlines the whole loop (spliterator, filter and map sinks, both lambdas, the sum), and the
+  J# pipeline allocates nothing (0.1 B/op against the stream's 335 B/op). What is left is C2's
+  code for the sink chain itself; finding it needs the generated assembly (`-prof perfasm`).
+- **`mapFilterCollect` is 1.05× in the 3-fork rerun**, within its earlier bimodal range.
