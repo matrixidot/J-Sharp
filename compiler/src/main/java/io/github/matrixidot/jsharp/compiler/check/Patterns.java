@@ -1655,7 +1655,7 @@ final class Patterns {
     if (!a.isSpeculative() && env().localClasses != null) {
       env().localClasses.add(bc);
     }
-    a.checkRequiredMembers(base, List.of(), span);
+    a.creation.checkRequiredMembers(base, List.of(), span);
     BExpr nw = new BExpr.New(ClassType.of(c), ctor, args, span);
     return new BExpr.Conv(nw, ConvKind.RETYPE, base.withNullness(Nullness.NON_NULL), span);
   }
