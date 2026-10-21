@@ -16,9 +16,9 @@ import java.util.Map;
 
 /**
  * {@code jsharp new}: starter projects (D098). Gradle projects use the published J# Gradle plugin
- * of this version, a Gradle wrapper, and Gradle's daemon JVM criteria, so Gradle downloads Java 25
- * itself. The IntelliJ and VS Code wizards run this command, so every way of starting a project
- * gives the same files.
+ * of this version, a Gradle wrapper, and Gradle's daemon JVM criteria, so Gradle downloads the Java
+ * release J# targets itself. The IntelliJ and VS Code wizards run this command, so every way of
+ * starting a project gives the same files.
  */
 public final class ProjectTemplates {
   private ProjectTemplates() {}
@@ -279,12 +279,17 @@ public final class ProjectTemplates {
         version = "0.1.0"
 
         %s
-        java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
+        java { toolchain.languageVersion = JavaLanguageVersion.of(%d) }
 
         // main.jsharp's top-level statements are the entry point of the class MainModule.
         application { mainClass = "%s.MainModule" }
         """
-        .formatted(version, p.packageName(), repositories(p, version, ""), p.packageName());
+        .formatted(
+            version,
+            p.packageName(),
+            repositories(p, version, ""),
+            LanguageInfo.JAVA_RELEASE,
+            p.packageName());
   }
 
   private static String appMain(Project p) {
@@ -314,9 +319,10 @@ public final class ProjectTemplates {
         version = "0.1.0"
 
         %s
-        java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
+        java { toolchain.languageVersion = JavaLanguageVersion.of(%d) }
         """
-        .formatted(version, p.packageName(), repositories(p, version, ""));
+        .formatted(
+            version, p.packageName(), repositories(p, version, ""), LanguageInfo.JAVA_RELEASE);
   }
 
   private static String libraryMain(Project p) {
@@ -350,7 +356,7 @@ public final class ProjectTemplates {
             compileOnly("io.papermc.paper:paper-api:%s.build.+")
         }
 
-        java { toolchain.languageVersion = JavaLanguageVersion.of(25) }
+        java { toolchain.languageVersion = JavaLanguageVersion.of(%d) }
 
         tasks {
             runServer {
@@ -373,6 +379,7 @@ public final class ProjectTemplates {
             repositories(
                 p, version, "    maven(\"https://repo.papermc.io/repository/maven-public/\")\n"),
             MINECRAFT_VERSION,
+            LanguageInfo.JAVA_RELEASE,
             MINECRAFT_VERSION);
   }
 
@@ -461,13 +468,13 @@ public final class ProjectTemplates {
     return """
         # %s
 
-        A J# project. `%s` %s (`gradlew.bat` on Windows). Gradle downloads Java 25 and J# the
+        A J# project. `%s` %s (`gradlew.bat` on Windows). Gradle downloads Java %d and J# the
         first time.
 
         Sources are in `src/main/jsharp`. Open this folder in IntelliJ IDEA or VS Code with the J#
         plugin; after the first build, the editor also knows the project's libraries.
         """
-        .formatted(p.name(), command, what);
+        .formatted(p.name(), command, what, LanguageInfo.JAVA_RELEASE);
   }
 
   private static String paperReadme(Project p) {
@@ -481,10 +488,10 @@ public final class ProjectTemplates {
         - `./gradlew build` builds `build/libs/%s-0.1.0-all.jar`, the jar to put in a server's
           `plugins/` folder.
 
-        Use `gradlew.bat` on Windows. Gradle downloads Java 25 and J# the first time. The plugin's
+        Use `gradlew.bat` on Windows. Gradle downloads Java %d and J# the first time. The plugin's
         code is in `src/main/jsharp`, its description in `src/main/resources/paper-plugin.yml`.
         """
-        .formatted(p.name(), MINECRAFT_VERSION, p.name());
+        .formatted(p.name(), MINECRAFT_VERSION, p.name(), LanguageInfo.JAVA_RELEASE);
   }
 
   private static String gitignore(Template t) {

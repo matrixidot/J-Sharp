@@ -23,7 +23,12 @@
 hs_err_pid*
 replay_pid*
 
-/docs
+# The owner's design documents; docs/TOUR.md, BENCHMARKS.md and BACKPORTING.md are published.
+/docs/ARCHITECTURE.md
+/docs/CLAUDE.md
+/docs/LANGUAGE_SPEC.md
+/docs/PROMPT.md
+/docs/ROADMAP.md
 
 # Gradle / IDE
 .gradle/

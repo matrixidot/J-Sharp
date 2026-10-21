@@ -1,5 +1,6 @@
 package io.github.matrixidot.jsharp.compiler.testing;
 
+import io.github.matrixidot.jsharp.compiler.LanguageInfo;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -25,7 +26,13 @@ public final class JavaFixtures {
       Path out = Files.createTempDirectory("jsharp-fixture-out");
       List<String> args =
           new ArrayList<>(
-              List.of("-d", out.toString(), "-parameters", "-nowarn", "--release", "25"));
+              List.of(
+                  "-d",
+                  out.toString(),
+                  "-parameters",
+                  "-nowarn",
+                  "--release",
+                  String.valueOf(LanguageInfo.JAVA_RELEASE)));
       StringBuilder cp = new StringBuilder(System.getProperty("java.class.path"));
       for (Path p : extraClassPath) {
         cp.append(java.io.File.pathSeparator).append(p);

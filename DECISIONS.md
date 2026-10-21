@@ -714,3 +714,13 @@ Format: **decision** — reason. *Rejected:* alternatives.
   `-Didea.sync.active=true`; the Gradle plugin then writes the listing after the project is
   evaluated (with the project's lock, which Gradle 9 requires for resolving), and a failure there
   only warns, never breaks the sync. Other editors still get it from the first build.
+- **D107: One source tree builds for Java 25 and Java 21.** `javaVersion` in `gradle.properties`
+  sets the toolchain, `--release`, the class file version J# emits
+  (`LanguageInfo.JAVA_RELEASE`), the toolchain of `jsharp new` projects and the bundled runtimes.
+  The only Java 22+ API J# uses is `java.lang.classfile` (final in 24). Below 24, the build
+  compiles a copy of the sources whose imports point at its backport,
+  `io.github.dmlloyd:jdk-classfile-backport` (the same API in another package, GPLv2 with the
+  Classpath Exception, like the JDK). This is the one exception to "no dependencies in the
+  compiler", and it applies only to that variant. A CI job builds and tests `-PjavaVersion=21`,
+  so the variant keeps working. Rejected: ASM (a second code generator to maintain), and a
+  separate Java 21 branch (which drifts). See `docs/BACKPORTING.md`.

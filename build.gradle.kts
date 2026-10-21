@@ -6,6 +6,13 @@ plugins {
 val junitVersion = "5.13.4"
 val assertjVersion = "3.27.7"
 
+/**
+ * The Java release everything is compiled for and runs on, and the class file version J# emits
+ * (gradle.properties; `-PjavaVersion=21` builds the Java 21 variant, see docs/BACKPORTING.md).
+ */
+val javaVersion = providers.gradleProperty("javaVersion").get().toInt()
+extra["javaVersion"] = javaVersion
+
 allprojects {
     group = "io.github.matrixidot.jsharp"
     version = providers.gradleProperty("version").get()
@@ -17,13 +24,29 @@ subprojects {
     apply(plugin = "com.diffplug.spotless")
 
     extensions.configure<JavaPluginExtension> {
-        toolchain { languageVersion.set(JavaLanguageVersion.of(25)) }
+        toolchain { languageVersion.set(JavaLanguageVersion.of(javaVersion)) }
     }
 
     tasks.withType<JavaCompile>().configureEach {
-        options.release.set(25)
+        options.release.set(javaVersion)
         options.encoding = "UTF-8"
         options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-processing", "-Werror"))
+    }
+
+    // java.lang.classfile is final in Java 24. For an older release the sources are compiled from a
+    // copy that uses its backport instead (the same API in another package; the compiler adds the
+    // library), so one source tree builds both variants.
+    if (javaVersion < 24) {
+        extensions.getByType<SourceSetContainer>().configureEach {
+            val set = this
+            val backport =
+                tasks.register<Sync>("backport${set.name.replaceFirstChar(Char::uppercase)}Java") {
+                    from(set.java)
+                    into(layout.buildDirectory.dir("backport/${set.name}"))
+                    filter { line: String -> line.replace("java.lang.classfile", "io.github.dmlloyd.classfile") }
+                }
+            tasks.named<JavaCompile>(set.compileJavaTaskName) { setSource(backport) }
+        }
     }
 
     dependencies {

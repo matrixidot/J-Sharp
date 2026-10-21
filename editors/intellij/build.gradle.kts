@@ -1,3 +1,4 @@
+import java.util.Properties
 import org.jetbrains.intellij.platform.gradle.IntelliJPlatformType
 import org.jetbrains.intellij.platform.gradle.TestFrameworkType
 
@@ -35,12 +36,20 @@ dependencies {
     testImplementation("org.opentest4j:opentest4j:1.3.0")
 }
 
-java { toolchain { languageVersion.set(JavaLanguageVersion.of(25)) } }
+// The Java release of the J# build (javaVersion in its gradle.properties, or -PjavaVersion=).
+val javaVersion =
+    providers.gradleProperty("javaVersion").orNull?.toInt()
+        ?: Properties()
+            .apply { rootDir.resolve("../../gradle.properties").reader().use { load(it) } }
+            .getProperty("javaVersion")
+            .toInt()
+
+java { toolchain { languageVersion.set(JavaLanguageVersion.of(javaVersion)) } }
 
 tasks.jar { from("../../LICENSE") { into("META-INF") } }
 
 tasks.withType<JavaCompile>().configureEach {
-    options.release.set(25)
+    options.release.set(javaVersion)
     options.encoding = "UTF-8"
     // IntelliJ base classes are Serializable but never serialized: no serialVersionUID noise.
     options.compilerArgs.addAll(listOf("-Xlint:all", "-Xlint:-processing", "-Xlint:-serial", "-Werror"))

@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
-# Builds trimmed Java 25 runtimes for the J# CLI and VS Code extension (D099), one per platform,
+# Builds trimmed Java runtimes (javaVersion in gradle.properties, or $JAVA_VERSION) for the J# CLI and VS Code extension (D099), one per platform,
 # into build/runtimes/<platform>. jlink links another platform's modules as long as the versions
 # match exactly, so one Linux or macOS machine builds them all from the same Temurin release: the
-# host's JDK runs jlink, and each platform's jmods (a separate Temurin download since JDK 24) are
-# linked.
+# host's JDK runs jlink, and each platform's jmods (a separate Temurin download since JDK 24, in the
+# JDK before) are linked.
 #
 #   scripts/runtimes.sh                      all platforms
 #   scripts/runtimes.sh linux-x64 win32-x64  some
@@ -16,8 +16,10 @@ CACHE=build/jdks
 OUT=build/runtimes
 mkdir -p "$CACHE" "$OUT"
 
-# The newest Temurin 25 release, pinned for every download of this run.
-RELEASE=$(curl -fsSL "https://api.adoptium.net/v3/assets/latest/25/hotspot?image_type=jdk&vendor=eclipse&os=linux&architecture=x64" \
+JAVA=${JAVA_VERSION:-$(sed -n 's/^javaVersion=//p' gradle.properties)}
+
+# The newest Temurin release of that version, pinned for every download of this run.
+RELEASE=$(curl -fsSL "https://api.adoptium.net/v3/assets/latest/$JAVA/hotspot?image_type=jdk&vendor=eclipse&os=linux&architecture=x64" \
   | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["release_name"])')
 echo "Temurin $RELEASE"
 
@@ -58,7 +60,9 @@ download() { # <platform> <image type: jdk|jmods> -> the unpacked directory, dow
 }
 
 jmods() { # <platform> -> the directory holding its .jmod files
-  dirname "$(find "$(download "$1" jmods)" -name java.base.jmod | head -1)"
+  local image=jmods
+  [ "$JAVA" -ge 24 ] || image=jdk
+  dirname "$(find "$(download "$1" "$image")" -name java.base.jmod | head -1)"
 }
 
 case "$(uname -s)-$(uname -m)" in

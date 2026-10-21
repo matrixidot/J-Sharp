@@ -28,7 +28,6 @@ val jsharpClasses = files(jsharpOut).builtBy(compileJSharp)
 
 sourceSets {
     create("jmh") {
-        java.srcDir("src/jmh/java")
         compileClasspath += sourceSets["main"].output + jsharpClasses
         runtimeClasspath += sourceSets["main"].output + jsharpClasses
     }

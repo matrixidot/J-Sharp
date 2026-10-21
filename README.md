@@ -46,6 +46,8 @@ Gradle projects download Java 25 and J# by themselves.
 
 You need JDK 25 (`JAVA_HOME` pointing at it is simplest). Nothing else: the Gradle wrapper fetches
 everything.
+`./gradlew build -PjavaVersion=21` builds everything for Java 21 instead (see
+[docs/BACKPORTING.md](docs/BACKPORTING.md)).
 
 ```
 git clone https://github.com/matrixidot/J-Sharp.git && cd J-Sharp
