@@ -30,7 +30,6 @@ public final class Enter {
   private final MemberEnter memberEnter;
   private final List<CompilationUnit> units = new ArrayList<>();
   private final List<ClassSymbol> entered = new ArrayList<>();
-  private final Map<CompilationUnit, ClassSymbol> modules = new LinkedHashMap<>();
 
   public Enter(Context ctx, MemberEnter memberEnter) {
     this.ctx = ctx;
@@ -39,10 +38,6 @@ public final class Enter {
 
   public List<ClassSymbol> enteredClasses() {
     return entered;
-  }
-
-  public Map<CompilationUnit, ClassSymbol> moduleClasses() {
-    return modules;
   }
 
   /** Enters all files, resolves imports, then completes headers and members of every class. */
@@ -255,7 +250,6 @@ public final class Enter {
     m.setSourceFileName(u.file().fileName());
     ctx.syms.enterSource(m);
     fs.setModuleClass(m);
-    modules.put(u, m);
     entered.add(m);
   }
 

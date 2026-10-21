@@ -40,7 +40,6 @@ import io.github.matrixidot.jsharp.compiler.types.Type.TupleType;
 import io.github.matrixidot.jsharp.compiler.types.Types;
 import java.util.ArrayList;
 import java.util.HashSet;
-import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
@@ -2038,13 +2037,4 @@ final class Patterns {
 
   /** Superclass constructor each anonymous class's constructor delegates to. */
   final java.util.Map<ClassSymbol, MethodSymbol> superCtors = new java.util.IdentityHashMap<>();
-
-  /** Unused helper to keep imports tidy for future list patterns. */
-  static Set<String> names(List<VarSymbol> vs) {
-    Set<String> out = new LinkedHashSet<>();
-    for (VarSymbol v : vs) {
-      out.add(v.name());
-    }
-    return out;
-  }
 }

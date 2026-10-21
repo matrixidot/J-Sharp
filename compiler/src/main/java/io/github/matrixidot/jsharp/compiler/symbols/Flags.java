@@ -93,10 +93,6 @@ public final class Flags {
     return (flags & flag) != 0;
   }
 
-  public static int jvm(long flags) {
-    return (int) (flags & JVM_MASK);
-  }
-
   /**
    * The access of {@code s} in words. A member of a Java class without an access modifier is
    * "package-private" (J#'s default, "internal", is module-wide).

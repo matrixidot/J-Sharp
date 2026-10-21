@@ -788,7 +788,7 @@ public final class JavaSourceLoader implements ClassSymbol.Completer {
     for (int i = 0; i < params.size(); i++) {
       TypeVarSymbol tv =
           new TypeVarSymbol(
-              params.get(i).getName().toString(), owner, i, TypeParam.Variance.INVARIANT);
+              params.get(i).getName().toString(), owner, TypeParam.Variance.INVARIANT);
       tvs.add(tv);
       scope.vars().put(tv.name(), tv);
     }

@@ -716,7 +716,7 @@ final class CodeGen {
       owner = Descs.of(ownerSym);
     }
     MethodTypeDesc desc = Descs.of(m);
-    String name = m.jvmName();
+    String name = m.name();
     boolean itf = ownerSym.isInterface();
     switch (c.kind()) {
       case STATIC -> cb.invokestatic(owner, name, desc, itf);
@@ -1447,7 +1447,7 @@ final class CodeGen {
       implDesc = MethodTypeDesc.of(ConstantDescs.CD_void, implDesc.parameterList());
     }
     DirectMethodHandleDesc handle =
-        MethodHandleDesc.ofMethod(kind, Descs.of(owner), impl.jvmName(), implDesc);
+        MethodHandleDesc.ofMethod(kind, Descs.of(owner), impl.name(), implDesc);
     MethodSymbol sam = i.sam();
     MethodTypeDesc samType = Descs.of(sam);
     List<ClassDesc> instParams = new ArrayList<>();
@@ -1459,7 +1459,7 @@ final class CodeGen {
         MethodTypeDesc.of(ret == null ? ConstantDescs.CD_void : Descs.of(ret), instParams);
     MethodTypeDesc callSiteType = MethodTypeDesc.of(Descs.of(i.type().sym()), capturedTypes);
     cb.invokedynamic(
-        DynamicCallSiteDesc.of(LMF, sam.jvmName(), callSiteType, samType, handle, instantiated));
+        DynamicCallSiteDesc.of(LMF, sam.name(), callSiteType, samType, handle, instantiated));
   }
 
   /** The symbol table (for record codegen helpers). */

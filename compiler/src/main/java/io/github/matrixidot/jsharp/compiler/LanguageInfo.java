@@ -19,9 +19,6 @@ public final class LanguageInfo {
   /** Source file extension, including the leading dot. */
   public static final String FILE_EXTENSION = "." + ID;
 
-  /** Root package of the runtime / standard library. */
-  public static final String STDLIB_PACKAGE = ID;
-
   /** Suffix of the synthetic class holding a file's top-level functions. */
   public static final String MODULE_CLASS_SUFFIX = "Module";
 

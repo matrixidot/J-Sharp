@@ -170,7 +170,7 @@ final class LocalFunctions {
   }
 
   private static String jvmBase(Env env) {
-    String m = env.method == null ? "static" : env.method.jvmName();
+    String m = env.method == null ? "static" : env.method.name();
     return "local$" + m.replace('<', '$').replace('>', '$');
   }
 

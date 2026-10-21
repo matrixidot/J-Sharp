@@ -243,7 +243,7 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
                 default -> TypeParam.Variance.INVARIANT;
               }
               : TypeParam.Variance.INVARIANT;
-      TypeVarSymbol tv = new TypeVarSymbol(params.get(i).identifier(), owner, i, v);
+      TypeVarSymbol tv = new TypeVarSymbol(params.get(i).identifier(), owner, v);
       tvs.add(tv);
       scope.put(tv.name(), tv);
     }

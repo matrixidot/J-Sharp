@@ -1256,11 +1256,6 @@ final class Ops {
     }
   }
 
-  /** Tracks `val x;` declared without initializer: assignable while definitely unassigned. */
-  private boolean isDefinitelyUnassigned(VarSymbol v) {
-    return !v.reassigned();
-  }
-
   private BLValue memberLValueOfClass(
       ClassSymbol c, String name, Span span, boolean isCurrent, boolean staticOnly) {
     ClassType site = c.thisType();

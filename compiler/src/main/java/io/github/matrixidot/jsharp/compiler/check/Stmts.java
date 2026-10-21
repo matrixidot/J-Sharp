@@ -14,7 +14,6 @@ import io.github.matrixidot.jsharp.compiler.bound.BLValue;
 import io.github.matrixidot.jsharp.compiler.bound.BStmt;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.source.Span;
-import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
@@ -736,9 +735,6 @@ final class Stmts {
       if (rt != null && rt != PrimType.VOID && !rt.isError()) {
         a.error(Code.TYPE_MISMATCH, r.span(), "missing return value of type " + rt.display());
       }
-      if (rt == null && env.lambda != null) {
-        env.lambda.returnsVoid = true;
-      }
     } else if (rt == null) {
       value = a.value(r.value(), null);
       if (env.lambda != null) {
@@ -965,10 +961,5 @@ final class Stmts {
     }
     BStmt body = block(l.body());
     return new BStmt.Sync(m, body, l.span());
-  }
-
-  /** Is a local class name in scope? (used by pattern code for local types) */
-  ClassSymbol localClass(String name) {
-    return env().scope.lookupClass(name);
   }
 }

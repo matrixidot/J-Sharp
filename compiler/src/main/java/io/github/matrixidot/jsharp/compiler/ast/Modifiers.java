@@ -32,15 +32,6 @@ public record Modifiers(List<Item> list, List<Annotation> annotations, Span span
     return false;
   }
 
-  public Span spanOf(Modifier m) {
-    for (Item i : list) {
-      if (i.modifier() == m) {
-        return i.span();
-      }
-    }
-    return span;
-  }
-
   public boolean isEmpty() {
     return list.isEmpty() && annotations.isEmpty();
   }

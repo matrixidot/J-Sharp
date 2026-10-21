@@ -1,7 +1,6 @@
 package io.github.matrixidot.jsharp.compiler.check;
 
 import io.github.matrixidot.jsharp.compiler.Context;
-import io.github.matrixidot.jsharp.compiler.ast.AstPrinter;
 import io.github.matrixidot.jsharp.compiler.ast.Body;
 import io.github.matrixidot.jsharp.compiler.ast.Expr;
 import io.github.matrixidot.jsharp.compiler.ast.FieldInit;
@@ -218,12 +217,6 @@ public final class Attr {
   }
 
   // ------------------------------------------------------------------ env helpers
-
-  Env pushEnv(Env e) {
-    Env old = env;
-    env = e;
-    return old;
-  }
 
   /** Resolves a type in the current body (method type params, local classes, class, file). */
   Type resolveType(TypeNode tn) {
@@ -1746,7 +1739,6 @@ public final class Attr {
         y.expected != null
             ? y.expected
             : y.yielded.isEmpty() ? Type.NeverType.INSTANCE : types.lub(y.yielded);
-    y.target.type = type;
     return new BExpr.BlockValue(y.target, body, type, b.span());
   }
 
@@ -2998,11 +2990,6 @@ public final class Attr {
       inferring.remove(m);
     }
     return m.returnType();
-  }
-
-  /** Name of the class for diagnostics. */
-  static String describe(TypeNode t) {
-    return AstPrinter.typeStr(t);
   }
 
   BLValue lvalue(Expr target) {

@@ -9,7 +9,6 @@ import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symtab;
-import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
@@ -380,7 +379,7 @@ public final class ClassGen {
     MethodTypeDesc desc = Descs.of(m);
     SourceFile file = c.outermost().unit() != null ? c.outermost().unit().file() : null;
     clb.withMethod(
-        m.jvmName(),
+        m.name(),
         desc,
         flags,
         mb -> {
@@ -434,7 +433,7 @@ public final class ClassGen {
                 "method without body: "
                     + c.binaryName()
                     + "."
-                    + m.jvmName()
+                    + m.name()
                     + desc.descriptorString());
           }
           mb.withCode(
@@ -575,10 +574,5 @@ public final class ClassGen {
       case "hashCode" -> cb.ireturn();
       default -> cb.areturn();
     }
-  }
-
-  /** Unused: kept for future parameter-variable debugging. */
-  static String describe(VarSymbol v) {
-    return v.name();
   }
 }

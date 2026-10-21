@@ -561,7 +561,7 @@ public final class TypeResolver {
     List<TypeVarSymbol> out = new ArrayList<>();
     for (int i = 0; i < params.size(); i++) {
       TypeParam p = params.get(i);
-      out.add(new TypeVarSymbol(p.name(), owner, i, p.variance()));
+      out.add(new TypeVarSymbol(p.name(), owner, p.variance()));
     }
     return out;
   }

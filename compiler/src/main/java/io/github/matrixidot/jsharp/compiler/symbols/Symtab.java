@@ -97,11 +97,6 @@ public final class Symtab {
     return c != null && (c.isSource() || javaSources.contains(binaryName));
   }
 
-  /** True if this class comes from a Java source file of the compilation. */
-  public boolean isJavaSource(ClassSymbol c) {
-    return javaSources.contains(c.binaryName()) && classes.get(c.binaryName()) == c;
-  }
-
   public boolean packageExists(String dotted) {
     if (dotted.isEmpty() || sourcePackages.contains(dotted)) {
       return true;

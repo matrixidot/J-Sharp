@@ -24,10 +24,6 @@ public sealed interface Type {
     return this;
   }
 
-  default boolean isPrimitive() {
-    return this instanceof PrimType p && p != PrimType.VOID;
-  }
-
   default boolean isReference() {
     return this instanceof ClassType
         || this instanceof ArrayType
@@ -38,10 +34,6 @@ public sealed interface Type {
 
   default boolean isError() {
     return this instanceof ErrorType;
-  }
-
-  default boolean isNullable() {
-    return isReference() && nullness() == Nullness.NULLABLE || this instanceof NullType;
   }
 
   /** The JVM-level type (type variables replaced by their erased bound). */
@@ -87,24 +79,6 @@ public sealed interface Type {
 
     public boolean isIntegral() {
       return this == BYTE || this == SHORT || this == CHAR || this == INT || this == LONG;
-    }
-
-    /** JVM slot size (1 or 2). */
-    public int slots() {
-      return this == LONG || this == DOUBLE ? 2 : this == VOID ? 0 : 1;
-    }
-
-    /** Numeric rank for binary numeric promotion. */
-    public int rank() {
-      return switch (this) {
-        case BYTE -> 1;
-        case SHORT, CHAR -> 2;
-        case INT -> 3;
-        case LONG -> 4;
-        case FLOAT -> 5;
-        case DOUBLE -> 6;
-        default -> 0;
-      };
     }
 
     /** The wrapper class's binary name, e.g. {@code java/lang/Integer}. */

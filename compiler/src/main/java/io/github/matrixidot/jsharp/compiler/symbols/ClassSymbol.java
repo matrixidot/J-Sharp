@@ -51,7 +51,7 @@ public final class ClassSymbol implements Symbol {
   private final Map<String, ClassSymbol> memberTypes = new LinkedHashMap<>();
   private final Map<String, PropertySymbol> properties = new LinkedHashMap<>();
   private final List<FieldSymbol> recordComponents = new ArrayList<>();
-  private Completer completer;
+  private final Completer completer;
   private State state = State.NEW;
   private Decl.TypeDecl decl;
   private CompilationUnit unit;
@@ -74,10 +74,6 @@ public final class ClassSymbol implements Symbol {
   }
 
   // ------------------------------------------------------------------ completion
-
-  public void setCompleter(Completer c) {
-    this.completer = c;
-  }
 
   private void ensureHeader() {
     if (state == State.NEW) {

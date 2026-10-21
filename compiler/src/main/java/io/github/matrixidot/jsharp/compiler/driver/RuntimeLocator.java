@@ -21,11 +21,6 @@ public final class RuntimeLocator {
 
   private RuntimeLocator() {}
 
-  /** The root holding {@code jsharp.core.Prelude}, if any. */
-  public static Optional<Path> find() {
-    return root(PROBES.getFirst());
-  }
-
   /** All distinct roots (jars or class directories) holding parts of the runtime. */
   public static List<Path> findAll() {
     List<Path> out = new ArrayList<>();

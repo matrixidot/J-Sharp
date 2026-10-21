@@ -26,7 +26,6 @@ import io.github.matrixidot.jsharp.compiler.symbols.Symbol;
 import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Descriptors;
-import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.ClassType;
 import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
@@ -724,7 +723,7 @@ public final class ClassChecker {
         continue;
       }
       ClassType as = a.types.asSuper(c.thisType(), s);
-      for (MethodSymbol n : s.methods(m.jvmName())) {
+      for (MethodSymbol n : s.methods(m.name())) {
         if (n.isConstructor()
             || n.isStatic()
             || n.has(Flags.PRIVATE)
@@ -913,7 +912,7 @@ public final class ClassChecker {
   }
 
   private static boolean sameErasure(MethodSymbol x, MethodSymbol y) {
-    return x.jvmName().equals(y.jvmName())
+    return x.name().equals(y.name())
         && Descriptors.method(
                 erasedParamsList(x),
                 x.returnType() == null ? PrimType.VOID : x.returnType().erasure())
@@ -1041,7 +1040,7 @@ public final class ClassChecker {
     }
     String want = erasedParams(theirs);
     for (ClassSymbol s : a.lookup.hierarchy(c.thisType())) {
-      for (MethodSymbol k : s.methods(n.jvmName())) {
+      for (MethodSymbol k : s.methods(n.name())) {
         if (k == n || k.isAbstract() || k.isStatic() || k.params().size() != n.params().size()) {
           continue;
         }
@@ -1211,10 +1210,5 @@ public final class ClassChecker {
       }
     }
     a.capturedVars.clear();
-  }
-
-  /** Unused: kept for symmetry with nested scopes. */
-  static Nullness none() {
-    return Nullness.NON_NULL;
   }
 }

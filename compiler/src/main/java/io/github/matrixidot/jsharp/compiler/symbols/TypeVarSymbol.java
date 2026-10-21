@@ -8,17 +8,15 @@ import java.util.List;
 public final class TypeVarSymbol implements Symbol {
   private final String name;
   private final Symbol owner;
-  private final int index;
   private final TypeParam.Variance variance;
   private List<Type> bounds = List.of();
   private Type erasedBound;
   private Type lowerBound;
   private boolean captured;
 
-  public TypeVarSymbol(String name, Symbol owner, int index, TypeParam.Variance variance) {
+  public TypeVarSymbol(String name, Symbol owner, TypeParam.Variance variance) {
     this.name = name;
     this.owner = owner;
-    this.index = index;
     this.variance = variance;
   }
 
@@ -29,10 +27,6 @@ public final class TypeVarSymbol implements Symbol {
 
   public Symbol owner() {
     return owner;
-  }
-
-  public int index() {
-    return index;
   }
 
   public TypeParam.Variance variance() {
@@ -76,7 +70,7 @@ public final class TypeVarSymbol implements Symbol {
 
   /** Creates a capture variable for a wildcard. */
   public static TypeVarSymbol capture(String name, List<Type> upper, Type erasedUpper, Type lower) {
-    TypeVarSymbol tv = new TypeVarSymbol(name, null, -1, TypeParam.Variance.INVARIANT);
+    TypeVarSymbol tv = new TypeVarSymbol(name, null, TypeParam.Variance.INVARIANT);
     tv.setBounds(upper, erasedUpper);
     tv.lowerBound = lower;
     tv.captured = true;

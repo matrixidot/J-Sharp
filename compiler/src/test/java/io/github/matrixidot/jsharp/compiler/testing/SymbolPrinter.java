@@ -142,8 +142,8 @@ public final class SymbolPrinter {
       }
       for (PropertySymbol p : c.properties()) {
         sb.append("  property ").append(p.name()).append(": ").append(type(p.type()));
-        sb.append(" get=").append(p.getter() == null ? "-" : p.getter().jvmName());
-        sb.append(" set=").append(p.setter() == null ? "-" : p.setter().jvmName());
+        sb.append(" get=").append(p.getter() == null ? "-" : p.getter().name());
+        sb.append(" set=").append(p.setter() == null ? "-" : p.setter().name());
         sb.append(p.backingField() != null ? " backed" : "")
             .append(flags(p.flags(), false))
             .append('\n');
@@ -156,7 +156,7 @@ public final class SymbolPrinter {
               .append(String.join(", ", m.typeParams().stream().map(TypeVarSymbol::name).toList()))
               .append("> ");
         }
-        sb.append(m.jvmName()).append('(');
+        sb.append(m.name()).append('(');
         for (int i = 0; i < m.params().size(); i++) {
           MethodSymbol.Param p = m.params().get(i);
           if (i > 0) {

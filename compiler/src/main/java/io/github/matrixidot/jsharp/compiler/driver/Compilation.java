@@ -92,16 +92,8 @@ public final class Compilation {
     return ctx;
   }
 
-  public List<CompilationUnit> units() {
-    return units;
-  }
-
   public Enter enter() {
     return enter;
-  }
-
-  public MemberEnter memberEnter() {
-    return memberEnter;
   }
 
   /** Runs parsing and semantic analysis. Returns true if there were no errors. */
@@ -441,15 +433,6 @@ public final class Compilation {
   /** The class containing the entry point (top-level statements or main), or null. */
   public String mainClass() {
     return mainClass;
-  }
-
-  /** Checked classes (after a successful {@link #analyze()}). */
-  public List<BClass> checkedClasses() {
-    return checked;
-  }
-
-  public Attr attr() {
-    return attr;
   }
 
   /**

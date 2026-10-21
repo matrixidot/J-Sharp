@@ -910,13 +910,8 @@ final class Calls {
     List<List<Integer>> mapping;
 
     List<Type> paramTypes;
-    boolean usesDefaults;
     int defaultsUsed;
     Set<TypeVarSymbol> defaultedVars = Set.of();
-
-    boolean isFlexible(Type ret, Infer probe) {
-      return false;
-    }
   }
 
   /**
@@ -1263,7 +1258,6 @@ final class Calls {
     s.mapping = mapping;
     s.paramTypes = ptypes;
     s.defaultsUsed = defaultsUsed;
-    s.usesDefaults = defaultsUsed > 0;
     s.defaultedVars = defaulted;
     return s;
   }
@@ -1285,18 +1279,6 @@ final class Calls {
       }
     }
     return null;
-  }
-
-  private Infer copyInfer(Infer inf, List<TypeVarSymbol> vars) {
-    Infer c = new Infer(types(), vars);
-    for (var e : inf.bounds.entrySet()) {
-      Infer.Bounds to = c.bounds.get(e.getKey());
-      to.lower.addAll(e.getValue().lower);
-      to.upper.addAll(e.getValue().upper);
-      to.eq.addAll(e.getValue().eq);
-    }
-    c.failed = inf.failed;
-    return c;
   }
 
   private static Expr unwrap(Expr e) {

@@ -71,11 +71,6 @@ public final class SourceFile {
     return content.substring(start, end);
   }
 
-  /** Offset of the first character of the 1-based {@code line}. */
-  public int lineStart(int line) {
-    return lineStarts[line - 1];
-  }
-
   private static int[] computeLineStarts(String s) {
     int count = 1;
     for (int i = 0; i < s.length(); i++) {

@@ -1396,8 +1396,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
         continue;
       }
       String key =
-          m.jvmName()
-              + Descriptors.params(m.params().stream().map(MethodSymbol.Param::type).toList());
+          m.name() + Descriptors.params(m.params().stream().map(MethodSymbol.Param::type).toList());
       MethodSymbol prev = sigs.putIfAbsent(key, m);
       if (prev != null) {
         Span s = spanOf(m);

@@ -65,10 +65,9 @@ public sealed interface BStmt {
   /** {@code yield value;} ending a switch arm block (see {@link BExpr.BlockValue}). */
   record Yield(BExpr value, YieldTarget target, Span span) implements BStmt {}
 
-  /** The block a {@code yield} completes, and the block's value type (set after checking it). */
+  /** The block a {@code yield} completes. */
   final class YieldTarget {
     public final Label label = new Label("yield");
-    public Type type;
   }
 
   record Break(Label target, Span span) implements BStmt {}

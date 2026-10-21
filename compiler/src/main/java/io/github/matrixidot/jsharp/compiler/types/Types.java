@@ -13,7 +13,6 @@ import io.github.matrixidot.jsharp.compiler.types.Type.TupleType;
 import io.github.matrixidot.jsharp.compiler.types.Type.TypeVar;
 import io.github.matrixidot.jsharp.compiler.types.Type.WildcardType;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
@@ -419,11 +418,6 @@ public final class Types {
   public boolean isNumeric(Type t) {
     PrimType p = primitiveView(t);
     return p != null && p.isNumeric();
-  }
-
-  public boolean isIntegral(Type t) {
-    PrimType p = primitiveView(t);
-    return p != null && p.isIntegral();
   }
 
   public boolean isBoolean(Type t) {
@@ -963,10 +957,5 @@ public final class Types {
       return w.kind() == WildcardType.Kind.EXTENDS ? w.bound() : syms.objectType();
     }
     return e;
-  }
-
-  /** Fresh map helper. */
-  public static <K, V> Map<K, V> newMap() {
-    return new HashMap<>();
   }
 }

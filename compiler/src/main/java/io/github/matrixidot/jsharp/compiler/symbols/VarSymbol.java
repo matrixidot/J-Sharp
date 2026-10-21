@@ -21,7 +21,6 @@ public final class VarSymbol implements Symbol {
   private final Kind kind;
   private final Span span;
   private final int id;
-  private boolean captured;
   private boolean reassigned;
   private VarSymbol cell;
 
@@ -84,14 +83,6 @@ public final class VarSymbol implements Symbol {
 
   public boolean isAtomic() {
     return has(Flags.ATOMIC);
-  }
-
-  public boolean captured() {
-    return captured;
-  }
-
-  public void markCaptured() {
-    captured = true;
   }
 
   public boolean reassigned() {

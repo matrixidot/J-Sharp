@@ -11,8 +11,4 @@ public enum Nullness {
    * flowing into a non-null J# location inserts a runtime null check.
    */
   PLATFORM;
-
-  public boolean mayBeNull() {
-    return this != NON_NULL;
-  }
 }

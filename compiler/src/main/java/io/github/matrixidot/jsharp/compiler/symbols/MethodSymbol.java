@@ -28,10 +28,6 @@ public final class MethodSymbol implements Symbol {
       return new Param(name, type, false, null, false, null);
     }
 
-    public Param withType(Type t) {
-      return new Param(name, t, isVarargs, defaultExpr, hasDefault, defaultValue);
-    }
-
     public Param withDefault(Object value) {
       return new Param(name, type, isVarargs, defaultExpr, true, value);
     }
@@ -45,7 +41,6 @@ public final class MethodSymbol implements Symbol {
   private Type returnType;
   private Decl decl;
   private PropertySymbol property;
-  private String jvmName;
   private Type jvmReturnType;
 
   public MethodSymbol(String name, ClassSymbol owner, long flags) {
@@ -57,15 +52,6 @@ public final class MethodSymbol implements Symbol {
   @Override
   public String name() {
     return name;
-  }
-
-  /** Name in the class file (differs from {@link #name()} for property accessors). */
-  public String jvmName() {
-    return jvmName != null ? jvmName : name;
-  }
-
-  public void setJvmName(String n) {
-    this.jvmName = n;
   }
 
   public ClassSymbol owner() {

@@ -4,7 +4,6 @@ import io.github.matrixidot.jsharp.compiler.ast.CompilationUnit;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostics;
-import io.github.matrixidot.jsharp.compiler.diag.Severity;
 import io.github.matrixidot.jsharp.compiler.driver.CompilerOptions;
 import io.github.matrixidot.jsharp.compiler.resolve.FileScope;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
@@ -69,10 +68,5 @@ public final class Context {
   /** Reports an error with no extras. */
   public void report(Code code, SourceFile file, Span span, String message) {
     diags.report(Diagnostic.error(code, file, span, message).build());
-  }
-
-  /** Reports a warning. */
-  public void warn(Code code, SourceFile file, Span span, String message) {
-    diags.report(Diagnostic.error(code, file, span, message).severity(Severity.WARNING).build());
   }
 }

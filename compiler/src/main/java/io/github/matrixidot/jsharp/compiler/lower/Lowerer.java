@@ -42,7 +42,6 @@ import java.util.Set;
  * patterns, switches, safe access, compound assignment, async bodies and checked arithmetic.
  */
 public final class Lowerer {
-  private final Context ctx;
   private final Types types;
   private final Symtab syms;
   private final Map<ClassSymbol, MethodSymbol> anonSuperCtors;
@@ -71,7 +70,6 @@ public final class Lowerer {
    * @param anonSuperCtors the superclass constructor each anonymous class constructor calls
    */
   public Lowerer(Context ctx, Types types, Map<ClassSymbol, MethodSymbol> anonSuperCtors) {
-    this.ctx = ctx;
     this.types = types;
     this.syms = ctx.syms;
     this.anonSuperCtors = anonSuperCtors;
@@ -716,7 +714,7 @@ public final class Lowerer {
     MethodSymbol over = b.overridden();
     MethodSymbol bridge =
         new MethodSymbol(
-            over.jvmName(),
+            over.name(),
             cls,
             (target.flags() & (Flags.PUBLIC | Flags.PROTECTED)) | Flags.BRIDGE | Flags.SYNTHETIC);
     List<VarSymbol> params = new ArrayList<>();
@@ -758,7 +756,7 @@ public final class Lowerer {
   private void defaultOverloads(List<BClass.Method> methods) {
     Set<String> existing = new HashSet<>();
     for (BClass.Method m : methods) {
-      existing.add(m.sym().jvmName() + erasedParams(m.sym()));
+      existing.add(m.sym().name() + erasedParams(m.sym()));
     }
     List<BClass.Method> added = new ArrayList<>();
     for (BClass.Method m : methods) {
@@ -793,7 +791,7 @@ public final class Lowerer {
                 .toList());
         o.setReturnType(s.returnType());
         o.setTypeParams(s.typeParams());
-        String key = o.jvmName() + erasedParams(o);
+        String key = o.name() + erasedParams(o);
         if (!existing.add(key)) {
           continue;
         }
@@ -2851,17 +2849,5 @@ public final class Lowerer {
       args.add(defaultConst(ps.get(i), span));
     }
     return args;
-  }
-
-  /** Unused helper retained for symmetry. */
-  static boolean isSynthetic(Symbol s) {
-    return s.has(Flags.SYNTHETIC);
-  }
-
-  /** Local helper so generic list creation reads cleanly. */
-  static <T> List<T> listOf(T a) {
-    List<T> l = new ArrayList<>();
-    l.add(a);
-    return l;
   }
 }
