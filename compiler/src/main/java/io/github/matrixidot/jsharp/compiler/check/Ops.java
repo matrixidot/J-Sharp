@@ -319,8 +319,8 @@ final class Ops {
     }
     List<Calls.ArgInfo> infos = List.of(operand(left), operand(right));
     ClassType site = cands.getFirst().owner().thisType();
-    Calls.Selected sel =
-        a.calls.select(cands, site, infos, null, null, null, span, "operator " + symbol, true);
+    Overloads.Selected sel =
+        a.overloads.select(cands, site, infos, null, null, null, span, "operator " + symbol, true);
     if (sel == null) {
       return new BExpr.Error(Type.ErrorType.INSTANCE, span);
     }
@@ -338,8 +338,8 @@ final class Ops {
       return null;
     }
     List<Calls.ArgInfo> infos = List.of(operand(e));
-    Calls.Selected sel =
-        a.calls.select(
+    Overloads.Selected sel =
+        a.overloads.select(
             cands,
             cands.getFirst().owner().thisType(),
             infos,
@@ -873,8 +873,8 @@ final class Ops {
     BExpr current = new BExpr.Error(t, as.target().span()); // stands for the target's value
     List<Calls.ArgInfo> infos =
         List.of(new Calls.ArgInfo(null, null, current, t, false, as.target().span()), operand(rhs));
-    Calls.Selected sel =
-        a.calls.select(
+    Overloads.Selected sel =
+        a.overloads.select(
             cands,
             cands.getFirst().owner().thisType(),
             infos,

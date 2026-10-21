@@ -637,8 +637,8 @@ public final class ClassChecker {
     a.env = e;
     try {
       List<Calls.ArgInfo> infos = a.calls.prepare(ec.args() == null ? List.of() : ec.args());
-      Calls.Selected sel =
-          a.calls.select(
+      Overloads.Selected sel =
+          a.overloads.select(
               c.methods(MethodSymbol.CONSTRUCTOR),
               c.thisType(),
               infos,

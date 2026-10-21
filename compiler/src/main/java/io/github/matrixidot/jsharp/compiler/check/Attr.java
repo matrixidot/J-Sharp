@@ -74,6 +74,7 @@ public final class Attr {
   final Calls calls;
   final Stmts stmts;
   final Patterns patterns;
+  final Overloads overloads;
   final Creation creation;
   final CallDiagnostics callDiagnostics;
   final Lambdas lambdas;
@@ -134,6 +135,7 @@ public final class Attr {
     this.calls = new Calls(this);
     this.stmts = new Stmts(this);
     this.patterns = new Patterns(this);
+    this.overloads = new Overloads(this);
     this.creation = new Creation(this);
     this.callDiagnostics = new CallDiagnostics(this);
     this.lambdas = new Lambdas(this);

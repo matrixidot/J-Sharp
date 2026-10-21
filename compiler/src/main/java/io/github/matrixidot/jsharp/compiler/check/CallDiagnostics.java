@@ -25,9 +25,9 @@ final class CallDiagnostics {
     this.a = a;
   }
 
-  void reportAmbiguous(List<Calls.Selected> app, Span span, String what) {
+  void reportAmbiguous(List<Overloads.Selected> app, Span span, String what) {
     Diagnostic.Builder d = a.err(Code.AMBIGUOUS_CALL, span, "call to '" + what + "' is ambiguous");
-    for (Calls.Selected s : app.subList(0, Math.min(app.size(), 4))) {
+    for (Overloads.Selected s : app.subList(0, Math.min(app.size(), 4))) {
       d.note("candidate: " + s.method.signature());
     }
     d.help("add a cast to an argument to pick one overload");
@@ -90,7 +90,7 @@ final class CallDiagnostics {
   }
 
   static String describeDeferred(Expr e) {
-    return switch (Calls.unwrap(e)) {
+    return switch (Overloads.unwrap(e)) {
       case Expr.Lambda l -> "lambda";
       case Expr.MethodRef m -> "method reference";
       case Expr.New n -> "new()";
@@ -191,7 +191,7 @@ final class CallDiagnostics {
       }
     }
     if (explicit != null && explicit.size() == m.typeParams().size()) {
-      String v = a.calls.violatedBound(m, Types.zip(m.typeParams(), explicit));
+      String v = a.overloads.violatedBound(m, Types.zip(m.typeParams(), explicit));
       if (v != null) {
         a.error(Code.TYPE_ARGUMENT_BOUND, span, v);
         return;
@@ -212,7 +212,7 @@ final class CallDiagnostics {
       return;
     }
     // Find the first mismatching argument (after a best-effort inference).
-    Map<TypeVarSymbol, Type> classSubst = a.calls.siteSubst(site, m);
+    Map<TypeVarSymbol, Type> classSubst = a.overloads.siteSubst(site, m);
     Map<TypeVarSymbol, Type> sol = new IdentityHashMap<>();
     if (explicit != null) {
       sol.putAll(Types.zip(m.typeParams(), explicit));
@@ -250,7 +250,7 @@ final class CallDiagnostics {
         pt = at.elem();
       }
       if (x.deferred) {
-        if (!a.calls.potentiallyCompatible(x.expr, pt, null)) {
+        if (!a.overloads.potentiallyCompatible(x.expr, pt, null)) {
           a.report(
               a.err(
                   Code.LAMBDA_MISMATCH,

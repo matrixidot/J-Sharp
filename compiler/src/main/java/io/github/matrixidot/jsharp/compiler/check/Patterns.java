@@ -1264,8 +1264,8 @@ final class Patterns {
                       Calls.ArgInfo.ofType(t, span),
                       Calls.ArgInfo.ofType(PrimType.INT, span),
                       Calls.ArgInfo.ofType(PrimType.INT, span));
-              Calls.Selected sel =
-                  a.calls.select(
+              Overloads.Selected sel =
+                  a.overloads.select(
                       arrays.methods("copyOfRange"),
                       ClassType.of(arrays),
                       argTypes,
@@ -1596,7 +1596,7 @@ final class Patterns {
     // Constructor: mirrors the chosen superclass constructor.
     List<Calls.ArgInfo> infos = a.calls.prepare(n.args() == null ? List.of() : n.args());
     ClassType superType = c.superclass();
-    Calls.Selected sel;
+    Overloads.Selected sel;
     if (bs.isInterface()) {
       if (!infos.isEmpty()) {
         a.error(
@@ -1605,7 +1605,7 @@ final class Patterns {
             "an anonymous class implementing an interface takes no constructor arguments");
       }
       sel =
-          a.calls.select(
+          a.overloads.select(
               a.syms.objectSym().methods(MethodSymbol.CONSTRUCTOR),
               a.syms.objectType(),
               List.of(),
@@ -1622,7 +1622,7 @@ final class Patterns {
       a.calls.accessFrom = c;
       try {
         sel =
-            a.calls.select(
+            a.overloads.select(
                 bs.methods(MethodSymbol.CONSTRUCTOR),
                 superType,
                 infos,
