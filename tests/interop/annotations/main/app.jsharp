@@ -1,0 +1,20 @@
+import ann.*;
+
+@Tag("plugin", priority = 2 + 3, level = Tag.Level.HIGH, kind = typeof(String), names = {"a", "b"})
+@Marker
+public class Plugin {
+    @Tag(value = Plugin.NAME, small = 7)
+    public static final String NAME = "field";
+
+    @Tag("method")
+    public void run(@Tag("param") String what, int times) { }
+
+    @Tag(value = "property", names = "single")
+    public int count { get; set; }
+}
+
+println(Reflect.of(typeof(Plugin)));
+println(Reflect.of(typeof(Plugin).getField("NAME")));
+println(Reflect.of(typeof(Plugin).getMethod("run", typeof(String), typeof(int))));
+println(Reflect.parameters(typeof(Plugin), "run"));
+println(Reflect.of(typeof(Plugin).getMethod("getCount")));

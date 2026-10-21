@@ -370,6 +370,7 @@ public final class ClassChecker {
     a.env = staticEnv(a, c);
     try {
       computeConstants(a, c);
+      Annotations.check(a, c);
       if (!c.has(Flags.MODULE)) {
         checkOverrides(a, c, bridges);
         checkOperatorPairs(a, c);

@@ -69,6 +69,9 @@ public enum Code {
   INVALID_VARIANCE(426, "invalid variance"),
   MISSING_BODY(427, "missing body"),
   UNEXPECTED_BODY(428, "unexpected body"),
+  NOT_AN_ANNOTATION(429, "not an annotation type"),
+  INVALID_ANNOTATION_ARGUMENT(430, "invalid annotation argument"),
+  ANNOTATION_NOT_APPLICABLE(431, "annotation not applicable here"),
 
   // ---- typing ----
   TYPE_MISMATCH(600, "type mismatch"),

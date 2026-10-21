@@ -735,3 +735,16 @@ Format: **decision** — reason. *Rejected:* alternatives.
   for the language server. The runtime library is built for Java 21, so every release loads it,
   and its jar names its module (`io.github.matrixidot.jsharp.runtime`) for module-path loaders.
   Rejected: a `jsharp { release = ... }` setting (the toolchain already says it).
+- **D109: Annotations reach the class files.** J# parsed annotations but, apart from
+  `@file:ClassName`, never wrote them, so frameworks that read them (NeoForge's `@Mod` and
+  `@SubscribeEvent`, Bukkit's `@EventHandler`) did not see the J# code. They are now checked like
+  javac's: the name must be an annotation type (JS0429); arguments must name its elements, give
+  every element without a default, and be constants, enum constants, `typeof(...)` class literals
+  or arrays of them, written `{a, b}` or `[a, b]` (JS0430); the annotation must apply to the
+  declaration (`@Target`) and appear once (JS0431). `@Retention` decides where it goes:
+  `RUNTIME` in RuntimeVisible attributes, `CLASS` in RuntimeInvisible ones, `SOURCE` nowhere.
+  Classes, fields, methods, constructors and parameters carry them. A property's go on its getter,
+  or on the backing field for field-only annotations; `@get:`, `@set:` and `@field:` choose. A
+  record component's go where Java puts them (field, generated accessor, canonical constructor
+  parameter). Not yet: nested annotations as values, repeatable annotations, and type
+  annotations (a `TYPE_USE`-only annotation is accepted and not written).

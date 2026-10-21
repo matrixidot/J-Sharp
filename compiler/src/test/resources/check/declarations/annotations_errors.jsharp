@@ -1,0 +1,25 @@
+// Annotations are checked like Java's (D109).
+@String                                                   //~ JS0429
+public class NotAnAnnotation { }
+
+public class Misused {
+    @FunctionalInterface                                  //~ JS0431
+    public void notAType() { }
+
+    @Deprecated(sinse = "1")                              //~ JS0430
+    public void misspelled() { }
+
+    @Deprecated(since = Misused.version())                //~ JS0430
+    public void notConstant() { }
+
+    @Deprecated @Deprecated                               //~ JS0431
+    public void twice() { }
+
+    @get:Deprecated                                       //~ JS0431
+    public void targetOnAMethod() { }
+
+    public static String version() => "1";
+}
+
+@java.lang.annotation.Retention                           //~ JS0430 JS0431
+public class MissingValue { }

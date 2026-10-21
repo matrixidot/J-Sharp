@@ -135,6 +135,30 @@ public final class MethodSymbol implements Symbol {
     this.sourceView = m;
   }
 
+  // ------------------------------------------------------------------ annotations (D109)
+
+  private List<AnnotationUse> annotations = List.of();
+
+  /** The checked annotations of the declaration, for code generation. */
+  public List<AnnotationUse> annotations() {
+    return annotations;
+  }
+
+  public void setAnnotations(List<AnnotationUse> anns) {
+    annotations = List.copyOf(anns);
+  }
+
+  private List<List<AnnotationUse>> parameterAnnotations = List.of();
+
+  /** The checked annotations of each parameter (empty, or one list per parameter). */
+  public List<List<AnnotationUse>> parameterAnnotations() {
+    return parameterAnnotations;
+  }
+
+  public void setParameterAnnotations(List<List<AnnotationUse>> anns) {
+    parameterAnnotations = anns.stream().map(List::copyOf).toList();
+  }
+
   public Decl decl() {
     return decl;
   }

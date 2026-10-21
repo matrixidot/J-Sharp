@@ -3,6 +3,7 @@ package io.github.matrixidot.jsharp.compiler.symbols;
 import io.github.matrixidot.jsharp.compiler.ast.Decl;
 import io.github.matrixidot.jsharp.compiler.ast.VarDeclarator;
 import io.github.matrixidot.jsharp.compiler.types.Type;
+import java.util.List;
 
 /** A field (including enum constants, record component fields and property backing fields). */
 public final class FieldSymbol implements Symbol {
@@ -55,6 +56,19 @@ public final class FieldSymbol implements Symbol {
 
   public void setConstantValue(Object v) {
     this.constantValue = v;
+  }
+
+  // ------------------------------------------------------------------ annotations (D109)
+
+  private List<AnnotationUse> annotations = List.of();
+
+  /** The checked annotations of the declaration, for code generation. */
+  public List<AnnotationUse> annotations() {
+    return annotations;
+  }
+
+  public void setAnnotations(List<AnnotationUse> anns) {
+    annotations = List.copyOf(anns);
   }
 
   public Decl decl() {

@@ -1,0 +1,21 @@
+// Annotations with constants, enum constants, class literals and arrays (D109).
+import java.lang.annotation.*;
+
+@Deprecated(since = "1." + 2, forRemoval = true)
+public class Old {
+    public static final String SINCE = "3";
+
+    @Deprecated(since = SINCE)
+    public int value { get; set; }
+
+    @SafeVarargs
+    public static void all(params String[] xs) { }
+
+    @SuppressWarnings({"unchecked", "rawtypes"})
+    public void quiet(@Deprecated String p) { }
+}
+
+@FunctionalInterface
+public interface Fn { int apply(int x); }
+
+public record Point(@Deprecated int x, int y);

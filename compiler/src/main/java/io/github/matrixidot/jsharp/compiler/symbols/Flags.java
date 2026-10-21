@@ -89,6 +89,9 @@ public final class Flags {
   /** A {@link #SCRIPT_GLOBAL} declared {@code val}: single assignment, checked by J#. */
   public static final long SCRIPT_VAL = 1L << 44;
 
+  /** An annotation type's element with a default value (it may be left out, D109). */
+  public static final long ANNOTATION_DEFAULT = 1L << 45;
+
   public static boolean is(long flags, long flag) {
     return (flags & flag) != 0;
   }

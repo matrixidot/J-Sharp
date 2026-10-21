@@ -12,6 +12,7 @@ import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A class, interface, enum, record or annotation type, from J# source or from a class file.
@@ -223,6 +224,43 @@ public final class ClassSymbol implements Symbol {
 
   public boolean isAnnotation() {
     return has(Flags.ANNOTATION);
+  }
+
+  // ------------------------------------------------------------------ annotations (D109)
+
+  private List<AnnotationUse> annotations = List.of();
+
+  /** The checked annotations of the declaration, for code generation. */
+  public List<AnnotationUse> annotations() {
+    return annotations;
+  }
+
+  public void setAnnotations(List<AnnotationUse> anns) {
+    annotations = List.copyOf(anns);
+  }
+
+  private String retention = "CLASS";
+  private Set<String> annotationTargets;
+
+  /**
+   * For an annotation type: its {@code @Retention} ({@code SOURCE}, {@code CLASS}, {@code
+   * RUNTIME}).
+   */
+  public String retention() {
+    return retention;
+  }
+
+  /**
+   * For an annotation type: the {@code ElementType} names of its {@code @Target}, or null without
+   * one (every declaration).
+   */
+  public Set<String> annotationTargets() {
+    return annotationTargets;
+  }
+
+  public void setAnnotationInfo(String retention, Set<String> targets) {
+    this.retention = retention;
+    this.annotationTargets = targets == null ? null : Set.copyOf(targets);
   }
 
   // ------------------------------------------------------------------ header

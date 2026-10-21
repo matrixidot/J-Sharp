@@ -1,0 +1,5 @@
+[@Tag(kind=String, level=HIGH, names=[a, b], priority=5, small=1, value=plugin)]
+[@Tag(kind=Object, level=LOW, names=[], priority=0, small=7, value=field)]
+[@Tag(kind=Object, level=LOW, names=[], priority=0, small=1, value=method)]
+[@Tag(kind=Object, level=LOW, names=[], priority=0, small=1, value=param)] []
+[@Tag(kind=Object, level=LOW, names=[single], priority=0, small=1, value=property)]

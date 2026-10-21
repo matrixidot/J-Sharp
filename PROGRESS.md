@@ -162,3 +162,4 @@
 - The Gradle plugin records the editor class path during IntelliJ's Gradle sync (D106).
 - One source tree builds for Java 25 and, with `-PjavaVersion=21`, for Java 21; CI tests both (D107).
 - `--release`: J# compiles for Java 21 or 25 whatever it runs on; the Gradle plugin follows the toolchain (D108).
+- Annotations are checked and written to class files (D109); a NeoForge 26.3 mod in J# loads and runs.

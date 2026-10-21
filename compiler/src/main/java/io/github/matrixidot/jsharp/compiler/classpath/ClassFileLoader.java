@@ -30,9 +30,11 @@ import java.lang.classfile.attribute.RecordComponentInfo;
 import java.lang.classfile.constantpool.ClassEntry;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Builds {@link ClassSymbol}s from class files with the JDK ClassFile API, lazily: the header on
@@ -130,9 +132,32 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
         }
       }
     }
+    String retention = "CLASS";
+    Set<String> targets = null;
     for (Annotation a : classAnnotations(m)) {
       String d = a.className().stringValue();
       switch (d) {
+        case "Ljava/lang/annotation/Retention;" -> {
+          for (var e : a.elements()) {
+            if (e.value() instanceof AnnotationValue.OfEnum v) {
+              retention = v.constantName().stringValue();
+            }
+          }
+        }
+        case "Ljava/lang/annotation/Target;" -> {
+          targets = new HashSet<>();
+          for (var e : a.elements()) {
+            if (e.value() instanceof AnnotationValue.OfArray arr) {
+              for (AnnotationValue v : arr.values()) {
+                if (v instanceof AnnotationValue.OfEnum en) {
+                  targets.add(en.constantName().stringValue());
+                }
+              }
+            } else if (e.value() instanceof AnnotationValue.OfEnum en) {
+              targets.add(en.constantName().stringValue());
+            }
+          }
+        }
         case JSHARP_METADATA -> {
           flags |= Flags.JSHARP;
           for (var e : a.elements()) {
@@ -148,6 +173,7 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
         default -> {}
       }
     }
+    c.setAnnotationInfo(retention, targets);
     if (m.findAttribute(Attributes.record()).isPresent()) {
       flags |= Flags.RECORD;
     }
@@ -408,6 +434,9 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
     }
     if (hasAnnotation(anns, "Ljava/lang/Deprecated;")) {
       ms.addFlags(Flags.DEPRECATED);
+    }
+    if (mm.findAttribute(Attributes.annotationDefault()).isPresent()) {
+      ms.addFlags(Flags.ANNOTATION_DEFAULT);
     }
     boolean noReturn = hasAnnotation(anns, "Ljsharp/lang/NoReturn;");
     List<TypeAnnotation> typeAnns = new ArrayList<>();

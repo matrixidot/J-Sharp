@@ -5,6 +5,7 @@ import io.github.matrixidot.jsharp.compiler.ast.Operators;
 import io.github.matrixidot.jsharp.compiler.bound.BClass;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
+import io.github.matrixidot.jsharp.compiler.symbols.AnnotationUse;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
@@ -38,8 +39,10 @@ import java.lang.classfile.attribute.NestMembersAttribute;
 import java.lang.classfile.attribute.PermittedSubclassesAttribute;
 import java.lang.classfile.attribute.RecordAttribute;
 import java.lang.classfile.attribute.RecordComponentInfo;
+import java.lang.classfile.attribute.RuntimeInvisibleAnnotationsAttribute;
 import java.lang.classfile.attribute.RuntimeInvisibleParameterAnnotationsAttribute;
 import java.lang.classfile.attribute.RuntimeVisibleAnnotationsAttribute;
+import java.lang.classfile.attribute.RuntimeVisibleParameterAnnotationsAttribute;
 import java.lang.classfile.attribute.RuntimeVisibleTypeAnnotationsAttribute;
 import java.lang.classfile.attribute.SignatureAttribute;
 import java.lang.classfile.attribute.SourceFileAttribute;
@@ -161,7 +164,13 @@ public final class ClassGen {
     if (c.has(Flags.MODULE)) {
       meta.add(AnnotationElement.ofBoolean("module", true));
     }
-    clb.with(RuntimeVisibleAnnotationsAttribute.of(Annotation.of(METADATA, meta)));
+    List<Annotation> visible = new ArrayList<>(List.of(Annotation.of(METADATA, meta)));
+    List<Annotation> invisible = new ArrayList<>();
+    split(c.annotations(), visible, invisible);
+    clb.with(RuntimeVisibleAnnotationsAttribute.of(visible));
+    if (!invisible.isEmpty()) {
+      clb.with(RuntimeInvisibleAnnotationsAttribute.of(invisible));
+    }
     innerClasses(clb, c);
     nest(clb, c);
     if (c.has(Flags.SEALED) && !c.permitted().isEmpty()) {
@@ -317,6 +326,15 @@ public final class ClassGen {
           if (f.constantValue() != null && f.isStatic() && f.has(Flags.FINAL)) {
             fb.with(ConstantValueAttribute.of(constantDesc(f.constantValue())));
           }
+          List<Annotation> visible = new ArrayList<>();
+          List<Annotation> invisible = new ArrayList<>();
+          split(f.annotations(), visible, invisible);
+          if (!visible.isEmpty()) {
+            fb.with(RuntimeVisibleAnnotationsAttribute.of(visible));
+          }
+          if (!invisible.isEmpty()) {
+            fb.with(RuntimeInvisibleAnnotationsAttribute.of(invisible));
+          }
           if (t.isReference() && t.nullness() == Nullness.NULLABLE) {
             fb.with(
                 RuntimeVisibleTypeAnnotationsAttribute.of(
@@ -422,11 +440,16 @@ public final class ClassGen {
                 Annotation.of(
                     OPERATOR, AnnotationElement.ofString("value", String.valueOf(symbol))));
           }
+          List<Annotation> invisible = new ArrayList<>();
+          split(m.annotations(), methodAnns, invisible);
           if (!methodAnns.isEmpty()) {
             mb.with(RuntimeVisibleAnnotationsAttribute.of(methodAnns));
           }
+          if (!invisible.isEmpty()) {
+            mb.with(RuntimeInvisibleAnnotationsAttribute.of(invisible));
+          }
           nullnessAnnotations(mb, m);
-          defaultValues(mb, m);
+          parameterAnnotations(mb, m);
           if (Flags.is(flags, Flags.ABSTRACT) || Flags.is(flags, Flags.NATIVE)) {
             return;
           }
@@ -484,39 +507,111 @@ public final class ClassGen {
   }
 
   /**
-   * {@code @DefaultValue} parameter annotations so J# callers in other compilations see defaults.
+   * Parameter annotations: the program's (D109), and {@code @DefaultValue} so J# callers in other
+   * compilations see default arguments.
    */
-  private void defaultValues(MethodBuilder mb, MethodSymbol m) {
-    boolean any = m.params().stream().anyMatch(MethodSymbol.Param::hasDefault);
-    if (!any) {
-      return;
-    }
-    List<List<Annotation>> perParam = new ArrayList<>();
-    for (MethodSymbol.Param p : m.params()) {
-      if (!p.hasDefault()) {
-        perParam.add(List.of());
-        continue;
+  private void parameterAnnotations(MethodBuilder mb, MethodSymbol m) {
+    List<List<Annotation>> visible = new ArrayList<>();
+    List<List<Annotation>> invisible = new ArrayList<>();
+    boolean anyVisible = false;
+    boolean anyInvisible = false;
+    List<List<AnnotationUse>> written = m.parameterAnnotations();
+    for (int i = 0; i < m.params().size(); i++) {
+      List<Annotation> vis = new ArrayList<>();
+      List<Annotation> invis = new ArrayList<>();
+      if (i < written.size()) {
+        split(written.get(i), vis, invis);
       }
-      Object v = p.defaultValue();
-      if (v == null) {
-        perParam.add(List.of(Annotation.of(DEFAULT_VALUE)));
-        continue;
+      Annotation dv = defaultValue(m.params().get(i));
+      if (dv != null) {
+        invis.add(dv);
       }
-      AnnotationValue av =
-          switch (v) {
-            case Integer i -> AnnotationValue.ofInt(i);
-            case Long l -> AnnotationValue.ofLong(l);
-            case Double d -> AnnotationValue.ofDouble(d);
-            case Float f -> AnnotationValue.ofFloat(f);
-            case Boolean b -> AnnotationValue.ofBoolean(b);
-            case Character ch -> AnnotationValue.ofChar(ch);
-            case Byte b -> AnnotationValue.ofByte(b);
-            case Short s -> AnnotationValue.ofShort(s);
-            default -> AnnotationValue.ofString(v.toString());
-          };
-      perParam.add(List.of(Annotation.of(DEFAULT_VALUE, AnnotationElement.of("value", av))));
+      anyVisible |= !vis.isEmpty();
+      anyInvisible |= !invis.isEmpty();
+      visible.add(vis);
+      invisible.add(invis);
     }
-    mb.with(RuntimeInvisibleParameterAnnotationsAttribute.of(perParam));
+    if (anyVisible) {
+      mb.with(RuntimeVisibleParameterAnnotationsAttribute.of(visible));
+    }
+    if (anyInvisible) {
+      mb.with(RuntimeInvisibleParameterAnnotationsAttribute.of(invisible));
+    }
+  }
+
+  /** The {@code @DefaultValue} of a parameter with a default argument, else null. */
+  private static Annotation defaultValue(MethodSymbol.Param p) {
+    if (!p.hasDefault()) {
+      return null;
+    }
+    Object v = p.defaultValue();
+    if (v == null) {
+      return Annotation.of(DEFAULT_VALUE);
+    }
+    AnnotationValue av =
+        switch (v) {
+          case Integer i -> AnnotationValue.ofInt(i);
+          case Long l -> AnnotationValue.ofLong(l);
+          case Double d -> AnnotationValue.ofDouble(d);
+          case Float f -> AnnotationValue.ofFloat(f);
+          case Boolean b -> AnnotationValue.ofBoolean(b);
+          case Character ch -> AnnotationValue.ofChar(ch);
+          case Byte b -> AnnotationValue.ofByte(b);
+          case Short s -> AnnotationValue.ofShort(s);
+          default -> AnnotationValue.ofString(v.toString());
+        };
+    return Annotation.of(DEFAULT_VALUE, AnnotationElement.of("value", av));
+  }
+
+  // ------------------------------------------------------------------ the program's annotations
+
+  /** Adds the class file form of checked annotations to the visible or the invisible list. */
+  private static void split(
+      List<AnnotationUse> uses, List<Annotation> visible, List<Annotation> invisible) {
+    for (AnnotationUse u : uses) {
+      (u.visible() ? visible : invisible).add(annotation(u));
+    }
+  }
+
+  private static Annotation annotation(AnnotationUse u) {
+    List<AnnotationElement> elements = new ArrayList<>();
+    for (AnnotationUse.Element e : u.elements()) {
+      elements.add(AnnotationElement.of(e.name(), annotationValue(e.value())));
+    }
+    return Annotation.of(Descs.of(u.type()), elements);
+  }
+
+  private static AnnotationValue annotationValue(AnnotationUse.Value v) {
+    return switch (v) {
+      case AnnotationUse.Constant k -> constant(k.value(), k.type());
+      case AnnotationUse.EnumConstant e -> AnnotationValue.ofEnum(Descs.of(e.enumType()), e.name());
+      case AnnotationUse.ClassValue c -> AnnotationValue.ofClass(Descs.of(c.type()));
+      case AnnotationUse.Array a ->
+          AnnotationValue.ofArray(a.elements().stream().map(ClassGen::annotationValue).toList());
+    };
+  }
+
+  /** A constant in the encoding of its element type ({@code short s() default 1} is a short). */
+  private static AnnotationValue constant(Object v, Type t) {
+    if (!(t instanceof Type.PrimType p)) {
+      return AnnotationValue.ofString(v.toString());
+    }
+    return switch (p) {
+      case BOOLEAN -> AnnotationValue.ofBoolean((Boolean) v);
+      case CHAR ->
+          AnnotationValue.ofChar(v instanceof Character c ? c : (char) ((Number) v).intValue());
+      case BYTE -> AnnotationValue.ofByte(number(v).byteValue());
+      case SHORT -> AnnotationValue.ofShort(number(v).shortValue());
+      case INT -> AnnotationValue.ofInt(number(v).intValue());
+      case LONG -> AnnotationValue.ofLong(number(v).longValue());
+      case FLOAT -> AnnotationValue.ofFloat(number(v).floatValue());
+      case DOUBLE -> AnnotationValue.ofDouble(number(v).doubleValue());
+      default -> throw new IllegalStateException("no annotation constant of type " + p);
+    };
+  }
+
+  private static Number number(Object v) {
+    return v instanceof Character c ? (int) c : (Number) v;
   }
 
   // ------------------------------------------------------------------ records

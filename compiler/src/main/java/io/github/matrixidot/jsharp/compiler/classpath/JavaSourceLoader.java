@@ -3,6 +3,7 @@ package io.github.matrixidot.jsharp.compiler.classpath;
 import com.sun.source.tree.AnnotatedTypeTree;
 import com.sun.source.tree.AnnotationTree;
 import com.sun.source.tree.ArrayTypeTree;
+import com.sun.source.tree.AssignmentTree;
 import com.sun.source.tree.ClassTree;
 import com.sun.source.tree.CompilationUnitTree;
 import com.sun.source.tree.ExpressionTree;
@@ -12,6 +13,7 @@ import com.sun.source.tree.LiteralTree;
 import com.sun.source.tree.MemberSelectTree;
 import com.sun.source.tree.MethodTree;
 import com.sun.source.tree.ModifiersTree;
+import com.sun.source.tree.NewArrayTree;
 import com.sun.source.tree.NewClassTree;
 import com.sun.source.tree.ParameterizedTypeTree;
 import com.sun.source.tree.PrimitiveTypeTree;
@@ -313,14 +315,19 @@ public final class JavaSourceLoader implements ClassSymbol.Completer {
     if (mods.contains(Modifier.NON_SEALED)) {
       flags |= Flags.NON_SEALED;
     }
+    String retention = "CLASS";
+    Set<String> targets = null;
     for (AnnotationTree a : tree.getModifiers().getAnnotations()) {
       switch (simpleName(a.getAnnotationType())) {
         case "FunctionalInterface" -> flags |= Flags.FUNCTIONAL;
         case "Deprecated" -> flags |= Flags.DEPRECATED;
+        case "Retention" -> retention = enumNames(a).stream().findFirst().orElse(retention);
+        case "Target" -> targets = new HashSet<>(enumNames(a));
         default -> {}
       }
     }
     c.setFlags(flags);
+    c.setAnnotationInfo(retention, targets);
 
     Scope scope = new Scope(c, info.file(), outerTypeVars(c));
     List<TypeVarSymbol> tvs = declareTypeParams(tree.getTypeParameters(), c, scope);
@@ -557,6 +564,9 @@ public final class JavaSourceLoader implements ClassSymbol.Completer {
       }
     }
     MethodSymbol m = new MethodSymbol(name, c, flags);
+    if (mt.getDefaultValue() != null) {
+      m.addFlags(Flags.ANNOTATION_DEFAULT);
+    }
     Scope scope = classScope.child();
     List<TypeVarSymbol> tvs = declareTypeParams(mt.getTypeParameters(), m, scope);
     m.setTypeParams(tvs);
@@ -1013,5 +1023,25 @@ public final class JavaSourceLoader implements ClassSymbol.Completer {
     public CharSequence getCharContent(boolean ignoreEncodingErrors) {
       return file.content();
     }
+  }
+
+  /**
+   * The enum constant names an annotation's value names, by their last identifier: {@code RUNTIME}
+   * in {@code @Retention(RetentionPolicy.RUNTIME)}, both in {@code @Target({TYPE, METHOD})}.
+   */
+  private static List<String> enumNames(AnnotationTree a) {
+    List<String> out = new ArrayList<>();
+    for (ExpressionTree arg : a.getArguments()) {
+      ExpressionTree v = arg instanceof AssignmentTree as ? as.getExpression() : arg;
+      List<? extends ExpressionTree> values =
+          v instanceof NewArrayTree arr && arr.getInitializers() != null
+              ? arr.getInitializers()
+              : List.of(v);
+      for (ExpressionTree e : values) {
+        String text = e.toString();
+        out.add(text.substring(text.lastIndexOf('.') + 1));
+      }
+    }
+    return out;
   }
 }
