@@ -155,6 +155,7 @@ public enum Code {
     return String.format(Locale.ROOT, "JS%04d", number);
   }
 
+  /** The number of the code: 101 for {@code JS0101}. */
   public int number() {
     return number;
   }
@@ -164,6 +165,7 @@ public enum Code {
     return title;
   }
 
+  /** Whether this code is an error or a warning. */
   public Severity defaultSeverity() {
     return switch (this) {
       case REDUNDANT_NON_NULL_ASSERTION,

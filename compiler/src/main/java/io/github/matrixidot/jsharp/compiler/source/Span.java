@@ -21,6 +21,7 @@ public record Span(int start, int end) {
     return new Span(Math.min(start, other.start), Math.max(end, other.end));
   }
 
+  /** The number of UTF-16 units covered. */
   public int length() {
     return end - start;
   }

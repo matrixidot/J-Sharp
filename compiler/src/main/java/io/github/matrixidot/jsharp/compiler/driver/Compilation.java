@@ -107,14 +107,17 @@ public final class Compilation {
     return this;
   }
 
+  /** Everything reported so far, by every phase that ran. */
   public Diagnostics diagnostics() {
     return diags;
   }
 
+  /** The state of the analysis (symbol table, scopes), or null before {@link #analyze()}. */
   public Context context() {
     return ctx;
   }
 
+  /** The entered declarations, or null before {@link #analyze()}. */
   public Enter enter() {
     return enter;
   }

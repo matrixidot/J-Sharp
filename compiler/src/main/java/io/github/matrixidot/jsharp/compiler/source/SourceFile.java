@@ -27,6 +27,7 @@ public final class SourceFile {
     return new SourceFile(file.toString(), Files.readString(file, StandardCharsets.UTF_8));
   }
 
+  /** The path the file was read from, or its name for in-memory sources. */
   public String path() {
     return path;
   }
@@ -37,10 +38,12 @@ public final class SourceFile {
     return path.substring(slash + 1);
   }
 
+  /** The whole text. */
   public String content() {
     return content;
   }
 
+  /** The text a span covers. */
   public String text(Span span) {
     return content.substring(span.start(), Math.min(span.end(), content.length()));
   }
@@ -57,6 +60,7 @@ public final class SourceFile {
     return Math.min(offset, content.length()) - lineStarts[line - 1] + 1;
   }
 
+  /** The number of lines (a final line without a newline counts). */
   public int lineCount() {
     return lineStarts.length;
   }

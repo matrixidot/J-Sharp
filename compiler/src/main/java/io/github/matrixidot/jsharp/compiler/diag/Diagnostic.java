@@ -31,10 +31,14 @@ public record Diagnostic(
     notes = List.copyOf(notes);
   }
 
+  /**
+   * Starts a diagnostic of the code's default severity (an error, unless the code is a warning).
+   */
   public static Builder error(Code code, SourceFile file, Span span, String message) {
     return new Builder(code.defaultSeverity(), code, file, span, message);
   }
 
+  /** True for an error (which stops code generation). */
   public boolean isError() {
     return severity == Severity.ERROR;
   }

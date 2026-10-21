@@ -16,6 +16,7 @@ public final class DiagnosticRenderer {
 
   private final boolean color;
 
+  /** A renderer that colors its output with ANSI escapes if {@code color}. */
   public DiagnosticRenderer(boolean color) {
     this.color = color;
   }

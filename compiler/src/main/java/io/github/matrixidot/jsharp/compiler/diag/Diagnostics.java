@@ -16,10 +16,12 @@ public final class Diagnostics implements DiagnosticSink {
   private int errors;
   private final boolean warningsAsErrors;
 
+  /** A collector that keeps warnings as warnings. */
   public Diagnostics() {
     this(false);
   }
 
+  /** A collector that reports warnings as errors if {@code warningsAsErrors}. */
   public Diagnostics(boolean warningsAsErrors) {
     this.warningsAsErrors = warningsAsErrors;
   }
@@ -55,10 +57,12 @@ public final class Diagnostics implements DiagnosticSink {
     }
   }
 
+  /** True once an error was reported: later phases do not run. */
   public boolean hasErrors() {
     return errors > 0;
   }
 
+  /** The number of errors reported. */
   public int errorCount() {
     return errors;
   }
@@ -72,6 +76,7 @@ public final class Diagnostics implements DiagnosticSink {
     return copy;
   }
 
+  /** All diagnostics, in the order they were reported. */
   public List<Diagnostic> all() {
     return List.copyOf(all);
   }

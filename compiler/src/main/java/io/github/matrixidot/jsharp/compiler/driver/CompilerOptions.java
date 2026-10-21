@@ -55,24 +55,29 @@ public record CompilerOptions(
     return null;
   }
 
+  /** No class path or output directory, debug information on, the {@link #defaultRelease()}. */
   public static CompilerOptions defaults() {
     return new CompilerOptions(List.of(), null, false, false, true, defaultRelease());
   }
 
+  /** These options with another class path. */
   public CompilerOptions withClassPath(List<Path> cp) {
     return new CompilerOptions(
         cp, outputDir, warningsAsErrors, strictPlatformNullness, emitDebugInfo, release);
   }
 
+  /** These options with another output directory (null: class files stay in memory). */
   public CompilerOptions withOutputDir(Path dir) {
     return new CompilerOptions(
         classPath, dir, warningsAsErrors, strictPlatformNullness, emitDebugInfo, release);
   }
 
+  /** These options with strict platform nullness on or off. */
   public CompilerOptions withStrictPlatformNullness(boolean on) {
     return new CompilerOptions(classPath, outputDir, warningsAsErrors, on, emitDebugInfo, release);
   }
 
+  /** These options compiling for another Java release ({@link #releaseProblem} says if it can). */
   public CompilerOptions withRelease(int r) {
     return new CompilerOptions(
         classPath, outputDir, warningsAsErrors, strictPlatformNullness, emitDebugInfo, r);
