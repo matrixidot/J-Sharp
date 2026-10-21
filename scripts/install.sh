@@ -23,9 +23,10 @@ esac
 
 TAG=${JSHARP_VERSION:-}
 if [ -z "$TAG" ]; then
-  # The newest release, pre-releases included (J# is in beta).
-  TAG=$(curl -fsSL -H "User-Agent: jsharp-installer" "https://api.github.com/repos/$REPO/releases?per_page=20" \
-    | grep -m1 '"tag_name"' | sed -E 's/.*"tag_name": *"([^"]+)".*/\1/')
+  # The newest release, pre-releases included (J# is in beta), from the releases feed: unlike
+  # GitHub's API it has no per-address rate limit, which shared networks and CI runners reach.
+  TAG=$(curl -fsSL "https://github.com/$REPO/releases.atom" \
+    | grep -o "/$REPO/releases/tag/[^\"]*" | head -1 | sed 's|.*/||')
   [ -n "$TAG" ] || { echo "J#: no release found at https://github.com/$REPO/releases" >&2; exit 1; }
 fi
 VERSION=${TAG#v}
