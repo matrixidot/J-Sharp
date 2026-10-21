@@ -57,8 +57,14 @@ final class Workspace {
    */
   private final Map<Path, ProjectClassPath> projectClassPaths = new HashMap<>();
 
-  /** A Gradle source set's libraries and Java release, as its build recorded them. */
-  private record ProjectClassPath(FileTime modified, ClassPath classPath, int release) {}
+  /**
+   * A Gradle source set's libraries and Java release, as its build recorded them.
+   *
+   * @param missing listed libraries that did not exist yet: during IntelliJ's sync the listing is
+   *     written before NeoForge's and other plugins' tasks create their jars
+   */
+  private record ProjectClassPath(
+      FileTime modified, ClassPath classPath, int release, List<Path> missing) {}
 
   /** A finished analysis of one unit. */
   static final class Unit {
@@ -82,7 +88,8 @@ final class Workspace {
           new ProjectClassPath(
               null,
               Compilation.openClassPath(CompilerOptions.defaults().withClassPath(classPath)),
-              CompilerOptions.defaultRelease());
+              CompilerOptions.defaultRelease(),
+              List.of());
     } catch (RuntimeException e) {
       throw new IllegalStateException("cannot open the class path: " + e.getMessage(), e);
     }
@@ -195,10 +202,13 @@ final class Workspace {
     FileTime modified;
     List<Path> entries = new ArrayList<>(baseClassPath);
     int release = CompilerOptions.defaultRelease();
+    List<Path> missing = new ArrayList<>();
     try {
       modified = Files.getLastModifiedTime(listing);
       ProjectClassPath known = projectClassPaths.get(listing);
-      if (known != null && known.modified().equals(modified)) {
+      if (known != null
+          && known.modified().equals(modified)
+          && known.missing().stream().noneMatch(Files::exists)) {
         return known;
       }
       for (String line : Files.readAllLines(listing)) {
@@ -207,7 +217,9 @@ final class Workspace {
           if (CompilerOptions.releaseProblem(release) != null) {
             release = CompilerOptions.defaultRelease(); // newer than this server's Java
           }
-        } else if (!line.isBlank() && Files.exists(Path.of(line.strip()))) {
+        } else if (!line.isBlank() && !Files.exists(Path.of(line.strip()))) {
+          missing.add(Path.of(line.strip()));
+        } else if (!line.isBlank()) {
           entries.add(Path.of(line.strip()));
         }
       }
@@ -222,7 +234,7 @@ final class Workspace {
     } catch (RuntimeException e) {
       return serverDefault;
     }
-    ProjectClassPath now = new ProjectClassPath(modified, opened, release);
+    ProjectClassPath now = new ProjectClassPath(modified, opened, release, missing);
     ProjectClassPath old = projectClassPaths.put(listing, now);
     if (old != null) {
       cache.clear(); // analyses made with the old class path go with it

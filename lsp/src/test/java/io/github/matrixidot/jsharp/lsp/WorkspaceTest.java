@@ -81,6 +81,36 @@ class WorkspaceTest {
     assertThat(ws.unit(js.toUri()).comp.diagnostics().all()).isEmpty();
   }
 
+  /**
+   * IntelliJ's sync records the class path before NeoForge's tasks create the Minecraft jar: a
+   * library that appears later is picked up without a new listing.
+   */
+  @Test
+  void librariesCreatedAfterTheListingAreFound(@TempDir Path dir) throws Exception {
+    Path lib = dir.resolve("lib");
+    Path js = dir.resolve("src/main/jsharp/app/plugin.jsharp");
+    Files.createDirectories(js.getParent());
+    Files.writeString(
+        js, "package app;\nimport game.Server;\npublic String motd() => Server.motd();\n");
+    Path listing = dir.resolve("build/jsharp/main.classpath");
+    Files.createDirectories(listing.getParent());
+    Files.writeString(listing, lib.toAbsolutePath() + "\n");
+    Workspace ws = new Workspace(List.of());
+    assertThat(ws.unit(js.toUri()).comp.diagnostics().hasErrors()).isTrue(); // no jar yet
+
+    Path libSrc = dir.resolve("libsrc/game/Server.java");
+    Files.createDirectories(libSrc.getParent());
+    Files.writeString(
+        libSrc,
+        "package game;\npublic class Server { public static String motd() { return \"hi\"; } }\n");
+    int rc =
+        javax.tools.ToolProvider.getSystemJavaCompiler()
+            .run(null, null, null, "-d", lib.toString(), libSrc.toString());
+    assertThat(rc).isZero();
+    ws.change(js.toUri(), Files.readString(js));
+    assertThat(ws.unit(js.toUri()).comp.diagnostics().all()).isEmpty();
+  }
+
   /** The recorded Java release is the one the editor checks against (D108). */
   @Test
   void gradleProjectsUseTheRecordedRelease(@TempDir Path dir) throws Exception {
