@@ -232,8 +232,9 @@ class JSharpPluginFunctionalTest {
     assertThat(listing).doesNotExist();
     runner("help", "-Didea.sync.active=true").build();
     assertThat(listing).exists();
+    // toRealPath: on Windows the temp directory may come in its short (8.3) form.
     assertThat(Files.readString(listing))
         .contains("runtime")
-        .contains(dir.resolve("lib").toString());
+        .contains(dir.toRealPath().resolve("lib").toString());
   }
 }
