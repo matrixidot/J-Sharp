@@ -1,6 +1,8 @@
 package io.github.matrixidot.jsharp.compiler.check;
 
 import io.github.matrixidot.jsharp.compiler.ast.Arg;
+import io.github.matrixidot.jsharp.compiler.ast.AstWalk;
+import io.github.matrixidot.jsharp.compiler.ast.Body;
 import io.github.matrixidot.jsharp.compiler.ast.Expr;
 import io.github.matrixidot.jsharp.compiler.ast.TypeNode;
 import io.github.matrixidot.jsharp.compiler.bound.BExpr;
@@ -8,19 +10,24 @@ import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.resolve.FileScope;
 import io.github.matrixidot.jsharp.compiler.resolve.Suggestions;
+import io.github.matrixidot.jsharp.compiler.resolve.TypeScope;
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
+import io.github.matrixidot.jsharp.compiler.types.Descriptors;
 import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.ClassType;
 import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
 import io.github.matrixidot.jsharp.compiler.types.Types;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -176,7 +183,7 @@ final class Calls {
   /** True if re-using a speculative attribution of {@code e} loses nothing (no lambdas/classes). */
   private static boolean sideEffectFree(Expr e) {
     boolean[] ok = {true};
-    io.github.matrixidot.jsharp.compiler.ast.AstWalk.walk(
+    AstWalk.walk(
         e,
         n -> {
           if (n instanceof Expr.Lambda
@@ -463,8 +470,7 @@ final class Calls {
       }
     }
     // A type name used like a call: `Point(1, 2)` -> hint at `new`.
-    if (a.typeScope().find(name)
-        instanceof io.github.matrixidot.jsharp.compiler.resolve.TypeScope.FoundClass) {
+    if (a.typeScope().find(name) instanceof TypeScope.FoundClass) {
       a.report(
           a.err(
               Code.NOT_CALLABLE,
@@ -1101,7 +1107,7 @@ final class Calls {
       ptypes.add(t);
     }
     Infer inf = vars.isEmpty() ? null : new Infer(types(), vars);
-    Set<TypeVarSymbol> defaulted = new java.util.HashSet<>();
+    Set<TypeVarSymbol> defaulted = new HashSet<>();
     // ---- check / constrain arguments
     for (int p = 0; p < n; p++) {
       for (int idx : mapping.get(p)) {
@@ -1677,10 +1683,10 @@ final class Calls {
 
   /** Which deferred-argument constraints were already added during one inference. */
   private static final class Done {
-    final Set<Expr> poly = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-    final Set<Expr> explicit = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-    final Set<Expr> exactRef = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
-    final Set<Expr> result = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+    final Set<Expr> poly = Collections.newSetFromMap(new IdentityHashMap<>());
+    final Set<Expr> explicit = Collections.newSetFromMap(new IdentityHashMap<>());
+    final Set<Expr> exactRef = Collections.newSetFromMap(new IdentityHashMap<>());
+    final Set<Expr> result = Collections.newSetFromMap(new IdentityHashMap<>());
   }
 
   /** Types a poly call argument against the (partially inferred) parameter type. */
@@ -1805,7 +1811,7 @@ final class Calls {
           ArgInfo arg = args.get(idx);
           if (arg.deferred
               && unwrap(arg.expr) instanceof Expr.Lambda lam
-              && lam.body() instanceof io.github.matrixidot.jsharp.compiler.ast.Body.ExprBody
+              && lam.body() instanceof Body.ExprBody
               && s.paramTypes.get(p) instanceof ClassType ct) {
             Types.MethodType ft = types().functionType(types().nonWildcard(ct));
             if (ft != null && ft.ret() == PrimType.VOID) {
@@ -1822,7 +1828,7 @@ final class Calls {
   }
 
   private static String erasedParams(MethodSymbol m) {
-    return io.github.matrixidot.jsharp.compiler.types.Descriptors.params(
+    return Descriptors.params(
         m.params().stream()
             .map(p -> p.type() == null ? (Type) Type.ErrorType.INSTANCE : p.type().erasure())
             .toList());
@@ -2296,7 +2302,7 @@ final class Calls {
         positions.add(i);
       }
     }
-    positions.sort(java.util.Comparator.comparingInt(sourceIndex::get));
+    positions.sort(Comparator.comparingInt(sourceIndex::get));
     List<BExpr> result = new ArrayList<>(out);
     List<VarSymbol> temps = new ArrayList<>();
     for (int pos : positions) {

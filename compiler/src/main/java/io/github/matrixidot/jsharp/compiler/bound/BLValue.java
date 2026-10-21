@@ -5,6 +5,7 @@ import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.PropertySymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Type;
+import java.util.List;
 
 /** Assignable locations. */
 public sealed interface BLValue {
@@ -35,7 +36,7 @@ public sealed interface BLValue {
       PropertySymbol property,
       MethodSymbol getter,
       MethodSymbol setter,
-      java.util.List<BExpr> extraArgs,
+      List<BExpr> extraArgs,
       Type type,
       BExpr.CallKind kind)
       implements BLValue {}

@@ -3,6 +3,7 @@ package io.github.matrixidot.jsharp.compiler.driver;
 import io.github.matrixidot.jsharp.compiler.LanguageInfo;
 import io.github.matrixidot.jsharp.compiler.diag.DiagnosticRenderer;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.nio.file.Files;
@@ -26,7 +27,7 @@ public final class Batch {
     for (int i = 0; i < args.length; i++) {
       switch (args[i]) {
         case "-cp" -> {
-          for (String p : args[++i].split(java.io.File.pathSeparator)) {
+          for (String p : args[++i].split(File.pathSeparator)) {
             if (!p.isEmpty()) {
               cp.add(Path.of(p));
             }

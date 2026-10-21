@@ -5,6 +5,7 @@ import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
+import io.github.matrixidot.jsharp.compiler.symbols.Symbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symtab;
 import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Nullness;
@@ -136,7 +137,7 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
           flags |= Flags.JSHARP;
           for (var e : a.elements()) {
             if (e.name().stringValue().equals("module")
-                && e.value() instanceof java.lang.classfile.AnnotationValue.OfBoolean b
+                && e.value() instanceof AnnotationValue.OfBoolean b
                 && b.booleanValue()) {
               flags |= Flags.MODULE;
             }
@@ -228,9 +229,7 @@ public final class ClassFileLoader implements ClassSymbol.Completer {
   }
 
   private List<TypeVarSymbol> declareTypeParams(
-      List<Signature.TypeParam> params,
-      io.github.matrixidot.jsharp.compiler.symbols.Symbol owner,
-      Map<String, TypeVarSymbol> scope) {
+      List<Signature.TypeParam> params, Symbol owner, Map<String, TypeVarSymbol> scope) {
     List<TypeVarSymbol> tvs = new ArrayList<>();
     String variances =
         owner instanceof ClassSymbol cs ? JDK_VARIANCE.getOrDefault(cs.binaryName(), "") : "";

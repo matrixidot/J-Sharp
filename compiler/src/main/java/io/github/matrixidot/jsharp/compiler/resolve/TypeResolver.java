@@ -9,12 +9,16 @@ import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
+import io.github.matrixidot.jsharp.compiler.symbols.Symbol;
 import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.ClassType;
 import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
+import io.github.matrixidot.jsharp.compiler.types.Types;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -56,7 +60,7 @@ public final class TypeResolver {
           "jsharp.text");
 
   private final Context ctx;
-  private io.github.matrixidot.jsharp.compiler.types.Types types;
+  private Types types;
   private boolean deferBounds = true;
   private final List<Runnable> pendingBounds = new ArrayList<>();
 
@@ -64,9 +68,9 @@ public final class TypeResolver {
     this.ctx = ctx;
   }
 
-  private io.github.matrixidot.jsharp.compiler.types.Types types() {
+  private Types types() {
     if (types == null) {
-      types = new io.github.matrixidot.jsharp.compiler.types.Types(ctx.syms);
+      types = new Types(ctx.syms);
     }
     return types;
   }
@@ -80,23 +84,21 @@ public final class TypeResolver {
   }
 
   /** Reports type arguments that violate their parameter's declared bounds. */
-  private void checkBounds(
-      ClassType t, SourceFile file, io.github.matrixidot.jsharp.compiler.source.Span span) {
+  private void checkBounds(ClassType t, SourceFile file, Span span) {
     Runnable check =
         () -> {
           List<TypeVarSymbol> tps = t.sym().typeParams();
           if (tps.size() != t.args().size()) {
             return;
           }
-          Map<TypeVarSymbol, Type> m =
-              io.github.matrixidot.jsharp.compiler.types.Types.zip(tps, t.args());
+          Map<TypeVarSymbol, Type> m = Types.zip(tps, t.args());
           for (int i = 0; i < tps.size(); i++) {
             Type arg = t.args().get(i);
             if (arg instanceof Type.WildcardType || arg.isError()) {
               continue;
             }
             for (Type b : tps.get(i).bounds()) {
-              Type bound = io.github.matrixidot.jsharp.compiler.types.Types.subst(b, m);
+              Type bound = Types.subst(b, m);
               if (!types().isSubtype(arg, bound)) {
                 ctx.report(
                     Code.TYPE_ARGUMENT_BOUND,
@@ -314,7 +316,7 @@ public final class TypeResolver {
     TypeNode.Segment seg = segs.get(next - 1);
     for (int i = next; i < segs.size(); i++) {
       TypeNode.Segment s = segs.get(i);
-      ClassSymbol m = TypeScope.memberTypeInherited(cls, s.name(), new java.util.HashSet<>());
+      ClassSymbol m = TypeScope.memberTypeInherited(cls, s.name(), new HashSet<>());
       if (m == null) {
         var b =
             ctx.error(
@@ -503,8 +505,8 @@ public final class TypeResolver {
   }
 
   /** Hints for C# type names that J# spells the Java way. */
-  private static final java.util.Map<String, String> CSHARP_TYPES =
-      java.util.Map.of(
+  private static final Map<String, String> CSHARP_TYPES =
+      Map.of(
           "Func",
               "J# uses Java's function types: java.util.function.Function, Supplier, BiFunction, ...",
           "Action",
@@ -533,9 +535,7 @@ public final class TypeResolver {
                   : "cannot find type '" + q + "'");
     } else {
       TypeNode.Segment seg0 = n.segments().getFirst();
-      io.github.matrixidot.jsharp.compiler.source.Span nameSpan =
-          new io.github.matrixidot.jsharp.compiler.source.Span(
-              seg0.span().start(), seg0.span().start() + name.length());
+      Span nameSpan = new Span(seg0.span().start(), seg0.span().start() + name.length());
       b = ctx.error(Code.UNRESOLVED_TYPE, file, nameSpan, "cannot find type '" + name + "'");
       String importable = importable(ctx, name);
       String csharp = CSHARP_TYPES.get(name);
@@ -556,8 +556,7 @@ public final class TypeResolver {
   }
 
   /** Creates type variable symbols for declared type parameters (bounds resolved separately). */
-  public static List<TypeVarSymbol> declare(
-      List<TypeParam> params, io.github.matrixidot.jsharp.compiler.symbols.Symbol owner) {
+  public static List<TypeVarSymbol> declare(List<TypeParam> params, Symbol owner) {
     List<TypeVarSymbol> out = new ArrayList<>();
     for (int i = 0; i < params.size(); i++) {
       TypeParam p = params.get(i);
@@ -569,7 +568,7 @@ public final class TypeResolver {
   /** Resolves bounds of declared type parameters in {@code scope} (which must see them). */
   public void resolveBounds(List<TypeParam> params, List<TypeVarSymbol> tvs, TypeScope scope) {
     SourceFile file = scope.file().unit().file();
-    Map<String, TypeParam> seen = new java.util.HashMap<>();
+    Map<String, TypeParam> seen = new HashMap<>();
     for (int i = 0; i < params.size(); i++) {
       TypeParam p = params.get(i);
       if (seen.put(p.name(), p) != null) {

@@ -1,5 +1,6 @@
 package io.github.matrixidot.jsharp.compiler.driver;
 
+import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
 import java.nio.file.Path;
@@ -39,7 +40,7 @@ public final class RuntimeLocator {
       String s = url.toString();
       if (s.startsWith("jar:file:")) {
         String jar = s.substring("jar:".length(), s.indexOf("!/"));
-        return Optional.of(Path.of(new java.net.URI(jar)));
+        return Optional.of(Path.of(new URI(jar)));
       }
       if (s.startsWith("file:")) {
         Path p = Path.of(url.toURI());

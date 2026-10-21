@@ -1,5 +1,6 @@
 package io.github.matrixidot.jsharp.compiler.classpath;
 
+import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.UncheckedIOException;
@@ -11,6 +12,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -78,7 +80,7 @@ public final class ClassPath implements AutoCloseable {
     if (cp == null || cp.isBlank()) {
       return out;
     }
-    for (String s : cp.split(java.io.File.pathSeparator)) {
+    for (String s : cp.split(File.pathSeparator)) {
       if (!s.isBlank()) {
         out.add(Path.of(s));
       }
@@ -258,7 +260,7 @@ public final class ClassPath implements AutoCloseable {
   /** A jar (zip) file. */
   static final class JarEntry implements Entry {
     private final ZipFile zip;
-    private final Set<String> packages = new java.util.HashSet<>();
+    private final Set<String> packages = new HashSet<>();
 
     JarEntry(Path jar) throws IOException {
       this.zip = new ZipFile(jar.toFile());

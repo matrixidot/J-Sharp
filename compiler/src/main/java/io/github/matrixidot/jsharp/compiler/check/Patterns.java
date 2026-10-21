@@ -39,9 +39,13 @@ import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
 import io.github.matrixidot.jsharp.compiler.types.Type.TupleType;
 import io.github.matrixidot.jsharp.compiler.types.Types;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashSet;
+import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
+import java.util.stream.Stream;
 
 /**
  * Pattern matching ({@code is}, switch expressions and statements, exhaustiveness), tuples,
@@ -257,7 +261,7 @@ final class Patterns {
   }
 
   private static String wildcards(int n) {
-    return "<" + String.join(", ", java.util.Collections.nCopies(n, "?")) + ">";
+    return "<" + String.join(", ", Collections.nCopies(n, "?")) + ">";
   }
 
   /**
@@ -281,7 +285,7 @@ final class Patterns {
     }
     Infer inf = new Infer(types(), sub.typeParams());
     inf.eq(sup, ic.withNullness(Nullness.NON_NULL));
-    java.util.Map<TypeVarSymbol, Type> sol = inf.solve(false);
+    Map<TypeVarSymbol, Type> sol = inf.solve(false);
     if (sol.size() != sub.typeParams().size()) {
       return null;
     }
@@ -933,7 +937,7 @@ final class Patterns {
    * (described as patterns), or null if no such list patterns are present.
    */
   private List<String> missingLengths(List<BPattern> pats) {
-    java.util.Set<Integer> exact = new java.util.HashSet<>();
+    Set<Integer> exact = new HashSet<>();
     int minimum = Integer.MAX_VALUE;
     boolean any = false;
     for (BPattern p : pats) {
@@ -941,7 +945,7 @@ final class Patterns {
         continue;
       }
       boolean total =
-          java.util.stream.Stream.concat(lp.prefix().stream(), lp.suffix().stream())
+          Stream.concat(lp.prefix().stream(), lp.suffix().stream())
                   .allMatch(x -> isTotal(x, lp.elementType()))
               && (lp.slice() == null || isTotal(lp.slice(), lp.sliceType()));
       if (!total) {
@@ -1083,8 +1087,7 @@ final class Patterns {
     ClassType generic = sub.thisType();
     ClassType asSup = types().asSuper(generic, sup.sym());
     if (asSup != null && asSup.args().size() == sup.args().size()) {
-      java.util.Map<io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol, Type> m =
-          new java.util.IdentityHashMap<>();
+      Map<TypeVarSymbol, Type> m = new IdentityHashMap<>();
       for (int i = 0; i < asSup.args().size(); i++) {
         if (asSup.args().get(i) instanceof Type.TypeVar tv
             && !(sup.args().get(i) instanceof Type.WildcardType)) {
@@ -2036,5 +2039,5 @@ final class Patterns {
   }
 
   /** Superclass constructor each anonymous class's constructor delegates to. */
-  final java.util.Map<ClassSymbol, MethodSymbol> superCtors = new java.util.IdentityHashMap<>();
+  final Map<ClassSymbol, MethodSymbol> superCtors = new IdentityHashMap<>();
 }

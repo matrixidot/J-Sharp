@@ -1,5 +1,7 @@
 package io.github.matrixidot.jsharp.compiler.ast;
 
+import java.util.Locale;
+
 /** Declaration modifiers. Several are contextual keywords in source. */
 public enum Modifier {
   PUBLIC,
@@ -25,6 +27,6 @@ public enum Modifier {
   ATOMIC;
 
   public String keyword() {
-    return name().toLowerCase(java.util.Locale.ROOT);
+    return name().toLowerCase(Locale.ROOT);
   }
 }

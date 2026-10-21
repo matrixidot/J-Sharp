@@ -5,6 +5,7 @@ import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.diag.DiagnosticSink;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
+import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -329,7 +330,7 @@ public final class Lexer {
     // Decimal integers: store the magnitude; range is checked by the type checker, which knows
     // whether the literal is the operand of unary minus (e.g. -2147483648).
     try {
-      java.math.BigInteger v = new java.math.BigInteger(digits);
+      BigInteger v = new BigInteger(digits);
       if (v.bitLength() > 64) {
         error(Code.NUMBER_TOO_LARGE, start, pos, "integer literal is too large");
         return make(kind, start, 0L);
@@ -373,7 +374,7 @@ public final class Lexer {
       return make(kind, start, 0L);
     }
     String digits = src.substring(digitsStart, isLong ? pos - 1 : pos).replace("_", "");
-    java.math.BigInteger v = new java.math.BigInteger(digits, radix);
+    BigInteger v = new BigInteger(digits, radix);
     int maxBits = isLong ? 64 : 32;
     if (v.bitLength() > maxBits) {
       error(

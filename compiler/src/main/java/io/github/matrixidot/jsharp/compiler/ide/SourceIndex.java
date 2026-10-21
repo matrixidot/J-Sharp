@@ -12,6 +12,7 @@ import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
+import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.PropertySymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symbol;
@@ -19,10 +20,12 @@ import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 /**
  * Maps source positions to what is there, for editor tooling (hover, go-to-definition, completion):
@@ -169,7 +172,7 @@ public final class SourceIndex {
   public List<Location> references(Symbol sym) {
     Symbol target = canonical(sym);
     List<Location> out = new ArrayList<>();
-    java.util.Set<String> seen = new java.util.HashSet<>();
+    Set<String> seen = new HashSet<>();
     for (var e : byFile.entrySet()) {
       for (Ref r : e.getValue()) {
         if (r.symbol() == null || r.nameSpan() == null) {
@@ -221,8 +224,7 @@ public final class SourceIndex {
         if (f.property() != null) {
           yield declaration(f.property());
         }
-        if (f.has(io.github.matrixidot.jsharp.compiler.symbols.Flags.ENUM_CONSTANT)
-            && f.owner().decl() != null) {
+        if (f.has(Flags.ENUM_CONSTANT) && f.owner().decl() != null) {
           for (var ec : f.owner().decl().enumConstants()) {
             if (ec.name().equals(f.name())) {
               yield located(f.owner(), ec.nameSpan());
@@ -404,7 +406,7 @@ public final class SourceIndex {
         || v.name().startsWith("$")
         || v.name().equals("_")
         || v.span() == null
-        || v.has(io.github.matrixidot.jsharp.compiler.symbols.Flags.SYNTHETIC)
+        || v.has(Flags.SYNTHETIC)
         || localDecls.containsKey(v)) {
       return; // synthetic, or a captured variable seen again as a hoisted function's parameter
     }

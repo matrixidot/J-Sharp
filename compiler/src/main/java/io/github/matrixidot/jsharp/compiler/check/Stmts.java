@@ -14,6 +14,7 @@ import io.github.matrixidot.jsharp.compiler.bound.BLValue;
 import io.github.matrixidot.jsharp.compiler.bound.BStmt;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.source.Span;
+import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
@@ -243,8 +244,7 @@ final class Stmts {
     if (cls != null) {
       return a.syms.wellKnown(cls);
     }
-    io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol ref =
-        a.syms.lookup("java/util/concurrent/atomic/AtomicReference");
+    ClassSymbol ref = a.syms.lookup("java/util/concurrent/atomic/AtomicReference");
     Type elem = t instanceof PrimType p ? a.syms.boxed(p) : t;
     return new Type.ClassType(ref, List.of(elem), Nullness.NON_NULL);
   }

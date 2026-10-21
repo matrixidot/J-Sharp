@@ -101,11 +101,7 @@ public sealed interface BStmt {
    * bodies.get(i)}; {@code defaultBody} may be null. Bodies never fall through.
    */
   record IntSwitch(
-      BExpr selector,
-      java.util.List<java.util.List<Integer>> keys,
-      java.util.List<BStmt> bodies,
-      BStmt defaultBody,
-      Span span)
+      BExpr selector, List<List<Integer>> keys, List<BStmt> bodies, BStmt defaultBody, Span span)
       implements BStmt {}
 
   /** A switch statement over a decision structure. */

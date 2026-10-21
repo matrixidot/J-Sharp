@@ -2,6 +2,8 @@ package io.github.matrixidot.jsharp.compiler.types;
 
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 /**
@@ -231,7 +233,7 @@ public sealed interface Type {
       implements Type {
     public TupleType {
       elems = List.copyOf(elems);
-      names = java.util.Collections.unmodifiableList(new java.util.ArrayList<>(names));
+      names = Collections.unmodifiableList(new ArrayList<>(names));
     }
 
     @Override

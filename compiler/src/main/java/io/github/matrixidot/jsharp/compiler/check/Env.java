@@ -1,7 +1,9 @@
 package io.github.matrixidot.jsharp.compiler.check;
 
+import io.github.matrixidot.jsharp.compiler.bound.BClass;
 import io.github.matrixidot.jsharp.compiler.bound.BStmt;
 import io.github.matrixidot.jsharp.compiler.resolve.TypeScope;
+import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
@@ -75,9 +77,8 @@ final class Env {
   /** A switch arm block being checked: its expected type and the types of its yields. */
   static final class YieldContext {
     final Type expected;
-    final io.github.matrixidot.jsharp.compiler.bound.BStmt.YieldTarget target =
-        new io.github.matrixidot.jsharp.compiler.bound.BStmt.YieldTarget();
-    final List<Type> yielded = new java.util.ArrayList<>();
+    final BStmt.YieldTarget target = new BStmt.YieldTarget();
+    final List<Type> yielded = new ArrayList<>();
 
     YieldContext(Type expected) {
       this.expected = expected;
@@ -93,7 +94,7 @@ final class Env {
   int[] varIds = new int[1];
 
   /** Local classes created in this body. */
-  List<io.github.matrixidot.jsharp.compiler.bound.BClass> localClasses;
+  List<BClass> localClasses;
 
   Env() {}
 
@@ -124,12 +125,7 @@ final class Env {
     return e;
   }
 
-  VarSymbol newVar(
-      String name,
-      Type type,
-      long flags,
-      VarSymbol.Kind kind,
-      io.github.matrixidot.jsharp.compiler.source.Span span) {
+  VarSymbol newVar(String name, Type type, long flags, VarSymbol.Kind kind, Span span) {
     return new VarSymbol(name, type, flags, kind, span, nextVarId());
   }
 }

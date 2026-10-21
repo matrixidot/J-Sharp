@@ -19,6 +19,7 @@ import io.github.matrixidot.jsharp.compiler.types.Types;
 import java.lang.classfile.CodeBuilder;
 import java.lang.classfile.Label;
 import java.lang.classfile.TypeKind;
+import java.lang.classfile.instruction.SwitchCase;
 import java.lang.constant.ClassDesc;
 import java.lang.constant.ConstantDesc;
 import java.lang.constant.ConstantDescs;
@@ -28,10 +29,14 @@ import java.lang.constant.MethodHandleDesc;
 import java.lang.constant.MethodTypeDesc;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.Deque;
 import java.util.IdentityHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.IntConsumer;
 
 /**
  * Generates bytecode for one method body from the lowered bound tree. Stack map frames are computed
@@ -55,8 +60,7 @@ final class CodeGen {
   private boolean reachable = true;
 
   /** Labels some emitted branch targets (binding one makes the code after it reachable). */
-  private final java.util.Set<Label> targeted =
-      java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+  private final Set<Label> targeted = Collections.newSetFromMap(new IdentityHashMap<>());
 
   private void jump(Label l) {
     if (reachable) {
@@ -341,16 +345,12 @@ final class CodeGen {
    * the instruction). Each case and the default run {@code body}; none fall through.
    */
   private void intSwitch(
-      BExpr selector,
-      List<List<Integer>> keys,
-      int n,
-      java.util.function.IntConsumer body,
-      Runnable defaultBody) {
+      BExpr selector, List<List<Integer>> keys, int n, IntConsumer body, Runnable defaultBody) {
     expr(selector);
     Label dflt = cb.newLabel();
     Label end = cb.newLabel();
     List<Label> labels = new ArrayList<>();
-    List<java.lang.classfile.instruction.SwitchCase> cases = new ArrayList<>();
+    List<SwitchCase> cases = new ArrayList<>();
     long lo = Long.MAX_VALUE;
     long hi = Long.MIN_VALUE;
     for (int i = 0; i < n; i++) {
@@ -358,14 +358,13 @@ final class CodeGen {
       labels.add(l);
       targeted.add(l);
       for (int k : keys.get(i)) {
-        cases.add(java.lang.classfile.instruction.SwitchCase.of(k, l));
+        cases.add(SwitchCase.of(k, l));
         lo = Math.min(lo, k);
         hi = Math.max(hi, k);
       }
     }
     targeted.add(dflt);
-    cases.sort(
-        java.util.Comparator.comparingInt(java.lang.classfile.instruction.SwitchCase::caseValue));
+    cases.sort(Comparator.comparingInt(SwitchCase::caseValue));
     long count = cases.size();
     long tableCost = 4 + (hi - lo + 1) + 3 * 3;
     long lookupCost = 3 + 2 * count + 3 * count;

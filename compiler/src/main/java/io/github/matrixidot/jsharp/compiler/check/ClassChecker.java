@@ -5,6 +5,9 @@ import io.github.matrixidot.jsharp.compiler.ast.Body;
 import io.github.matrixidot.jsharp.compiler.ast.Decl;
 import io.github.matrixidot.jsharp.compiler.ast.EnumConstant;
 import io.github.matrixidot.jsharp.compiler.ast.Expr;
+import io.github.matrixidot.jsharp.compiler.ast.Modifier;
+import io.github.matrixidot.jsharp.compiler.ast.Operators;
+import io.github.matrixidot.jsharp.compiler.ast.Param;
 import io.github.matrixidot.jsharp.compiler.ast.Stmt;
 import io.github.matrixidot.jsharp.compiler.ast.TypeParam;
 import io.github.matrixidot.jsharp.compiler.ast.VarDeclarator;
@@ -26,11 +29,13 @@ import io.github.matrixidot.jsharp.compiler.symbols.Symbol;
 import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Descriptors;
+import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.ClassType;
 import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
 import io.github.matrixidot.jsharp.compiler.types.Types;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -147,7 +152,7 @@ public final class ClassChecker {
 
   private static List<VarSymbol> declareParams(Attr a, Env e, MethodSymbol m) {
     List<VarSymbol> params = new ArrayList<>();
-    List<io.github.matrixidot.jsharp.compiler.ast.Param> syntax = null;
+    List<Param> syntax = null;
     if (m.decl() instanceof Decl.Method md && md.params().size() == m.params().size()) {
       syntax = md.params();
     } else if (m.decl() instanceof Decl.Constructor k
@@ -158,12 +163,7 @@ public final class ClassChecker {
     for (int i = 0; i < m.params().size(); i++) {
       MethodSymbol.Param p = m.params().get(i);
       Span span = syntax != null ? syntax.get(i).nameSpan() : Span.NONE;
-      boolean isFinal =
-          syntax != null
-              && syntax
-                  .get(i)
-                  .modifiers()
-                  .has(io.github.matrixidot.jsharp.compiler.ast.Modifier.FINAL);
+      boolean isFinal = syntax != null && syntax.get(i).modifiers().has(Modifier.FINAL);
       VarSymbol v =
           e.newVar(
               p.name(),
@@ -764,12 +764,12 @@ public final class ClassChecker {
       if (!m.has(Flags.OPERATOR) || m.decl() == null || m.params().size() != 2) {
         continue;
       }
-      String symbol = io.github.matrixidot.jsharp.compiler.ast.Operators.symbolOf(m.name(), 2);
-      String pair = io.github.matrixidot.jsharp.compiler.ast.Operators.pairOf(symbol);
+      String symbol = Operators.symbolOf(m.name(), 2);
+      String pair = Operators.pairOf(symbol);
       if (pair == null) {
         continue;
       }
-      String pairName = io.github.matrixidot.jsharp.compiler.ast.Operators.jvmName(pair, 2);
+      String pairName = Operators.jvmName(pair, 2);
       boolean found = false;
       for (MethodSymbol o : c.methods(pairName)) {
         if (o.has(Flags.OPERATOR)
@@ -856,15 +856,12 @@ public final class ClassChecker {
         }
         ClassType as = a.types.asSuper(c.thisType(), o.owner());
         Map<TypeVarSymbol, Type> subst =
-            new java.util.HashMap<>(as == null ? Map.of() : a.types.typeArgMap(as));
+            new HashMap<>(as == null ? Map.of() : a.types.typeArgMap(as));
         // Generic methods: the overrider's type parameters stand for the overridden ones.
         if (o.typeParams().size() == m.typeParams().size()) {
           for (int i = 0; i < o.typeParams().size(); i++) {
             subst.put(
-                o.typeParams().get(i),
-                new Type.TypeVar(
-                    m.typeParams().get(i),
-                    io.github.matrixidot.jsharp.compiler.types.Nullness.NON_NULL));
+                o.typeParams().get(i), new Type.TypeVar(m.typeParams().get(i), Nullness.NON_NULL));
           }
         }
         Type theirRet = o.returnType() == null ? null : Types.subst(o.returnType(), subst);
@@ -982,7 +979,7 @@ public final class ClassChecker {
       }
     }
     // Two inherited default methods with the same signature must be resolved by an override.
-    Map<String, MethodSymbol> defaults = new java.util.HashMap<>();
+    Map<String, MethodSymbol> defaults = new HashMap<>();
     for (ClassSymbol s : a.lookup.hierarchy(c.thisType())) {
       if (!s.isInterface()) {
         continue;

@@ -51,12 +51,12 @@ public sealed interface BPattern {
    * @param binding variable for the whole value ({@code [..] xs}), or null
    */
   record ListPat(
-      java.util.List<BPattern> prefix,
+      List<BPattern> prefix,
       BPattern slice,
       boolean hasSlice,
-      java.util.List<BPattern> suffix,
-      io.github.matrixidot.jsharp.compiler.types.Type elementType,
-      io.github.matrixidot.jsharp.compiler.types.Type sliceType,
+      List<BPattern> suffix,
+      Type elementType,
+      Type sliceType,
       boolean array,
       VarSymbol binding,
       Span span)

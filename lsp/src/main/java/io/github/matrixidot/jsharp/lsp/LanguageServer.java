@@ -12,7 +12,9 @@ import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.PropertySymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symbol;
+import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
+import io.github.matrixidot.jsharp.compiler.syntax.TokenKind;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import java.io.IOException;
 import java.io.InputStream;
@@ -20,13 +22,17 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.net.URI;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * A Language Server Protocol server for J#, speaking JSON-RPC over a byte stream (stdio in
@@ -353,8 +359,7 @@ public final class LanguageServer {
       case null -> r.type() == null ? null : r.type().display();
       case VarSymbol v when v.kind() == VarSymbol.Kind.PARAM ->
           "(parameter) " + v.name() + ": " + show(v.type());
-      case io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol tv ->
-          "(type parameter) " + tv.name();
+      case TypeVarSymbol tv -> "(type parameter) " + tv.name();
       case VarSymbol v ->
           (v.isAtomic() ? "atomic " : "")
               + (v.has(Flags.FINAL) ? "val " : "var ")
@@ -563,7 +568,7 @@ public final class LanguageServer {
     SourceFile f = unit.file(uri);
     if (newName == null
         || !newName.matches("[A-Za-z_][A-Za-z0-9_]*")
-        || io.github.matrixidot.jsharp.compiler.syntax.TokenKind.keyword(newName) != null) {
+        || TokenKind.keyword(newName) != null) {
       throw new RequestFailed("'" + newName + "' is not a valid name.");
     }
     SourceIndex.Ref ref = renameTarget(unit, f, offset(f, pos));
@@ -604,7 +609,7 @@ public final class LanguageServer {
    * commas count only directly inside it (not in nested brackets, braces or calls).
    */
   static OpenCall openCall(String text, int offset) {
-    java.util.ArrayDeque<int[]> stack = new java.util.ArrayDeque<>(); // {position, commas, char}
+    ArrayDeque<int[]> stack = new ArrayDeque<>(); // {position, commas, char}
     int i = 0;
     while (i < offset && i < text.length()) {
       char c = text.charAt(i);
@@ -806,9 +811,9 @@ public final class LanguageServer {
     if (!(type.erasure() instanceof Type.ClassType ct)) {
       return out;
     }
-    Set<ClassSymbol> hierarchy = new java.util.LinkedHashSet<>();
+    Set<ClassSymbol> hierarchy = new LinkedHashSet<>();
     collectHierarchy(ct.sym(), hierarchy);
-    Set<String> seen = new java.util.HashSet<>();
+    Set<String> seen = new HashSet<>();
     for (ClassSymbol c : hierarchy) {
       for (MethodSymbol m : c.methods(name)) {
         if (visible(m.flags()) && !m.has(Flags.SYNTHETIC) && seen.add(signature(m))) {
@@ -864,8 +869,7 @@ public final class LanguageServer {
     Workspace.Unit unit = workspace().unit(uri);
     SourceFile f = unit.file(uri);
     String text = f.content();
-    java.util.TreeMap<Integer, int[]> byStart =
-        new java.util.TreeMap<>(); // start -> {len, type, mods}
+    TreeMap<Integer, int[]> byStart = new TreeMap<>(); // start -> {len, type, mods}
     for (SourceIndex.Ref r : unit.comp.index().refs(f)) {
       Span n = r.nameSpan();
       if (r.symbol() == null || n == null || n.end() <= n.start()) {
@@ -919,7 +923,7 @@ public final class LanguageServer {
     String t =
         switch (s) {
           case ClassSymbol c -> c.isInterface() ? "interface" : c.isEnum() ? "enum" : "class";
-          case io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol tv -> "typeParameter";
+          case TypeVarSymbol tv -> "typeParameter";
           case MethodSymbol m when m.isConstructor() -> "class";
           case MethodSymbol m when m.owner().has(Flags.MODULE) || m.has(Flags.LOCAL) -> "function";
           case MethodSymbol m -> "method";
@@ -1112,7 +1116,7 @@ public final class LanguageServer {
     if (!(type.erasure() instanceof Type.ClassType ct)) {
       return;
     }
-    Set<ClassSymbol> hierarchy = new java.util.LinkedHashSet<>();
+    Set<ClassSymbol> hierarchy = new LinkedHashSet<>();
     collectHierarchy(ct.sym(), hierarchy);
     for (ClassSymbol c : hierarchy) {
       // Own members first, then supertypes, then Object's (sortText ranks, labels stay plain).

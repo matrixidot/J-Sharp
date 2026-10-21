@@ -1,6 +1,7 @@
 package io.github.matrixidot.jsharp.compiler;
 
 import io.github.matrixidot.jsharp.compiler.ast.CompilationUnit;
+import io.github.matrixidot.jsharp.compiler.ast.VarDeclarator;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostics;
@@ -8,7 +9,10 @@ import io.github.matrixidot.jsharp.compiler.driver.CompilerOptions;
 import io.github.matrixidot.jsharp.compiler.resolve.FileScope;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
+import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
+import io.github.matrixidot.jsharp.compiler.symbols.Symbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symtab;
+import java.util.HashMap;
 import java.util.IdentityHashMap;
 import java.util.Map;
 
@@ -27,22 +31,18 @@ public final class Context {
    * Editor tooling: the class or type variable each resolved type name denotes, by file and the
    * span of the name; null unless recording (see {@code Compilation.recordExpressionTypes}).
    */
-  public Map<SourceFile, Map<Span, io.github.matrixidot.jsharp.compiler.symbols.Symbol>> typeRefs;
+  public Map<SourceFile, Map<Span, Symbol>> typeRefs;
 
   /**
    * Script variables that the file's functions use (D094): each top-level {@code var}/{@code val}
    * declarator so hoisted, and its static field.
    */
-  public final Map<
-          io.github.matrixidot.jsharp.compiler.ast.VarDeclarator,
-          io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol>
-      scriptGlobals = new java.util.IdentityHashMap<>();
+  public final Map<VarDeclarator, FieldSymbol> scriptGlobals = new IdentityHashMap<>();
 
   /** Records that the name at {@code span} denotes {@code sym} (no-op unless recording). */
-  public void recordTypeRef(
-      SourceFile file, Span span, io.github.matrixidot.jsharp.compiler.symbols.Symbol sym) {
+  public void recordTypeRef(SourceFile file, Span span, Symbol sym) {
     if (typeRefs != null && file != null && span != null && sym != null) {
-      typeRefs.computeIfAbsent(file, f -> new java.util.HashMap<>()).putIfAbsent(span, sym);
+      typeRefs.computeIfAbsent(file, f -> new HashMap<>()).putIfAbsent(span, sym);
     }
   }
 

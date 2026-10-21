@@ -3,6 +3,7 @@ package io.github.matrixidot.jsharp.compiler.diag;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import java.util.List;
+import java.util.Locale;
 
 /** Renders diagnostics as Rust-style human text or as machine-readable JSON. */
 public final class DiagnosticRenderer {
@@ -189,7 +190,7 @@ public final class DiagnosticRenderer {
         case '\t' -> sb.append("\\t");
         default -> {
           if (ch < 0x20) {
-            sb.append(String.format(java.util.Locale.ROOT, "\\u%04x", (int) ch));
+            sb.append(String.format(Locale.ROOT, "\\u%04x", (int) ch));
           } else {
             sb.append(ch);
           }

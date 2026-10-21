@@ -1,10 +1,15 @@
 package io.github.matrixidot.jsharp.compiler.check;
 
 import io.github.matrixidot.jsharp.compiler.Context;
+import io.github.matrixidot.jsharp.compiler.ast.Accessor;
+import io.github.matrixidot.jsharp.compiler.ast.Arg;
 import io.github.matrixidot.jsharp.compiler.ast.Body;
+import io.github.matrixidot.jsharp.compiler.ast.Decl;
 import io.github.matrixidot.jsharp.compiler.ast.Expr;
 import io.github.matrixidot.jsharp.compiler.ast.FieldInit;
+import io.github.matrixidot.jsharp.compiler.ast.Modifiers;
 import io.github.matrixidot.jsharp.compiler.ast.Param;
+import io.github.matrixidot.jsharp.compiler.ast.Stmt;
 import io.github.matrixidot.jsharp.compiler.ast.TypeNode;
 import io.github.matrixidot.jsharp.compiler.bound.BClass;
 import io.github.matrixidot.jsharp.compiler.bound.BExpr;
@@ -36,7 +41,10 @@ import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.ClassType;
 import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
 import io.github.matrixidot.jsharp.compiler.types.Types;
+import java.math.BigInteger;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
@@ -44,6 +52,7 @@ import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.function.Supplier;
 
 /**
@@ -87,7 +96,7 @@ public final class Attr {
   /** Atomic locals declared so far (D084), checked for need at the end. */
   final List<VarSymbol> atomicVars = new ArrayList<>();
 
-  final Map<VarSymbol, SourceFile> atomicFiles = new java.util.HashMap<>();
+  final Map<VarSymbol, SourceFile> atomicFiles = new HashMap<>();
 
   final Map<VarSymbol, Span> captureSites = new IdentityHashMap<>();
 
@@ -200,7 +209,7 @@ public final class Attr {
   record Speculation<T>(T result, boolean hasErrors, boolean hasDiagnostics) {}
 
   /** Call results whose type arguments were partly defaulted (they would benefit from a target). */
-  final Set<BExpr> flexibleResults = java.util.Collections.newSetFromMap(new IdentityHashMap<>());
+  final Set<BExpr> flexibleResults = Collections.newSetFromMap(new IdentityHashMap<>());
 
   /** Runs {@code body} reporting to the real diagnostics even during speculation. */
   <T> T withRealDiagnostics(Supplier<T> body) {
@@ -427,10 +436,10 @@ public final class Attr {
    * When non-null, the type of every attributed expression, by file and span, even if the enclosing
    * expression later fails (editor tooling: the receiver of an incomplete {@code x.}).
    */
-  private java.util.Map<SourceFile, java.util.Map<Span, Type>> recordedTypes;
+  private Map<SourceFile, Map<Span, Type>> recordedTypes;
 
   /** Turns on expression-type recording into {@code into} (see {@link #recordedTypes}). */
-  public void recordTypesInto(java.util.Map<SourceFile, java.util.Map<Span, Type>> into) {
+  public void recordTypesInto(Map<SourceFile, Map<Span, Type>> into) {
     this.recordedTypes = into;
   }
 
@@ -441,9 +450,7 @@ public final class Attr {
         && !b.type().isError()
         && !isSpeculative()
         && file() != null) {
-      recordedTypes
-          .computeIfAbsent(file(), k -> new java.util.HashMap<>())
-          .putIfAbsent(e.span(), b.type());
+      recordedTypes.computeIfAbsent(file(), k -> new HashMap<>()).putIfAbsent(e.span(), b.type());
     }
   }
 
@@ -579,8 +586,8 @@ public final class Attr {
             && !digits.startsWith("0X")
             && !digits.startsWith("0b")
             && !digits.startsWith("0B")
-            && new java.math.BigInteger(digits.substring(0, digits.length() - 1))
-                    .compareTo(java.math.BigInteger.valueOf(Long.MAX_VALUE))
+            && new BigInteger(digits.substring(0, digits.length() - 1))
+                    .compareTo(BigInteger.valueOf(Long.MAX_VALUE))
                 > 0) {
           error(
               Code.LITERAL_OUT_OF_RANGE, l.span(), "long literal " + l.text() + " is out of range");
@@ -760,8 +767,7 @@ public final class Attr {
    *
    * @param root a {@link VarSymbol}, a {@link ClassSymbol} (its {@code this}), or null (static)
    */
-  record StablePath(
-      Object root, List<io.github.matrixidot.jsharp.compiler.symbols.Symbol> members) {}
+  record StablePath(Object root, List<Symbol> members) {}
 
   /** The smart-cast key of {@code e}: its local, its stable path, or null. */
   Object narrowKey(BExpr e) {
@@ -784,9 +790,9 @@ public final class Attr {
     };
   }
 
-  private StablePath extend(BExpr receiver, io.github.matrixidot.jsharp.compiler.symbols.Symbol m) {
+  private StablePath extend(BExpr receiver, Symbol m) {
     Object root;
-    List<io.github.matrixidot.jsharp.compiler.symbols.Symbol> members = new ArrayList<>();
+    List<Symbol> members = new ArrayList<>();
     if (receiver == null) {
       root = null;
     } else if (localOf(receiver) instanceof VarSymbol v && !v.isAtomic()) {
@@ -829,7 +835,7 @@ public final class Attr {
   }
 
   /** Record components and get-only auto-properties ({@code { get; }}, {@code { get; init; }}). */
-  private static boolean isStable(io.github.matrixidot.jsharp.compiler.symbols.PropertySymbol p) {
+  private static boolean isStable(PropertySymbol p) {
     if (!p.owner().isSource() || p.backingField() == null) {
       return false;
     }
@@ -840,8 +846,7 @@ public final class Attr {
       return false; // computed: int x => ...
     }
     for (var acc : p.decl().accessors()) {
-      if (acc.body() != null
-          || acc.kind() == io.github.matrixidot.jsharp.compiler.ast.Accessor.Kind.SET) {
+      if (acc.body() != null || acc.kind() == Accessor.Kind.SET) {
         return false;
       }
     }
@@ -1028,13 +1033,13 @@ public final class Attr {
     if (e instanceof Expr.Name n && n.typeArgs().isEmpty() && env.scope.lookup(n.name()) == null) {
       LocalFunctions.Fn fn = env.scope.lookupFunction(n.name());
       if (fn != null) {
-        List<io.github.matrixidot.jsharp.compiler.ast.Param> ps = new ArrayList<>();
-        List<io.github.matrixidot.jsharp.compiler.ast.Arg> args = new ArrayList<>();
+        List<Param> ps = new ArrayList<>();
+        List<Arg> args = new ArrayList<>();
         for (int i = 0; i < fn.sym.params().size(); i++) {
           String p = "$" + i;
           ps.add(
-              new io.github.matrixidot.jsharp.compiler.ast.Param(
-                  io.github.matrixidot.jsharp.compiler.ast.Modifiers.empty(n.span().start()),
+              new Param(
+                  Modifiers.empty(n.span().start()),
                   false,
                   false,
                   null,
@@ -1042,13 +1047,10 @@ public final class Attr {
                   n.span(),
                   null,
                   n.span()));
-          args.add(
-              new io.github.matrixidot.jsharp.compiler.ast.Arg(
-                  null, new Expr.Name(p, List.of(), n.span()), n.span()));
+          args.add(new Arg(null, new Expr.Name(p, List.of(), n.span()), n.span()));
         }
         Expr call = new Expr.Call(new Expr.Name(n.name(), List.of(), n.span()), args, n.span());
-        return new Expr.Lambda(
-            ps, false, new io.github.matrixidot.jsharp.compiler.ast.Body.ExprBody(call), n.span());
+        return new Expr.Lambda(ps, false, new Body.ExprBody(call), n.span());
       }
     }
     return asFunctionRef(e);
@@ -1134,8 +1136,7 @@ public final class Attr {
       report(d.help(hidden));
       return;
     }
-    String importable =
-        io.github.matrixidot.jsharp.compiler.resolve.TypeResolver.importable(ctx, name);
+    String importable = TypeResolver.importable(ctx, name);
     if (importable != null) {
       // `List.of(...)` without `import java.util.List;`
       report(d.help("add 'import " + importable + ";'"));
@@ -1176,8 +1177,8 @@ public final class Attr {
       return false;
     }
     for (var d : env.cls.unit().members()) {
-      if (d instanceof io.github.matrixidot.jsharp.compiler.ast.Decl.TopLevelStmt t
-          && t.stmt() instanceof io.github.matrixidot.jsharp.compiler.ast.Stmt.LocalVar lv
+      if (d instanceof Decl.TopLevelStmt t
+          && t.stmt() instanceof Stmt.LocalVar lv
           && lv.vars().stream().anyMatch(v -> v.name().equals(name))) {
         return true;
       }
@@ -1720,7 +1721,7 @@ public final class Attr {
     Env outer = env;
     Env e = outer.nested();
     e.lambda = outer.lambda;
-    e.jumps = new java.util.ArrayDeque<>();
+    e.jumps = new ArrayDeque<>();
     e.yieldTo = new Env.YieldContext(pt == null || pt.isError() || pt == PrimType.VOID ? null : pt);
     env = e;
     BStmt body;
@@ -1845,7 +1846,7 @@ public final class Attr {
    * {@code recv?.rest}: evaluates the receiver once; null if it is null, else {@code rest} applied
    * to the non-null receiver.
    */
-  BExpr safeAccess(Expr receiverExpr, Span span, java.util.function.Function<BExpr, BExpr> rest) {
+  BExpr safeAccess(Expr receiverExpr, Span span, Function<BExpr, BExpr> rest) {
     BExpr recv = value(receiverExpr, null);
     if (recv.type().isError()) {
       return recv;
@@ -2660,7 +2661,7 @@ public final class Attr {
     e.scope = new Scope(env.scope, Scope.Boundary.LAMBDA, frame, null);
     e.lambda = frame;
     e.isAsync = l.isAsync();
-    e.jumps = new java.util.ArrayDeque<>();
+    e.jumps = new ArrayDeque<>();
     e.inConstructor = false;
     e.catchVar = null;
     Type ret = ft == null ? null : ft.ret();
@@ -2971,7 +2972,7 @@ public final class Attr {
             report(
                 err(
                     Code.RECURSIVE_INFERENCE,
-                    ((io.github.matrixidot.jsharp.compiler.ast.Decl.Method) m.decl()).nameSpan(),
+                    ((Decl.Method) m.decl()).nameSpan(),
                     "recursive method '" + m.name() + "' needs an explicit return type"));
             env = saved;
             return null;

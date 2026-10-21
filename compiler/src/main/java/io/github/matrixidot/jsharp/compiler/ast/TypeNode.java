@@ -2,6 +2,7 @@ package io.github.matrixidot.jsharp.compiler.ast;
 
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import java.util.List;
+import java.util.Locale;
 
 /** Syntax of a type reference. */
 public sealed interface TypeNode extends Node {
@@ -59,7 +60,7 @@ public sealed interface TypeNode extends Node {
       VOID;
 
       public String keyword() {
-        return name().toLowerCase(java.util.Locale.ROOT);
+        return name().toLowerCase(Locale.ROOT);
       }
     }
   }

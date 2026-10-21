@@ -1,11 +1,14 @@
 package io.github.matrixidot.jsharp.compiler.check;
 
+import io.github.matrixidot.jsharp.compiler.ast.AstWalk;
 import io.github.matrixidot.jsharp.compiler.ast.Expr;
+import io.github.matrixidot.jsharp.compiler.ast.Operators;
 import io.github.matrixidot.jsharp.compiler.bound.BExpr;
 import io.github.matrixidot.jsharp.compiler.bound.BExpr.BinOp;
 import io.github.matrixidot.jsharp.compiler.bound.BExpr.ConvKind;
 import io.github.matrixidot.jsharp.compiler.bound.BLValue;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
+import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.FieldSymbol;
@@ -309,7 +312,7 @@ final class Ops {
     if (syntaxOp == Expr.BinaryOp.ADD && (isString(left.type()) || isString(right.type()))) {
       return null; // string concatenation keeps its meaning
     }
-    String jvm = io.github.matrixidot.jsharp.compiler.ast.Operators.jvmName(symbol, 2);
+    String jvm = Operators.jvmName(symbol, 2);
     List<MethodSymbol> cands = operatorMethods(jvm, 2, left.type(), right.type());
     if (cands.isEmpty()) {
       return null;
@@ -329,7 +332,7 @@ final class Ops {
     if (!userOperand(e.type())) {
       return null;
     }
-    String jvm = io.github.matrixidot.jsharp.compiler.ast.Operators.jvmName(symbol, 1);
+    String jvm = Operators.jvmName(symbol, 1);
     List<MethodSymbol> cands = operatorMethods(jvm, 1, e.type());
     if (cands.isEmpty()) {
       return null;
@@ -862,7 +865,7 @@ final class Ops {
     if (op == BinOp.ADD && isString(t)) {
       return null;
     }
-    String jvm = io.github.matrixidot.jsharp.compiler.ast.Operators.jvmName(symbol, 2);
+    String jvm = Operators.jvmName(symbol, 2);
     List<MethodSymbol> cands = operatorMethods(jvm, 2, t, rhs.type());
     if (cands.isEmpty()) {
       return null;
@@ -1130,7 +1133,7 @@ final class Ops {
         return new BLValue.LocalLV(v);
       }
       if (!found.crossed().isEmpty()) {
-        io.github.matrixidot.jsharp.compiler.diag.Diagnostic.Builder d =
+        Diagnostic.Builder d =
             a.err(
                     Code.CAPTURED_NOT_FINAL,
                     span,
@@ -1229,7 +1232,7 @@ final class Ops {
   /** True if {@code e} reads the local {@code v} by name (not inside a lambda). */
   private static boolean mentions(Expr e, VarSymbol v) {
     boolean[] found = {false};
-    io.github.matrixidot.jsharp.compiler.ast.AstWalk.walk(
+    AstWalk.walk(
         e,
         n -> {
           if (n instanceof Expr.Name nm && nm.name().equals(v.name())) {

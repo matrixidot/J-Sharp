@@ -33,6 +33,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 
 /**
  * Lowers checked classes to the core subset understood by code generation: synthesizes generated
@@ -1276,7 +1277,7 @@ public final class Lowerer {
       return null;
     }
     List<List<Integer>> keys = new ArrayList<>();
-    java.util.Set<Integer> seen = new java.util.HashSet<>();
+    Set<Integer> seen = new HashSet<>();
     int total = 0;
     for (BSwitch.Case c : s.cases()) {
       if (c.pattern() == null) {
@@ -1781,7 +1782,7 @@ public final class Lowerer {
 
   // ------------------------------------------------------------------ switch arm blocks (D092)
 
-  private final Map<BStmt.YieldTarget, VarSymbol> yieldTemps = new java.util.IdentityHashMap<>();
+  private final Map<BStmt.YieldTarget, VarSymbol> yieldTemps = new IdentityHashMap<>();
 
   /** {@code { ...; yield v; }}: {@code tmp = <zero>; yield: { body } } then {@code tmp}. */
   private BExpr blockValue(BExpr.BlockValue bv) {
@@ -1940,11 +1941,7 @@ public final class Lowerer {
    * the very object read, so boxed values work.
    */
   private BExpr casLoop(
-      VarSymbol v,
-      java.util.function.Function<VarSymbol, BExpr> update,
-      boolean yieldOld,
-      Span span,
-      BStmt before) {
+      VarSymbol v, Function<VarSymbol, BExpr> update, boolean yieldOld, Span span, BStmt before) {
     Type raw = cellValueType(v);
     VarSymbol old = mutableTemp("old", raw, span);
     VarSymbol cur = mutableTemp("cur", v.type(), span);

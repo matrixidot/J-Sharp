@@ -7,11 +7,14 @@ import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.PropertySymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symtab;
+import io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Descriptors;
+import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.ClassType;
 import io.github.matrixidot.jsharp.compiler.types.Types;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -96,7 +99,7 @@ final class Lookup {
    */
   List<MethodSymbol> findMethods(Type site, String name) {
     Map<String, MethodSymbol> bySig = new LinkedHashMap<>();
-    Map<MethodSymbol, Type> returns = new java.util.HashMap<>();
+    Map<MethodSymbol, Type> returns = new HashMap<>();
     ClassSymbol siteClass = site instanceof ClassType sc ? sc.sym() : null;
     for (ClassSymbol c : hierarchy(site)) {
       for (MethodSymbol m : c.methods(name)) {
@@ -109,7 +112,7 @@ final class Lookup {
         // Compare signatures as seen from the site, so String.compareTo(String) overrides
         // Comparable<String>.compareTo(T).
         ClassType owner = types.asSuper(site, c);
-        Map<io.github.matrixidot.jsharp.compiler.symbols.TypeVarSymbol, Type> subst =
+        Map<TypeVarSymbol, Type> subst =
             owner == null || owner.isRaw() ? Map.of() : types.typeArgMap(owner);
         String key =
             Descriptors.params(
@@ -149,8 +152,8 @@ final class Lookup {
     }
     return !types.isSubtype(b, a)
         || (a.isReference()
-            && a.nullness() == io.github.matrixidot.jsharp.compiler.types.Nullness.NON_NULL
-            && b.nullness() != io.github.matrixidot.jsharp.compiler.types.Nullness.NON_NULL);
+            && a.nullness() == Nullness.NON_NULL
+            && b.nullness() != Nullness.NON_NULL);
   }
 
   /** True if any class in the hierarchy declares a method named {@code name}. */

@@ -15,6 +15,7 @@ import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -185,7 +186,7 @@ final class LocalFunctions {
     e.scope = new Scope(outer.scope, Scope.Boundary.LAMBDA, frame, null);
     e.lambda = frame;
     e.isAsync = false;
-    e.jumps = new java.util.ArrayDeque<>();
+    e.jumps = new ArrayDeque<>();
     e.inConstructor = false;
     e.catchVar = null;
     e.returnType = fn.sym.returnType();

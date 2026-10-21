@@ -2,6 +2,8 @@ package io.github.matrixidot.jsharp.compiler.symbols;
 
 import io.github.matrixidot.jsharp.compiler.ast.CompilationUnit;
 import io.github.matrixidot.jsharp.compiler.ast.Decl;
+import io.github.matrixidot.jsharp.compiler.source.SourceFile;
+import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import io.github.matrixidot.jsharp.compiler.types.Type.ClassType;
@@ -57,8 +59,8 @@ public final class ClassSymbol implements Symbol {
   private CompilationUnit unit;
   private Type thisType;
   private String sourceFileName;
-  private io.github.matrixidot.jsharp.compiler.source.SourceFile javaFile;
-  private io.github.matrixidot.jsharp.compiler.source.Span javaSpan;
+  private SourceFile javaFile;
+  private Span javaSpan;
 
   /**
    * @param binaryName JVM internal name, e.g. {@code java/util/Map$Entry}
@@ -200,20 +202,18 @@ public final class ClassSymbol implements Symbol {
   }
 
   /** Records where a class from a Java source file of the compilation is declared (D082). */
-  public void setJavaOrigin(
-      io.github.matrixidot.jsharp.compiler.source.SourceFile file,
-      io.github.matrixidot.jsharp.compiler.source.Span nameSpan) {
+  public void setJavaOrigin(SourceFile file, Span nameSpan) {
     this.javaFile = file;
     this.javaSpan = nameSpan;
   }
 
   /** The Java source file declaring this class, or null. */
-  public io.github.matrixidot.jsharp.compiler.source.SourceFile javaFile() {
+  public SourceFile javaFile() {
     return javaFile;
   }
 
   /** The span of the class name in {@link #javaFile()}, or null. */
-  public io.github.matrixidot.jsharp.compiler.source.Span javaSpan() {
+  public Span javaSpan() {
     return javaSpan;
   }
 

@@ -2,8 +2,12 @@ package io.github.matrixidot.jsharp.compiler.check;
 
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.VarSymbol;
+import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * A lexical block scope for local variables and local classes. A scope may be a <em>boundary</em>
@@ -23,7 +27,7 @@ final class Scope {
   final Map<String, LocalFunctions.Fn> functions = new LinkedHashMap<>();
 
   /** Local functions declared further down this block (for "declared later" hints). */
-  final java.util.Set<String> laterFunctions = new java.util.HashSet<>();
+  final Set<String> laterFunctions = new HashSet<>();
 
   /** For LAMBDA boundaries: the lambda frame collecting captures. */
   final LambdaFrame lambda;
@@ -47,10 +51,10 @@ final class Scope {
   }
 
   /** Result of a variable lookup: the variable and the boundaries crossed to reach it. */
-  record Found(VarSymbol var, java.util.List<Scope> crossed) {}
+  record Found(VarSymbol var, List<Scope> crossed) {}
 
   Found lookup(String name) {
-    java.util.List<Scope> crossed = new java.util.ArrayList<>();
+    List<Scope> crossed = new ArrayList<>();
     for (Scope s = this; s != null; s = s.parent) {
       VarSymbol v = s.vars.get(name);
       if (v != null) {
@@ -120,7 +124,7 @@ final class Scope {
     return null;
   }
 
-  void collectNames(java.util.Set<String> out) {
+  void collectNames(Set<String> out) {
     for (Scope s = this; s != null; s = s.parent) {
       out.addAll(s.vars.keySet());
       out.addAll(s.functions.keySet());

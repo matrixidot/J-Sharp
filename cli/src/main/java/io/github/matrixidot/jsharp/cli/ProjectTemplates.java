@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import javax.lang.model.SourceVersion;
 
 /**
  * {@code jsharp new}: starter projects (D098). Gradle projects use the published J# Gradle plugin
@@ -125,9 +126,7 @@ public final class ProjectTemplates {
   }
 
   private static boolean isReserved(String word) {
-    return TokenKind.keyword(word) != null
-        || javax.lang.model.SourceVersion.isKeyword(word)
-        || word.equals("_");
+    return TokenKind.keyword(word) != null || SourceVersion.isKeyword(word) || word.equals("_");
   }
 
   /** The files of a new project, by path relative to the project directory. */

@@ -2,14 +2,21 @@ package io.github.matrixidot.jsharp.compiler.resolve;
 
 import io.github.matrixidot.jsharp.compiler.Context;
 import io.github.matrixidot.jsharp.compiler.ast.Accessor;
+import io.github.matrixidot.jsharp.compiler.ast.AstWalk;
 import io.github.matrixidot.jsharp.compiler.ast.Body;
+import io.github.matrixidot.jsharp.compiler.ast.CatchClause;
 import io.github.matrixidot.jsharp.compiler.ast.CompilationUnit;
 import io.github.matrixidot.jsharp.compiler.ast.Decl;
+import io.github.matrixidot.jsharp.compiler.ast.DeconstructVar;
 import io.github.matrixidot.jsharp.compiler.ast.EnumConstant;
+import io.github.matrixidot.jsharp.compiler.ast.Expr;
 import io.github.matrixidot.jsharp.compiler.ast.LocalKind;
 import io.github.matrixidot.jsharp.compiler.ast.Modifier;
 import io.github.matrixidot.jsharp.compiler.ast.Modifiers;
+import io.github.matrixidot.jsharp.compiler.ast.Operators;
 import io.github.matrixidot.jsharp.compiler.ast.Param;
+import io.github.matrixidot.jsharp.compiler.ast.Pattern;
+import io.github.matrixidot.jsharp.compiler.ast.Stmt;
 import io.github.matrixidot.jsharp.compiler.ast.TypeNode;
 import io.github.matrixidot.jsharp.compiler.ast.TypeParam;
 import io.github.matrixidot.jsharp.compiler.ast.VarDeclarator;
@@ -607,8 +614,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
   /** Declaration rules for {@code static R operator op(...)} (D077). */
   private void checkOperator(
       ClassSymbol c, Decl.Method md, MethodSymbol m, boolean topLevel, SourceFile file) {
-    String symbol =
-        io.github.matrixidot.jsharp.compiler.ast.Operators.symbolOf(md.name(), md.params().size());
+    String symbol = Operators.symbolOf(md.name(), md.params().size());
     m.addFlags(Flags.OPERATOR);
     if (!md.typeParams().isEmpty()) {
       ctx.report(Code.INVALID_MODIFIER, file, md.nameSpan(), "operators cannot be generic");
@@ -650,7 +656,7 @@ public final class MemberEnter implements ClassSymbol.Completer {
     Type ret = m.returnType();
     if (ret == PrimType.VOID) {
       ctx.report(Code.INVALID_MODIFIER, file, md.nameSpan(), "an operator must return a value");
-    } else if (io.github.matrixidot.jsharp.compiler.ast.Operators.isComparison(symbol)
+    } else if (Operators.isComparison(symbol)
         && ret != null
         && !ret.isError()
         && ret != PrimType.BOOLEAN) {
@@ -1208,26 +1214,20 @@ public final class MemberEnter implements ClassSymbol.Completer {
    * script's declaration is checked.
    */
   private void hoistScriptVariables(ClassSymbol c, CompilationUnit u, TypeScope scope) {
-    java.util.Set<String> used = new java.util.HashSet<>();
+    Set<String> used = new HashSet<>();
     for (Decl d : u.members()) {
       if (d instanceof Decl.Method m) {
         used.addAll(freeNames(m));
       }
     }
     for (Decl d : u.members()) {
-      if (d instanceof Decl.TopLevelStmt t
-          && t.stmt() instanceof io.github.matrixidot.jsharp.compiler.ast.Stmt.LocalVar lv) {
-        boolean isVal =
-            lv.kind() == io.github.matrixidot.jsharp.compiler.ast.LocalKind.VAL
-                || lv.modifiers().has(io.github.matrixidot.jsharp.compiler.ast.Modifier.FINAL);
+      if (d instanceof Decl.TopLevelStmt t && t.stmt() instanceof Stmt.LocalVar lv) {
+        boolean isVal = lv.kind() == LocalKind.VAL || lv.modifiers().has(Modifier.FINAL);
         for (var v : lv.vars()) {
           if (!used.contains(v.name()) || c.field(v.name()) != null) {
             continue;
           }
-          var type =
-              lv.kind() == io.github.matrixidot.jsharp.compiler.ast.LocalKind.TYPED
-                  ? resolver.resolve(lv.type(), scope)
-                  : null;
+          var type = lv.kind() == LocalKind.TYPED ? resolver.resolve(lv.type(), scope) : null;
           FieldSymbol f =
               new FieldSymbol(
                   v.name(),
@@ -1248,30 +1248,25 @@ public final class MemberEnter implements ClassSymbol.Completer {
    * Names a function uses but does not declare itself (parameters, locals, loop, catch and pattern
    * variables, lambda parameters, local functions): the candidates for script variables.
    */
-  private static java.util.Set<String> freeNames(Decl.Method m) {
-    java.util.Set<String> uses = new java.util.HashSet<>();
-    java.util.Set<String> declared = new java.util.HashSet<>();
+  private static Set<String> freeNames(Decl.Method m) {
+    Set<String> uses = new HashSet<>();
+    Set<String> declared = new HashSet<>();
     m.params().forEach(p -> declared.add(p.name()));
-    io.github.matrixidot.jsharp.compiler.ast.AstWalk.walk(
+    AstWalk.walk(
         m,
         n -> {
           switch (n) {
-            case io.github.matrixidot.jsharp.compiler.ast.Expr.Name name -> uses.add(name.name());
-            case io.github.matrixidot.jsharp.compiler.ast.Param p -> declared.add(p.name());
-            case io.github.matrixidot.jsharp.compiler.ast.VarDeclarator v -> declared.add(v.name());
-            case io.github.matrixidot.jsharp.compiler.ast.DeconstructVar v ->
-                declared.add(v.name());
-            case io.github.matrixidot.jsharp.compiler.ast.CatchClause c -> declared.add(c.name());
-            case io.github.matrixidot.jsharp.compiler.ast.Stmt.Foreach f -> declared.add(f.name());
-            case io.github.matrixidot.jsharp.compiler.ast.Stmt.LocalFunction f ->
-                declared.add(f.decl().name());
-            case io.github.matrixidot.jsharp.compiler.ast.Pattern.Type t ->
-                declared.add(t.binding());
-            case io.github.matrixidot.jsharp.compiler.ast.Pattern.Var v -> declared.add(v.name());
-            case io.github.matrixidot.jsharp.compiler.ast.Pattern.Recursive r ->
-                declared.add(r.binding());
-            case io.github.matrixidot.jsharp.compiler.ast.Pattern.ListPattern l ->
-                declared.add(l.binding());
+            case Expr.Name name -> uses.add(name.name());
+            case Param p -> declared.add(p.name());
+            case VarDeclarator v -> declared.add(v.name());
+            case DeconstructVar v -> declared.add(v.name());
+            case CatchClause c -> declared.add(c.name());
+            case Stmt.Foreach f -> declared.add(f.name());
+            case Stmt.LocalFunction f -> declared.add(f.decl().name());
+            case Pattern.Type t -> declared.add(t.binding());
+            case Pattern.Var v -> declared.add(v.name());
+            case Pattern.Recursive r -> declared.add(r.binding());
+            case Pattern.ListPattern l -> declared.add(l.binding());
             default -> {}
           }
           return true;

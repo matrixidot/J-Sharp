@@ -1,5 +1,7 @@
 package io.github.matrixidot.jsharp.compiler.diag;
 
+import java.util.Locale;
+
 /** How serious a diagnostic is. Only {@link #ERROR} stops code generation. */
 public enum Severity {
   ERROR,
@@ -7,6 +9,6 @@ public enum Severity {
   INFO;
 
   public String label() {
-    return name().toLowerCase(java.util.Locale.ROOT);
+    return name().toLowerCase(Locale.ROOT);
   }
 }

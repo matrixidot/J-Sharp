@@ -11,6 +11,7 @@ import io.github.matrixidot.jsharp.compiler.ast.Modifier;
 import io.github.matrixidot.jsharp.compiler.ast.Modifiers;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
+import io.github.matrixidot.jsharp.compiler.source.Span;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.types.Type;
@@ -229,16 +230,14 @@ public final class Enter {
       ctx.error(
               Code.MODULE_NAME_CLASH,
               u.file(),
-              new io.github.matrixidot.jsharp.compiler.source.Span(0, 0),
+              new Span(0, 0),
               "the top-level members of this file compile to class "
                   + name
                   + ", which is already declared")
           .note(
               "other declaration",
               prev.unit() != null ? prev.unit().file() : u.file(),
-              prev.decl() != null
-                  ? prev.decl().nameSpan()
-                  : new io.github.matrixidot.jsharp.compiler.source.Span(0, 0))
+              prev.decl() != null ? prev.decl().nameSpan() : new Span(0, 0))
           .help("rename the file or add @file:ClassName(\"OtherName\")")
           .report(ctx.diags);
       return;
@@ -387,9 +386,7 @@ public final class Enter {
               ctx.error(
                   Code.INVALID_PERMITS,
                   file,
-                  sub.decl() != null
-                      ? sub.decl().nameSpan()
-                      : new io.github.matrixidot.jsharp.compiler.source.Span(0, 0),
+                  sub.decl() != null ? sub.decl().nameSpan() : new Span(0, 0),
                   sub.kindName()
                       + " "
                       + sub.name()

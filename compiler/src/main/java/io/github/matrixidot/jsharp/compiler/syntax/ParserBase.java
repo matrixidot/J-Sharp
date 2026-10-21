@@ -18,6 +18,7 @@ import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Set;
 
 /**
@@ -840,7 +841,7 @@ abstract class ParserBase {
             "write 'base' to allow inheriting from a class or overriding a member");
         m = Modifier.BASE;
       } else if (isContextualModifierAt(pos)) {
-        m = Modifier.valueOf(t.text().toUpperCase(java.util.Locale.ROOT));
+        m = Modifier.valueOf(t.text().toUpperCase(Locale.ROOT));
       } else if (t.isContextual("value") && peek(1).is(CLASS)) {
         advance();
         errorAlways(

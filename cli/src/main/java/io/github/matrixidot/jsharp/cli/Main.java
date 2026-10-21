@@ -8,12 +8,17 @@ import io.github.matrixidot.jsharp.compiler.diag.DiagnosticRenderer;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostics;
 import io.github.matrixidot.jsharp.compiler.driver.Compilation;
 import io.github.matrixidot.jsharp.compiler.driver.CompilerOptions;
+import io.github.matrixidot.jsharp.compiler.driver.RuntimeLocator;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.syntax.Parser;
+import io.github.matrixidot.jsharp.lsp.LanguageServer;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.lang.reflect.InvocationTargetException;
 import java.lang.reflect.Method;
+import java.net.MalformedURLException;
+import java.net.URL;
+import java.net.URLClassLoader;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -210,9 +215,7 @@ public final class Main {
             o.jar,
             comp.classFiles(),
             comp.mainClass(),
-            o.includeRuntime
-                ? io.github.matrixidot.jsharp.compiler.driver.RuntimeLocator.findAll()
-                : List.of());
+            o.includeRuntime ? RuntimeLocator.findAll() : List.of());
       } catch (IOException e) {
         err.println(LanguageInfo.ID + ": cannot write " + o.jar + ": " + e.getMessage());
         return 2;
@@ -237,16 +240,15 @@ public final class Main {
           LanguageInfo.ID + ": no entry point (top-level statements or a static main(String[]))");
       return 2;
     }
-    List<java.net.URL> urls = new ArrayList<>();
+    List<URL> urls = new ArrayList<>();
     for (Path p : o.classPath) {
       try {
         urls.add(p.toUri().toURL());
-      } catch (java.net.MalformedURLException e) {
+      } catch (MalformedURLException e) {
         throw new UsageException("bad class path entry " + p);
       }
     }
-    var parent =
-        new java.net.URLClassLoader(urls.toArray(java.net.URL[]::new), Main.class.getClassLoader());
+    var parent = new URLClassLoader(urls.toArray(URL[]::new), Main.class.getClassLoader());
     var loader = new MemoryClassLoader(comp.classFiles(), parent);
     try {
       Class<?> main = Class.forName(comp.mainClass(), true, loader);
@@ -276,9 +278,7 @@ public final class Main {
   private static int languageServer(String[] args, PrintStream err) {
     Options o = parseOptions(args, false);
     try {
-      return new io.github.matrixidot.jsharp.lsp.LanguageServer(
-              System.in, System.out, err, o.classPath)
-          .run();
+      return new LanguageServer(System.in, System.out, err, o.classPath).run();
     } catch (IOException e) {
       err.println(LanguageInfo.ID + " lsp: " + e.getMessage());
       return 1;

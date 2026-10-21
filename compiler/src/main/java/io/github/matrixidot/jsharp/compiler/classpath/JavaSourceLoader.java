@@ -44,11 +44,13 @@ import io.github.matrixidot.jsharp.compiler.types.Type.PrimType;
 import java.io.IOException;
 import java.io.UncheckedIOException;
 import java.net.URI;
+import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.IdentityHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import javax.lang.model.element.Modifier;
@@ -177,7 +179,7 @@ public final class JavaSourceLoader implements ClassSymbol.Completer {
         int end = (int) Math.max(d.getEndPosition(), start);
         span = new Span(start, end);
       }
-      String msg = d.getMessage(java.util.Locale.ROOT);
+      String msg = d.getMessage(Locale.ROOT);
       int nl = msg.indexOf('\n');
       Diagnostic.Builder b =
           Diagnostic.error(code, file, span, nl < 0 ? msg : msg.substring(0, nl));
@@ -990,7 +992,7 @@ public final class JavaSourceLoader implements ClassSymbol.Completer {
       String p = path.replace('\\', '/');
       try {
         return new URI("string", null, p.startsWith("/") ? p : "/" + p, null);
-      } catch (java.net.URISyntaxException e) {
+      } catch (URISyntaxException e) {
         return URI.create("string:///Source.java");
       }
     }

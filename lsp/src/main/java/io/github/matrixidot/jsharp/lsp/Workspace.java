@@ -14,8 +14,10 @@ import java.io.UncheckedIOException;
 import java.net.URI;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.attribute.FileTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.IdentityHashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -52,13 +54,13 @@ final class Workspace {
    */
   private final Map<Path, ProjectClassPath> projectClassPaths = new HashMap<>();
 
-  private record ProjectClassPath(java.nio.file.attribute.FileTime modified, ClassPath classPath) {}
+  private record ProjectClassPath(FileTime modified, ClassPath classPath) {}
 
   /** A finished analysis of one unit. */
   static final class Unit {
     final Compilation comp;
     final Map<URI, SourceFile> files = new HashMap<>();
-    final Map<SourceFile, URI> uris = new java.util.IdentityHashMap<>();
+    final Map<SourceFile, URI> uris = new IdentityHashMap<>();
 
     Unit(Compilation comp) {
       this.comp = comp;
@@ -132,7 +134,7 @@ final class Workspace {
 
   private Unit analyze(List<URI> members, Map<URI, String> overrides) {
     List<SourceFile> files = new ArrayList<>();
-    Map<SourceFile, URI> uris = new java.util.IdentityHashMap<>();
+    Map<SourceFile, URI> uris = new IdentityHashMap<>();
     for (URI u : members) {
       String text = overrides.containsKey(u) ? overrides.get(u) : text(u);
       SourceFile f = new SourceFile(displayPath(u), text);
@@ -179,7 +181,7 @@ final class Workspace {
     String set = sourceSet.getFileName().toString();
     Path project = sourceSet.getParent().getParent();
     Path listing = project.resolve("build").resolve("jsharp").resolve(set + ".classpath");
-    java.nio.file.attribute.FileTime modified;
+    FileTime modified;
     List<Path> entries = new ArrayList<>(baseClassPath);
     try {
       modified = Files.getLastModifiedTime(listing);

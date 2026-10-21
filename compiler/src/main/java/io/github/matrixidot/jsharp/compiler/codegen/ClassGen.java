@@ -1,6 +1,7 @@
 package io.github.matrixidot.jsharp.compiler.codegen;
 
 import io.github.matrixidot.jsharp.compiler.LanguageInfo;
+import io.github.matrixidot.jsharp.compiler.ast.Operators;
 import io.github.matrixidot.jsharp.compiler.bound.BClass;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
@@ -16,10 +17,13 @@ import io.github.matrixidot.jsharp.compiler.types.Types;
 import java.lang.classfile.Annotation;
 import java.lang.classfile.AnnotationElement;
 import java.lang.classfile.AnnotationValue;
+import java.lang.classfile.Attribute;
 import java.lang.classfile.ClassBuilder;
 import java.lang.classfile.ClassFile;
 import java.lang.classfile.ClassHierarchyResolver;
 import java.lang.classfile.ClassSignature;
+import java.lang.classfile.CodeBuilder;
+import java.lang.classfile.MethodBuilder;
 import java.lang.classfile.MethodSignature;
 import java.lang.classfile.Signature;
 import java.lang.classfile.TypeAnnotation;
@@ -170,7 +174,7 @@ public final class ClassGen {
     if (c.isRecord()) {
       List<RecordComponentInfo> comps = new ArrayList<>();
       for (FieldSymbol f : c.recordComponents()) {
-        List<java.lang.classfile.Attribute<?>> attrs = new ArrayList<>();
+        List<Attribute<?>> attrs = new ArrayList<>();
         if (Descs.isGeneric(f.type())) {
           attrs.add(SignatureAttribute.of(Signature.parseFrom(Descs.signature(f.type()))));
         }
@@ -409,9 +413,7 @@ public final class ClassGen {
             methodAnns.add(Annotation.of(EXTENSION));
           }
           if (m.has(Flags.OPERATOR)) {
-            String symbol =
-                io.github.matrixidot.jsharp.compiler.ast.Operators.symbolOf(
-                    m.name(), m.params().size());
+            String symbol = Operators.symbolOf(m.name(), m.params().size());
             methodAnns.add(
                 Annotation.of(
                     OPERATOR, AnnotationElement.ofString("value", String.valueOf(symbol))));
@@ -452,7 +454,7 @@ public final class ClassGen {
         });
   }
 
-  private void nullnessAnnotations(java.lang.classfile.MethodBuilder mb, MethodSymbol m) {
+  private void nullnessAnnotations(MethodBuilder mb, MethodSymbol m) {
     List<TypeAnnotation> anns = new ArrayList<>();
     if (!m.isConstructor()
         && m.returnType() != null
@@ -480,7 +482,7 @@ public final class ClassGen {
   /**
    * {@code @DefaultValue} parameter annotations so J# callers in other compilations see defaults.
    */
-  private void defaultValues(java.lang.classfile.MethodBuilder mb, MethodSymbol m) {
+  private void defaultValues(MethodBuilder mb, MethodSymbol m) {
     boolean any = m.params().stream().anyMatch(MethodSymbol.Param::hasDefault);
     if (!any) {
       return;
@@ -539,8 +541,7 @@ public final class ClassGen {
               ConstantDescs.CD_MethodHandle.arrayType()));
 
   /** toString/hashCode/equals of a record via {@code ObjectMethods} (like javac). */
-  private void recordObjectMethod(
-      java.lang.classfile.CodeBuilder cb, ClassSymbol c, MethodSymbol m) {
+  private void recordObjectMethod(CodeBuilder cb, ClassSymbol c, MethodSymbol m) {
     ClassDesc self = Descs.of(c);
     List<ConstantDesc> args = new ArrayList<>();
     args.add(self);

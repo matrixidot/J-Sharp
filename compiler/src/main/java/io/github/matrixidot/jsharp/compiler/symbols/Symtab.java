@@ -10,6 +10,7 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 /**
  * Per-compilation symbol table: all class symbols by binary name (source classes shadow class path
@@ -56,7 +57,7 @@ public final class Symtab {
    * non-JDK class path entries, in a deterministic order.
    */
   public List<ClassSymbol> moduleClassesIn(String dottedPkg) {
-    java.util.TreeMap<String, ClassSymbol> out = new java.util.TreeMap<>();
+    TreeMap<String, ClassSymbol> out = new TreeMap<>();
     for (ClassSymbol c : classes.values()) {
       if (c != null && c.isSource() && c.packageName().equals(dottedPkg) && c.has(Flags.MODULE)) {
         out.put(c.binaryName(), c);

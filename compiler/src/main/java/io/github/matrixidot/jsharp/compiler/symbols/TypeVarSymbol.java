@@ -1,6 +1,7 @@
 package io.github.matrixidot.jsharp.compiler.symbols;
 
 import io.github.matrixidot.jsharp.compiler.ast.TypeParam;
+import io.github.matrixidot.jsharp.compiler.types.Nullness;
 import io.github.matrixidot.jsharp.compiler.types.Type;
 import java.util.List;
 
@@ -78,7 +79,7 @@ public final class TypeVarSymbol implements Symbol {
   }
 
   public Type asType() {
-    return new Type.TypeVar(this, io.github.matrixidot.jsharp.compiler.types.Nullness.NON_NULL);
+    return new Type.TypeVar(this, Nullness.NON_NULL);
   }
 
   @Override

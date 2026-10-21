@@ -2,6 +2,7 @@ package io.github.matrixidot.jsharp.compiler.ast;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 
 /**
  * Renders syntax trees as indented S-expressions. Used by golden parser tests and {@code jsharp
@@ -159,7 +160,7 @@ public final class AstPrinter {
                 "tparam",
                 tp.variance() == TypeParam.Variance.INVARIANT
                     ? null
-                    : tp.variance().name().toLowerCase(java.util.Locale.ROOT),
+                    : tp.variance().name().toLowerCase(Locale.ROOT),
                 tp.name());
         for (TypeNode b : tp.bounds()) {
           r.add(s(":", typeStr(b)));
@@ -172,7 +173,7 @@ public final class AstPrinter {
       case Expr e -> exprS(e);
       case Pattern p -> patS(p);
       case Accessor a ->
-          s(a.kind().name().toLowerCase(java.util.Locale.ROOT), mods(a.modifiers()), opt(a.body()));
+          s(a.kind().name().toLowerCase(Locale.ROOT), mods(a.modifiers()), opt(a.body()));
       case EnumConstant c -> {
         S r = s("const", c.name());
         if (c.args() != null) {
@@ -275,7 +276,7 @@ public final class AstPrinter {
                 mods(f.modifiers()),
                 f.kind() == LocalKind.TYPED
                     ? typeStr(f.type())
-                    : f.kind().name().toLowerCase(java.util.Locale.ROOT));
+                    : f.kind().name().toLowerCase(Locale.ROOT));
         for (VarDeclarator v : f.vars()) {
           r.add(toS(v));
         }
@@ -311,14 +312,14 @@ public final class AstPrinter {
                 mods(v.modifiers()),
                 v.kind() == LocalKind.TYPED
                     ? typeStr(v.type())
-                    : v.kind().name().toLowerCase(java.util.Locale.ROOT));
+                    : v.kind().name().toLowerCase(Locale.ROOT));
         for (VarDeclarator d : v.vars()) {
           r.add(toS(d));
         }
         yield r;
       }
       case Stmt.Deconstruct d -> {
-        S r = s("deconstruct", d.kind().name().toLowerCase(java.util.Locale.ROOT));
+        S r = s("deconstruct", d.kind().name().toLowerCase(Locale.ROOT));
         r.add(list("targets", d.vars()));
         yield r.add(toS(d.init()));
       }
@@ -338,7 +339,7 @@ public final class AstPrinter {
               "foreach",
               f.kind() == LocalKind.TYPED && f.type() != null
                   ? typeStr(f.type())
-                  : f.kind().name().toLowerCase(java.util.Locale.ROOT),
+                  : f.kind().name().toLowerCase(Locale.ROOT),
               f.deconstruct() != null ? list("targets", f.deconstruct()) : f.name(),
               s("in", toS(f.iterable())),
               toS(f.body()));
@@ -551,7 +552,7 @@ public final class AstPrinter {
       case TypeNode.Wildcard w ->
           w.bound() == null
               ? "?"
-              : w.variance().name().toLowerCase(java.util.Locale.ROOT) + " " + typeStr(w.bound());
+              : w.variance().name().toLowerCase(Locale.ROOT) + " " + typeStr(w.bound());
     };
   }
 

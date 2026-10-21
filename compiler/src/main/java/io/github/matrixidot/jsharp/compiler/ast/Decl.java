@@ -2,6 +2,7 @@ package io.github.matrixidot.jsharp.compiler.ast;
 
 import io.github.matrixidot.jsharp.compiler.source.Span;
 import java.util.List;
+import java.util.Locale;
 
 /** Declarations (members of types and of compilation units). */
 public sealed interface Decl extends Node {
@@ -14,7 +15,7 @@ public sealed interface Decl extends Node {
     ENUM;
 
     public String keyword() {
-      return name().toLowerCase(java.util.Locale.ROOT);
+      return name().toLowerCase(Locale.ROOT);
     }
   }
 

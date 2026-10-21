@@ -3,25 +3,44 @@ package io.github.matrixidot.jsharp.compiler.driver;
 import io.github.matrixidot.jsharp.compiler.Context;
 import io.github.matrixidot.jsharp.compiler.LanguageInfo;
 import io.github.matrixidot.jsharp.compiler.ast.CompilationUnit;
+import io.github.matrixidot.jsharp.compiler.ast.Decl;
 import io.github.matrixidot.jsharp.compiler.bound.BClass;
 import io.github.matrixidot.jsharp.compiler.check.Attr;
 import io.github.matrixidot.jsharp.compiler.check.ClassChecker;
 import io.github.matrixidot.jsharp.compiler.classpath.ClassPath;
 import io.github.matrixidot.jsharp.compiler.classpath.JavaSourceLoader;
+import io.github.matrixidot.jsharp.compiler.codegen.ClassGen;
 import io.github.matrixidot.jsharp.compiler.diag.Code;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostic;
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostics;
+import io.github.matrixidot.jsharp.compiler.ide.SourceIndex;
+import io.github.matrixidot.jsharp.compiler.lower.Lowerer;
 import io.github.matrixidot.jsharp.compiler.resolve.Enter;
 import io.github.matrixidot.jsharp.compiler.resolve.MemberEnter;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.source.Span;
+import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
+import io.github.matrixidot.jsharp.compiler.symbols.Flags;
+import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symtab;
 import io.github.matrixidot.jsharp.compiler.syntax.Parser;
+import io.github.matrixidot.jsharp.compiler.types.Type;
+import java.io.File;
 import java.io.IOException;
 import java.io.UncheckedIOException;
+import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayDeque;
 import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.IdentityHashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
+import javax.tools.DiagnosticCollector;
+import javax.tools.JavaCompiler;
+import javax.tools.JavaFileObject;
+import javax.tools.ToolProvider;
 
 /**
  * One run of the compiler over a set of source files. Phases: parse, enter/resolve, (check, lower,
@@ -42,7 +61,7 @@ public final class Compilation {
   private Attr attr;
   private List<BClass> checked = List.of();
   private JavaSourceLoader javaLoader;
-  private List<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> javaClasses = List.of();
+  private List<ClassSymbol> javaClasses = List.of();
   private boolean compileJava = true;
 
   /**
@@ -114,7 +133,7 @@ public final class Compilation {
           }
           ctx = new Context(new Symtab(classPath), diags, options);
           if (recordTypes) {
-            ctx.typeRefs = new java.util.IdentityHashMap<>();
+            ctx.typeRefs = new IdentityHashMap<>();
           }
           javaLoader = new JavaSourceLoader(ctx.syms, diags);
           javaClasses = javaLoader.load(javaSources());
@@ -134,8 +153,7 @@ public final class Compilation {
           }
           checked = ClassChecker.checkAll(attr, enter.enteredClasses());
           if (!diags.hasErrors()) {
-            List<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> all =
-                new ArrayList<>(enter.enteredClasses());
+            List<ClassSymbol> all = new ArrayList<>(enter.enteredClasses());
             all.addAll(javaClasses);
             checkSingleEntryPoint(all);
           }
@@ -143,7 +161,7 @@ public final class Compilation {
         });
   }
 
-  private final java.util.Map<String, byte[]> classFiles = new java.util.LinkedHashMap<>();
+  private final Map<String, byte[]> classFiles = new LinkedHashMap<>();
   private String mainClass;
 
   /**
@@ -158,30 +176,22 @@ public final class Compilation {
         () -> {
           long t = System.nanoTime();
           var types = attr.types();
-          var lowerer =
-              new io.github.matrixidot.jsharp.compiler.lower.Lowerer(
-                  ctx, types, attr.anonymousSuperConstructors());
+          var lowerer = new Lowerer(ctx, types, attr.anonymousSuperConstructors());
           List<BClass> lowered = lowerer.lowerAll(checked);
           t = phase("lower", t);
-          java.util.Map<
-                  io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol,
-                  List<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol>>
-              nests = new java.util.IdentityHashMap<>();
+          Map<ClassSymbol, List<ClassSymbol>> nests = new IdentityHashMap<>();
           for (BClass c : lowered) {
             if (c.sym().outer() != null) {
               nests.computeIfAbsent(c.sym().outermost(), k -> new ArrayList<>()).add(c.sym());
             }
           }
-          var gen =
-              new io.github.matrixidot.jsharp.compiler.codegen.ClassGen(
-                  types, options.emitDebugInfo(), nests);
+          var gen = new ClassGen(types, options.emitDebugInfo(), nests);
           for (BClass c : lowered) {
             currentFile =
                 c.sym().outermost().unit() != null ? c.sym().outermost().unit().file() : null;
             classFiles.put(c.sym().binaryName(), gen.generate(c));
             for (var m : c.methods()) {
-              if (m.sym().has(io.github.matrixidot.jsharp.compiler.symbols.Flags.ENTRY_POINT)
-                  || mainClass == null && isMain(m.sym())) {
+              if (m.sym().has(Flags.ENTRY_POINT) || mainClass == null && isMain(m.sym())) {
                 mainClass = c.sym().binaryName().replace('/', '.');
               }
             }
@@ -206,16 +216,14 @@ public final class Compilation {
    * main(String[])}. More than one is an error rather than an arbitrary choice, reported at each of
    * them so it shows in whichever file an editor analyzes.
    */
-  private void checkSingleEntryPoint(
-      List<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> classes) {
-    List<io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol> mains = new ArrayList<>();
-    java.util.ArrayDeque<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> todo =
-        new java.util.ArrayDeque<>(classes);
+  private void checkSingleEntryPoint(List<ClassSymbol> classes) {
+    List<MethodSymbol> mains = new ArrayList<>();
+    ArrayDeque<ClassSymbol> todo = new ArrayDeque<>(classes);
     while (!todo.isEmpty()) {
       var c = todo.pop();
       todo.addAll(c.memberTypes());
       for (var m : c.methods("main")) {
-        if (m.has(io.github.matrixidot.jsharp.compiler.symbols.Flags.ENTRY_POINT) || isMain(m)) {
+        if (m.has(Flags.ENTRY_POINT) || isMain(m)) {
           mains.add(m);
         }
       }
@@ -240,14 +248,13 @@ public final class Compilation {
     }
   }
 
-  private static SourceFile fileOf(io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
+  private static SourceFile fileOf(MethodSymbol m) {
     var top = m.owner().outermost();
     return top.unit() != null ? top.unit().file() : top.javaFile();
   }
 
-  private io.github.matrixidot.jsharp.compiler.source.Span entrySpan(
-      io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
-    if (m.decl() instanceof io.github.matrixidot.jsharp.compiler.ast.Decl.Method dm) {
+  private Span entrySpan(MethodSymbol m) {
+    if (m.decl() instanceof Decl.Method dm) {
       return dm.nameSpan();
     }
     if (javaLoader != null && javaLoader.spanOf(m) != null) {
@@ -256,31 +263,29 @@ public final class Compilation {
     var unit = m.owner().outermost().unit();
     if (unit != null) {
       for (var d : unit.members()) {
-        if (d instanceof io.github.matrixidot.jsharp.compiler.ast.Decl.TopLevelStmt s) {
+        if (d instanceof Decl.TopLevelStmt s) {
           return s.span();
         }
       }
     }
-    return new io.github.matrixidot.jsharp.compiler.source.Span(0, 0);
+    return new Span(0, 0);
   }
 
-  private static String describeEntry(io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
-    return m.has(io.github.matrixidot.jsharp.compiler.symbols.Flags.ENTRY_POINT)
+  private static String describeEntry(MethodSymbol m) {
+    return m.has(Flags.ENTRY_POINT)
         ? "top-level statements"
-        : m.owner().has(io.github.matrixidot.jsharp.compiler.symbols.Flags.MODULE)
+        : m.owner().has(Flags.MODULE)
             ? "top-level function main"
             : m.owner().displayName() + ".main";
   }
 
-  private static boolean isMain(io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol m) {
+  private static boolean isMain(MethodSymbol m) {
     return m.name().equals("main")
         && m.isStatic()
-        && m.returnType() == io.github.matrixidot.jsharp.compiler.types.Type.PrimType.VOID
+        && m.returnType() == Type.PrimType.VOID
         && m.params().size() == 1
-        && m.params().getFirst().type()
-            instanceof io.github.matrixidot.jsharp.compiler.types.Type.ArrayType at
-        && at.elem().erasure()
-            instanceof io.github.matrixidot.jsharp.compiler.types.Type.ClassType ct
+        && m.params().getFirst().type() instanceof Type.ArrayType at
+        && at.elem().erasure() instanceof Type.ClassType ct
         && ct.sym().binaryName().equals("java/lang/String");
   }
 
@@ -293,13 +298,13 @@ public final class Compilation {
    * resulting class files. javac's errors and warnings become JS1000/JS1001 diagnostics.
    */
   private boolean compileJavaSources() {
-    javax.tools.JavaCompiler javac = javax.tools.ToolProvider.getSystemJavaCompiler();
+    JavaCompiler javac = ToolProvider.getSystemJavaCompiler();
     Path tmp = null;
     try {
-      tmp = java.nio.file.Files.createTempDirectory("jsharp-javac");
+      tmp = Files.createTempDirectory("jsharp-javac");
       Path jsharpOut = tmp.resolve("jsharp");
       Path javaOut = tmp.resolve("java");
-      java.nio.file.Files.createDirectories(javaOut);
+      Files.createDirectories(javaOut);
       writeClassFiles(jsharpOut);
       List<String> cp = new ArrayList<>();
       cp.add(jsharpOut.toString());
@@ -314,12 +319,12 @@ public final class Compilation {
                   "-d",
                   javaOut.toString(),
                   "-cp",
-                  String.join(java.io.File.pathSeparator, cp)));
+                  String.join(File.pathSeparator, cp)));
       if (options.emitDebugInfo()) {
         args.add("-g");
       }
-      var collected = new javax.tools.DiagnosticCollector<javax.tools.JavaFileObject>();
-      List<javax.tools.JavaFileObject> files =
+      var collected = new DiagnosticCollector<JavaFileObject>();
+      List<JavaFileObject> files =
           javaSources().stream().map(JavaSourceLoader::fileObject).toList();
       boolean ok = javac.getTask(null, null, collected, args, null, files).call();
       JavaSourceLoader.reportJavac(collected, diags, javaSources());
@@ -327,14 +332,12 @@ public final class Compilation {
         return false;
       }
       List<Path> outputs;
-      try (var s = java.nio.file.Files.walk(javaOut)) {
+      try (var s = Files.walk(javaOut)) {
         outputs = s.filter(p -> p.toString().endsWith(".class")).sorted().toList();
       }
       for (Path p : outputs) {
         String rel = javaOut.relativize(p).toString().replace('\\', '/');
-        classFiles.put(
-            rel.substring(0, rel.length() - ".class".length()),
-            java.nio.file.Files.readAllBytes(p));
+        classFiles.put(rel.substring(0, rel.length() - ".class".length()), Files.readAllBytes(p));
       }
       if (mainClass == null) {
         mainClass = javaMainClass();
@@ -351,8 +354,7 @@ public final class Compilation {
 
   /** The Java class declaring {@code static void main(String[])}, if there is exactly one. */
   private String javaMainClass() {
-    java.util.ArrayDeque<io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol> todo =
-        new java.util.ArrayDeque<>(javaClasses);
+    ArrayDeque<ClassSymbol> todo = new ArrayDeque<>(javaClasses);
     while (!todo.isEmpty()) {
       var c = todo.pop();
       todo.addAll(c.memberTypes());
@@ -366,9 +368,9 @@ public final class Compilation {
   }
 
   private static void deleteTree(Path dir) {
-    try (var s = java.nio.file.Files.walk(dir)) {
-      for (Path p : s.sorted(java.util.Comparator.reverseOrder()).toList()) {
-        java.nio.file.Files.deleteIfExists(p);
+    try (var s = Files.walk(dir)) {
+      for (Path p : s.sorted(Comparator.reverseOrder()).toList()) {
+        Files.deleteIfExists(p);
       }
     } catch (IOException e) {
       // Best effort: the directory is in the system temporary directory.
@@ -379,22 +381,17 @@ public final class Compilation {
     try {
       for (var e : classFiles.entrySet()) {
         Path out = dir.resolve(e.getKey() + ".class");
-        java.nio.file.Files.createDirectories(out.getParent());
-        java.nio.file.Files.write(out, e.getValue());
+        Files.createDirectories(out.getParent());
+        Files.write(out, e.getValue());
       }
     } catch (IOException ex) {
       throw new UncheckedIOException(ex);
     }
   }
 
-  private io.github.matrixidot.jsharp.compiler.ide.SourceIndex index;
+  private SourceIndex index;
   private boolean recordTypes;
-  private final java.util.Map<
-          SourceFile,
-          java.util.Map<
-              io.github.matrixidot.jsharp.compiler.source.Span,
-              io.github.matrixidot.jsharp.compiler.types.Type>>
-      recordedTypes = new java.util.IdentityHashMap<>();
+  private final Map<SourceFile, Map<Span, Type>> recordedTypes = new IdentityHashMap<>();
 
   /**
    * Makes the next {@link #analyze()} record the type of every attributed expression for {@link
@@ -409,24 +406,24 @@ public final class Compilation {
    * Position index of the analyzed sources for editor tooling (hover, definition, completion);
    * empty if analysis stopped before type checking.
    */
-  public io.github.matrixidot.jsharp.compiler.ide.SourceIndex index() {
+  public SourceIndex index() {
     if (index == null) {
       index =
-          io.github.matrixidot.jsharp.compiler.ide.SourceIndex.build(
+          SourceIndex.build(
               checked == null ? List.of() : checked,
               recordedTypes,
-              ctx == null || ctx.typeRefs == null ? java.util.Map.of() : ctx.typeRefs);
+              ctx == null || ctx.typeRefs == null ? Map.of() : ctx.typeRefs);
     }
     return index;
   }
 
   /** A class by JVM internal name ({@code java/util/List}), or null (needs a finished analysis). */
-  public io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol lookupClass(String binaryName) {
+  public ClassSymbol lookupClass(String binaryName) {
     return ctx == null ? null : ctx.syms.lookup(binaryName);
   }
 
   /** Generated class files by JVM internal name. */
-  public java.util.Map<String, byte[]> classFiles() {
+  public Map<String, byte[]> classFiles() {
     return classFiles;
   }
 
