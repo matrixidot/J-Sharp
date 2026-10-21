@@ -10,6 +10,7 @@ import org.gradle.api.file.ConfigurableFileCollection;
 import org.gradle.api.file.SourceDirectorySet;
 import org.gradle.api.plugins.JavaPlugin;
 import org.gradle.api.plugins.JavaPluginExtension;
+import org.gradle.api.provider.Provider;
 import org.gradle.api.tasks.SourceSet;
 import org.gradle.api.tasks.TaskProvider;
 import org.gradle.api.tasks.compile.JavaCompile;
@@ -82,6 +83,21 @@ public class JSharpPlugin implements Plugin<Project> {
     sourceSet.getExtensions().add(SourceDirectorySet.class, "jsharp", jsharp);
     sourceSet.getAllSource().source(jsharp);
 
+    // The Java release: compileJava's --release if set, else its toolchain's version (D108).
+    Provider<Integer> release =
+        project
+            .getTasks()
+            .named(sourceSet.getCompileJavaTaskName(), JavaCompile.class)
+            .flatMap(
+                javac ->
+                    javac
+                        .getOptions()
+                        .getRelease()
+                        .orElse(
+                            javac
+                                .getJavaCompiler()
+                                .map(c -> c.getMetadata().getLanguageVersion().asInt())));
+
     String taskName = sourceSet.getTaskName("compile", "JSharp");
     TaskProvider<JSharpCompile> compile =
         project
@@ -95,6 +111,7 @@ public class JSharpPlugin implements Plugin<Project> {
                   t.getSource().from(jsharp.getSrcDirs());
                   t.getJavaSource().from(sourceSet.getJava().getSrcDirs());
                   t.getWarningsAsErrors().convention(false);
+                  t.getRelease().convention(release);
                   t.getClasspath().from(sourceSet.getCompileClasspath());
                   t.getDestinationDirectory()
                       .convention(
@@ -130,6 +147,7 @@ public class JSharpPlugin implements Plugin<Project> {
                 t -> {
                   t.setDescription("Records the " + name + " class path for J# editor support.");
                   t.getClasspath().from(sourceSet.getCompileClasspath());
+                  t.getRelease().convention(release);
                   t.getOutputFile()
                       .convention(
                           project
@@ -148,6 +166,7 @@ public class JSharpPlugin implements Plugin<Project> {
           () -> {
             try {
               JSharpClassPathFile.write(
+                  release.get(),
                   sourceSet.getCompileClasspath().getFiles(),
                   classPathFile.get().getOutputFile().get().getAsFile());
             } catch (RuntimeException e) {

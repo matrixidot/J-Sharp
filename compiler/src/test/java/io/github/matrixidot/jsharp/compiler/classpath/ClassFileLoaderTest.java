@@ -2,6 +2,7 @@ package io.github.matrixidot.jsharp.compiler.classpath;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import io.github.matrixidot.jsharp.compiler.driver.CompilerOptions;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Flags;
 import io.github.matrixidot.jsharp.compiler.symbols.MethodSymbol;
@@ -98,7 +99,7 @@ class ClassFileLoaderTest {
                 }
                 """),
             List.of());
-    syms = new Symtab(ClassPath.of(List.of(out)));
+    syms = new Symtab(ClassPath.of(List.of(out), CompilerOptions.defaultRelease()));
   }
 
   private static Map<String, String> fixtures(String... kv) {

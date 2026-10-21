@@ -724,3 +724,14 @@ Format: **decision** — reason. *Rejected:* alternatives.
   compiler", and it applies only to that variant. A CI job builds and tests `-PjavaVersion=21`,
   so the variant keeps working. Rejected: ASM (a second code generator to maintain), and a
   separate Java 21 branch (which drifts). See `docs/BACKPORTING.md`.
+- **D108: J# compiles for a chosen Java release, like javac's `--release`.** A project picks the
+  Java its users run (Minecraft 1.21.1 ships Java 21, 26.x Java 25), independently of the Java
+  J# runs on. `CompilerOptions.release` sets the class file version, the release javac parses and
+  compiles the build's Java sources for, and the JDK API: an older release's comes from the JDK's
+  `lib/ct.sym`, as javac's does, so code cannot call what that Java lacks. Releases from
+  `minJavaVersion` (21: code generation uses Java 21's bootstrap methods) up to the running Java
+  are accepted. The CLI takes `--release`; the Gradle plugin uses `compileJava`'s release, else
+  the source set's toolchain, and records it as `#release=<n>` in `build/jsharp/<set>.classpath`
+  for the language server. The runtime library is built for Java 21, so every release loads it,
+  and its jar names its module (`io.github.matrixidot.jsharp.runtime`) for module-path loaders.
+  Rejected: a `jsharp { release = ... }` setting (the toolchain already says it).

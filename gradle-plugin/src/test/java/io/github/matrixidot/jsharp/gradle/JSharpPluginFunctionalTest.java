@@ -176,6 +176,30 @@ class JSharpPluginFunctionalTest {
         .isDirectoryContaining("glob:**.class");
   }
 
+  /** The build's Java release (here compileJava's) is J#'s: class files and API (D108). */
+  @Test
+  void compilesForTheBuildsJavaRelease() throws IOException {
+    write("settings.gradle.kts", "rootProject.name = \"old\"\n");
+    write(
+        "build.gradle.kts",
+        "plugins { id(\"io.github.matrixidot.jsharp\") }\n"
+            + "tasks.compileJava { options.release = 21 }\n");
+    write("src/main/jsharp/old/One.jsharp", "package old;\npublic static int one() => 1;\n");
+    runner("classes").build();
+    byte[] bytes = Files.readAllBytes(dir.resolve("build/classes/jsharp/main/old/OneModule.class"));
+    assertThat(((bytes[6] & 0xff) << 8) | (bytes[7] & 0xff)).isEqualTo(65);
+    assertThat(Files.readString(dir.resolve("build/jsharp/main.classpath")))
+        .startsWith("#release=21\n");
+
+    if (Runtime.version().feature() < 25) {
+      return; // IO is Java 25's: on Java 21 nothing has it
+    }
+    write(
+        "src/main/jsharp/old/Two.jsharp",
+        "package old;\npublic static void hello() { IO.println(\"Java 25 only\"); }\n");
+    assertThat(runner("classes").buildAndFail().getOutput()).contains("IO");
+  }
+
   /** Java and J# files in one folder, src/main/jsharp, use each other and run (D103). */
   @Test
   void javaFilesNextToJSharpFiles() throws IOException {

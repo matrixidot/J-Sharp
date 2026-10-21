@@ -1,6 +1,7 @@
 package io.github.matrixidot.jsharp.lsp;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -78,6 +79,25 @@ class WorkspaceTest {
     Files.writeString(listing, lib.toAbsolutePath() + "\n");
     ws.change(js.toUri(), Files.readString(js));
     assertThat(ws.unit(js.toUri()).comp.diagnostics().all()).isEmpty();
+  }
+
+  /** The recorded Java release is the one the editor checks against (D108). */
+  @Test
+  void gradleProjectsUseTheRecordedRelease(@TempDir Path dir) throws Exception {
+    assumeTrue(Runtime.version().feature() >= 25, "needs Java 25 to compile for it");
+    Path js = dir.resolve("src/main/jsharp/app/hello.jsharp");
+    Files.createDirectories(js.getParent());
+    Files.writeString(js, "package app;\npublic void hello() { IO.println(\"hi\"); }\n");
+    Path listing = dir.resolve("build/jsharp/main.classpath");
+    Files.createDirectories(listing.getParent());
+    Files.writeString(listing, "#release=25\n");
+    Workspace ws = new Workspace(List.of());
+    assertThat(ws.unit(js.toUri()).comp.diagnostics().all()).isEmpty();
+    Files.writeString(listing, "#release=21\n");
+    Files.setLastModifiedTime(
+        listing, java.nio.file.attribute.FileTime.fromMillis(System.currentTimeMillis() + 5000));
+    ws.change(js.toUri(), Files.readString(js));
+    assertThat(ws.unit(js.toUri()).comp.diagnostics().hasErrors()).isTrue();
   }
 
   /**

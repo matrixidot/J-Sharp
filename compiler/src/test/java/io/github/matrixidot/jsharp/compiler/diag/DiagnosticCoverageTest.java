@@ -40,7 +40,7 @@ class DiagnosticCoverageTest {
 
   @Test
   void strictPlatformNullnessWarnsOnJavaMemberAccess() {
-    var options = new CompilerOptions(List.of(), null, false, true, true);
+    var options = CompilerOptions.defaults().withStrictPlatformNullness(true);
     var comp =
         new Compilation(
             List.of(

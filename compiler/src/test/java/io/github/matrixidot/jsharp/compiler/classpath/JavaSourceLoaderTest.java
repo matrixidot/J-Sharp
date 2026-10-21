@@ -3,6 +3,7 @@ package io.github.matrixidot.jsharp.compiler.classpath;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import io.github.matrixidot.jsharp.compiler.diag.Diagnostics;
+import io.github.matrixidot.jsharp.compiler.driver.CompilerOptions;
 import io.github.matrixidot.jsharp.compiler.source.SourceFile;
 import io.github.matrixidot.jsharp.compiler.symbols.ClassSymbol;
 import io.github.matrixidot.jsharp.compiler.symbols.Symtab;
@@ -133,12 +134,12 @@ class JavaSourceLoaderTest {
   @Test
   void sourceDeclarationsMatchClassFiles() throws Exception {
     Path out = JavaFixtures.compile(SOURCES, List.of());
-    Symtab fromClasses = new Symtab(ClassPath.of(List.of(out)));
-    Symtab fromSources = new Symtab(ClassPath.of(List.of()));
+    Symtab fromClasses = new Symtab(ClassPath.of(List.of(out), CompilerOptions.defaultRelease()));
+    Symtab fromSources = new Symtab(ClassPath.of(List.of(), CompilerOptions.defaultRelease()));
     List<SourceFile> files = new ArrayList<>();
     SOURCES.forEach((path, text) -> files.add(new SourceFile(path, text)));
     Diagnostics diags = new Diagnostics(false);
-    new JavaSourceLoader(fromSources, diags).load(files);
+    new JavaSourceLoader(fromSources, diags, CompilerOptions.defaultRelease()).load(files);
     assertThat(diags.all()).isEmpty();
 
     for (String name :

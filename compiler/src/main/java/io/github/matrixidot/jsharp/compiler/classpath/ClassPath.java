@@ -14,6 +14,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
@@ -22,9 +23,11 @@ import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
 /**
- * A searchable list of class file locations: the JDK's {@code jrt:/} image, directories and jars.
- * Thread-safe and immutable after construction, so one instance may be shared by many compilations
- * (e.g. a test suite) to amortize JDK image setup.
+ * A searchable list of class file locations: the JDK's API, directories and jars. The JDK's API is
+ * the running JDK's {@code jrt:/} image or, for an older release, that release's API from the JDK's
+ * {@code lib/ct.sym}, as javac's {@code --release} reads it. Thread-safe and immutable after
+ * construction, so one instance may be shared by many compilations (e.g. a test suite) to amortize
+ * JDK image setup.
  */
 public final class ClassPath implements AutoCloseable {
 
@@ -56,13 +59,14 @@ public final class ClassPath implements AutoCloseable {
   }
 
   /**
-   * Creates a class path of the running JDK plus the given directories/jars.
+   * Creates a class path of the JDK API of a Java release plus the given directories/jars.
    *
    * @param userEntries directories and jar files, in search order
+   * @param release the Java release whose API to use; at most the running Java's
    */
-  public static ClassPath of(List<Path> userEntries) throws IOException {
+  public static ClassPath of(List<Path> userEntries, int release) throws IOException {
     List<Entry> es = new ArrayList<>();
-    es.add(JrtEntry.create());
+    es.add(release < Runtime.version().feature() ? CtSymEntry.of(release) : JrtEntry.create());
     for (Path p : userEntries) {
       if (Files.isDirectory(p)) {
         es.add(new DirEntry(p));
@@ -209,6 +213,110 @@ public final class ClassPath implements AutoCloseable {
           for (Path p : ds) {
             String n = p.getFileName().toString();
             out.add(n.substring(0, n.length() - 6));
+          }
+        }
+      }
+      return out;
+    }
+
+    @Override
+    public boolean isJdk() {
+      return true;
+    }
+  }
+
+  /**
+   * The API of an older Java release, from the running JDK's {@code lib/ct.sym}: a zip of class
+   * files ({@code .sig}) under directories named by the releases they belong to ({@code L} is 21,
+   * {@code MNOP} 22 to 25). Read once per release and shared, like the {@code jrt:/} image.
+   */
+  static final class CtSymEntry implements Entry {
+    private static final Map<Integer, CtSymEntry> OPEN = new ConcurrentHashMap<>();
+
+    /** package (internal form) -> its directories in ct.sym, one per module and release set. */
+    private final Map<String, List<Path>> packages;
+
+    private CtSymEntry(Map<String, List<Path>> packages) {
+      this.packages = packages;
+    }
+
+    static CtSymEntry of(int release) throws IOException {
+      try {
+        return OPEN.computeIfAbsent(
+            release,
+            r -> {
+              try {
+                return open(r);
+              } catch (IOException e) {
+                throw new UncheckedIOException(e);
+              }
+            });
+      } catch (UncheckedIOException e) {
+        throw e.getCause();
+      }
+    }
+
+    private static CtSymEntry open(int release) throws IOException {
+      Path ctSym = Path.of(System.getProperty("java.home"), "lib", "ct.sym");
+      if (!Files.isRegularFile(ctSym)) {
+        throw new IOException(
+            "this Java runtime has no lib/ct.sym, so it compiles only for Java "
+                + Runtime.version().feature());
+      }
+      FileSystem fs = FileSystems.newFileSystem(ctSym); // kept open: entries are read lazily
+      String tag = Integer.toString(release, Character.MAX_RADIX).toUpperCase(Locale.ROOT);
+      Map<String, List<Path>> pkgs = new HashMap<>();
+      try (DirectoryStream<Path> top = Files.newDirectoryStream(fs.getPath("/"))) {
+        for (Path releases : top) {
+          if (!releases.getFileName().toString().replace("/", "").contains(tag)) {
+            continue;
+          }
+          try (DirectoryStream<Path> modules = Files.newDirectoryStream(releases)) {
+            for (Path module : modules) {
+              try (var dirs = Files.walk(module)) {
+                for (Path dir : dirs.filter(Files::isDirectory).toList()) {
+                  String pkg = module.relativize(dir).toString().replace("\\", "/");
+                  if (!pkg.isEmpty()) {
+                    pkgs.computeIfAbsent(pkg, k -> new ArrayList<>()).add(dir);
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+      if (pkgs.isEmpty()) {
+        throw new IOException("lib/ct.sym of this Java runtime has no Java " + release + " API");
+      }
+      return new CtSymEntry(pkgs);
+    }
+
+    @Override
+    public byte[] read(String internalName) throws IOException {
+      int slash = internalName.lastIndexOf('/');
+      String pkg = slash < 0 ? "" : internalName.substring(0, slash);
+      for (Path dir : packages.getOrDefault(pkg, List.of())) {
+        Path p = dir.resolve(internalName.substring(slash + 1) + ".sig");
+        if (Files.exists(p)) {
+          return Files.readAllBytes(p);
+        }
+      }
+      return null;
+    }
+
+    @Override
+    public boolean hasPackage(String pkg) {
+      return packages.containsKey(pkg);
+    }
+
+    @Override
+    public List<String> list(String pkg) throws IOException {
+      List<String> out = new ArrayList<>();
+      for (Path dir : packages.getOrDefault(pkg, List.of())) {
+        try (DirectoryStream<Path> ds = Files.newDirectoryStream(dir, "*.sig")) {
+          for (Path p : ds) {
+            String n = p.getFileName().toString();
+            out.add(n.substring(0, n.length() - 4));
           }
         }
       }

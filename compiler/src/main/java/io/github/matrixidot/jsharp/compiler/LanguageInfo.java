@@ -28,11 +28,18 @@ public final class LanguageInfo {
   public static final String VERSION = BUILD.getProperty("version", "unknown");
 
   /**
-   * The Java release J# targets: generated class files have its version, and projects created by
-   * {@code jsharp new} use its toolchain. Injected from the build ({@code javaVersion}); a copy not
-   * built by Gradle uses the running Java.
+   * The Java release J# is built for and runs on, and the default release it compiles for ({@code
+   * --release} picks another, down to {@link #MIN_JAVA_RELEASE}). Injected from the build ({@code
+   * javaVersion}); a copy not built by Gradle uses the running Java.
    */
-  public static final int JAVA_RELEASE = javaRelease();
+  public static final int JAVA_RELEASE = release("javaRelease", Runtime.version().feature());
+
+  /**
+   * The oldest Java release J# compiles for ({@code --release}): its code generation needs Java
+   * 21's bootstrap methods. The runtime library is built for it, so it loads on every supported
+   * release.
+   */
+  public static final int MIN_JAVA_RELEASE = release("minJavaRelease", 21);
 
   private LanguageInfo() {}
 
@@ -48,11 +55,11 @@ public final class LanguageInfo {
     return p;
   }
 
-  private static int javaRelease() {
+  private static int release(String property, int fallback) {
     try {
-      return Integer.parseInt(BUILD.getProperty("javaRelease", ""));
+      return Integer.parseInt(BUILD.getProperty(property, ""));
     } catch (NumberFormatException e) {
-      return Runtime.version().feature();
+      return fallback;
     }
   }
 }

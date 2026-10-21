@@ -47,6 +47,7 @@ public final class Main {
     boolean json;
     boolean strictNullness;
     boolean warningsAsErrors;
+    int release = CompilerOptions.defaultRelease();
     List<String> programArgs = List.of();
   }
 
@@ -123,6 +124,7 @@ public final class Main {
         case "--diagnostics=json" -> o.json = true;
         case "--strict-platform-nullness" -> o.strictNullness = true;
         case "-Werror" -> o.warningsAsErrors = true;
+        case "--release" -> o.release = release(need(args, ++i, a));
         default -> {
           if (a.startsWith("-") && o.inputs.isEmpty()) {
             throw new UsageException("unknown option " + a);
@@ -153,8 +155,23 @@ public final class Main {
     return args[i];
   }
 
+  private static int release(String value) {
+    int release;
+    try {
+      release = Integer.parseInt(value);
+    } catch (NumberFormatException e) {
+      throw new UsageException("--release takes a Java version, such as 21, not " + value);
+    }
+    String problem = CompilerOptions.releaseProblem(release);
+    if (problem != null) {
+      throw new UsageException(problem);
+    }
+    return release;
+  }
+
   private static CompilerOptions compilerOptions(Options o) {
-    return new CompilerOptions(o.classPath, o.outDir, o.warningsAsErrors, o.strictNullness, true);
+    return new CompilerOptions(
+        o.classPath, o.outDir, o.warningsAsErrors, o.strictNullness, true, o.release);
   }
 
   /** Compiles; prints diagnostics; returns the compilation or null if sources could not be read. */
@@ -446,6 +463,10 @@ public final class Main {
     out.println("  --diagnostics=json                   machine-readable diagnostics");
     out.println("  --strict-platform-nullness           warn on member access through Java types");
     out.println("  -Werror                              treat warnings as errors");
+    out.println(
+        "  --release <java version>             compile for an older Java ("
+            + LanguageInfo.MIN_JAVA_RELEASE
+            + " or newer)");
     if (Files.exists(Path.of("."))) {
       out.flush();
     }

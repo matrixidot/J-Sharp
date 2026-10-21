@@ -161,3 +161,4 @@
 - Windows editors: one URI per file; Gradle source sets are analyzed as the build compiles them; JS0411 at every entry point (D105).
 - The Gradle plugin records the editor class path during IntelliJ's Gradle sync (D106).
 - One source tree builds for Java 25 and, with `-PjavaVersion=21`, for Java 21; CI tests both (D107).
+- `--release`: J# compiles for Java 21 or 25 whatever it runs on; the Gradle plugin follows the toolchain (D108).

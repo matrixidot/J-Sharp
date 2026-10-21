@@ -54,6 +54,13 @@ public abstract class JSharpCompile extends DefaultTask {
   @OutputDirectory
   public abstract DirectoryProperty getDestinationDirectory();
 
+  /**
+   * The Java release to compile for, like javac's {@code --release} (D108). By default the source
+   * set's: its {@code compileJava} release, or else its Java toolchain's version.
+   */
+  @Input
+  public abstract Property<Integer> getRelease();
+
   /** Treat warnings as errors (default false). */
   @Input
   public abstract Property<Boolean> getWarningsAsErrors();
@@ -79,8 +86,19 @@ public abstract class JSharpCompile extends DefaultTask {
         cp.add(f.toPath());
       }
     }
+    int release = getRelease().get();
+    String problem = CompilerOptions.releaseProblem(release);
+    if (problem != null) {
+      throw new GradleException(
+          "J#: "
+              + problem
+              + ". The build compiles for Java "
+              + release
+              + " (its Java toolchain or compileJava's release); Gradle runs J#, so it must run on"
+              + " that Java or newer: see gradle/gradle-daemon-jvm.properties.");
+    }
     CompilerOptions options =
-        new CompilerOptions(cp, out, getWarningsAsErrors().get(), false, true);
+        new CompilerOptions(cp, out, getWarningsAsErrors().get(), false, true, release);
     Compilation comp = new Compilation(files, options, null).javaDeclarationsOnly();
     comp.compile();
     comp.close();

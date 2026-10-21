@@ -45,7 +45,10 @@ final class Workspace {
   private final Map<URI, String> open = new LinkedHashMap<>();
 
   private final List<Path> baseClassPath;
-  private final ClassPath classPath;
+
+  /** The server's own class path and default release, for files outside a built Gradle project. */
+  private final ProjectClassPath serverDefault;
+
   private final Map<String, Unit> cache = new HashMap<>();
 
   /**
@@ -54,7 +57,8 @@ final class Workspace {
    */
   private final Map<Path, ProjectClassPath> projectClassPaths = new HashMap<>();
 
-  private record ProjectClassPath(FileTime modified, ClassPath classPath) {}
+  /** A Gradle source set's libraries and Java release, as its build recorded them. */
+  private record ProjectClassPath(FileTime modified, ClassPath classPath, int release) {}
 
   /** A finished analysis of one unit. */
   static final class Unit {
@@ -74,8 +78,11 @@ final class Workspace {
   Workspace(List<Path> classPath) {
     this.baseClassPath = List.copyOf(classPath);
     try {
-      this.classPath =
-          Compilation.openClassPath(CompilerOptions.defaults().withClassPath(classPath));
+      this.serverDefault =
+          new ProjectClassPath(
+              null,
+              Compilation.openClassPath(CompilerOptions.defaults().withClassPath(classPath)),
+              CompilerOptions.defaultRelease());
     } catch (RuntimeException e) {
       throw new IllegalStateException("cannot open the class path: " + e.getMessage(), e);
     }
@@ -141,8 +148,12 @@ final class Workspace {
       files.add(f);
       uris.put(f, u);
     }
+    ProjectClassPath project = classPathFor(members.getFirst());
     Compilation comp =
-        new Compilation(files, CompilerOptions.defaults(), classPathFor(members.getFirst()))
+        new Compilation(
+                files,
+                CompilerOptions.defaults().withRelease(project.release()),
+                project.classPath())
             .recordExpressionTypes();
     comp.analyze();
     Unit unit = new Unit(comp);
@@ -167,43 +178,52 @@ final class Workspace {
    * plugin, the libraries it recorded in {@code build/jsharp/<set>.classpath} (D095); otherwise the
    * server's own.
    */
-  private ClassPath classPathFor(URI uri) {
+  private ProjectClassPath classPathFor(URI uri) {
     Path file;
     try {
       file = Path.of(uri);
     } catch (RuntimeException e) {
-      return classPath;
+      return serverDefault;
     }
     Path sourceSet = gradleSourceSet(sourceRoot(file, packageOf(text(uri))));
     if (sourceSet == null) {
-      return classPath;
+      return serverDefault;
     }
     String set = sourceSet.getFileName().toString();
     Path project = sourceSet.getParent().getParent();
     Path listing = project.resolve("build").resolve("jsharp").resolve(set + ".classpath");
     FileTime modified;
     List<Path> entries = new ArrayList<>(baseClassPath);
+    int release = CompilerOptions.defaultRelease();
     try {
       modified = Files.getLastModifiedTime(listing);
       ProjectClassPath known = projectClassPaths.get(listing);
       if (known != null && known.modified().equals(modified)) {
-        return known.classPath();
+        return known;
       }
       for (String line : Files.readAllLines(listing)) {
-        if (!line.isBlank() && Files.exists(Path.of(line.strip()))) {
+        if (line.startsWith("#release=")) {
+          release = Integer.parseInt(line.substring("#release=".length()).strip());
+          if (CompilerOptions.releaseProblem(release) != null) {
+            release = CompilerOptions.defaultRelease(); // newer than this server's Java
+          }
+        } else if (!line.isBlank() && Files.exists(Path.of(line.strip()))) {
           entries.add(Path.of(line.strip()));
         }
       }
     } catch (IOException | RuntimeException e) {
-      return classPath; // not built yet
+      return serverDefault; // not built yet
     }
     ClassPath opened;
     try {
-      opened = Compilation.openClassPath(CompilerOptions.defaults().withClassPath(entries));
+      opened =
+          Compilation.openClassPath(
+              CompilerOptions.defaults().withClassPath(entries).withRelease(release));
     } catch (RuntimeException e) {
-      return classPath;
+      return serverDefault;
     }
-    ProjectClassPath old = projectClassPaths.put(listing, new ProjectClassPath(modified, opened));
+    ProjectClassPath now = new ProjectClassPath(modified, opened, release);
+    ProjectClassPath old = projectClassPaths.put(listing, now);
     if (old != null) {
       cache.clear(); // analyses made with the old class path go with it
       try {
@@ -212,7 +232,7 @@ final class Workspace {
         // nothing more to do: the old jars are no longer used
       }
     }
-    return opened;
+    return now;
   }
 
   /** The files analyzed together with {@code uri} (sorted, the document itself included). */

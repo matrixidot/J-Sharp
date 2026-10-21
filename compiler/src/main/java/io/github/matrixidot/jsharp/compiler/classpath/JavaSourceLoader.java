@@ -74,6 +74,7 @@ import javax.tools.ToolProvider;
 public final class JavaSourceLoader implements ClassSymbol.Completer {
   private final Symtab syms;
   private final Diagnostics diags;
+  private final int release;
   private final Map<ClassSymbol, Info> infos = new IdentityHashMap<>();
   private final Map<MethodSymbol, Span> methodSpans = new IdentityHashMap<>();
   private SourcePositions positions;
@@ -90,9 +91,13 @@ public final class JavaSourceLoader implements ClassSymbol.Completer {
   /** What a Java source class was declared from. */
   private record Info(ClassTree tree, FileCtx file) {}
 
-  public JavaSourceLoader(Symtab syms, Diagnostics diags) {
+  /**
+   * @param release the Java release the sources are written for (their syntax)
+   */
+  public JavaSourceLoader(Symtab syms, Diagnostics diags, int release) {
     this.syms = syms;
     this.diags = diags;
+    this.release = release;
   }
 
   /** True for the name of a Java source file. */
@@ -124,7 +129,14 @@ public final class JavaSourceLoader implements ClassSymbol.Completer {
     }
     DiagnosticCollector<JavaFileObject> collected = new DiagnosticCollector<>();
     JavacTask task =
-        (JavacTask) javac.getTask(null, null, collected, List.of("-proc:none"), null, objects);
+        (JavacTask)
+            javac.getTask(
+                null,
+                null,
+                collected,
+                List.of("-proc:none", "--release", String.valueOf(release)),
+                null,
+                objects);
     positions = Trees.instance(task).getSourcePositions();
     List<ClassSymbol> out = new ArrayList<>();
     try {

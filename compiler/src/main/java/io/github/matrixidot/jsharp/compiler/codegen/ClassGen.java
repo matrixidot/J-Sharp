@@ -64,9 +64,6 @@ import java.util.Set;
  * InnerClasses, NestHost/NestMembers, PermittedSubclasses, Record, EnclosingMethod.
  */
 public final class ClassGen {
-  /** The major version of generated class files: Java release + 44 (25 → 69). */
-  static final int CLASS_FILE_VERSION = ClassFile.JAVA_1_VERSION + LanguageInfo.JAVA_RELEASE - 1;
-
   private static final ClassDesc NULLABLE = ClassDesc.of("org.jspecify.annotations.Nullable");
   private static final ClassDesc METADATA = ClassDesc.of("jsharp.lang.Metadata");
   private static final ClassDesc EXTENSION = ClassDesc.of("jsharp.lang.Extension");
@@ -76,16 +73,23 @@ public final class ClassGen {
   private final Types types;
   private final Symtab syms;
   private final boolean debug;
+
+  /** The major version of the class files: the Java release + 44 (21 → 65, 25 → 69). */
+  private final int classFileVersion;
+
   private final Map<ClassSymbol, List<ClassSymbol>> nestMembers;
   private final ClassFile cf;
 
   /**
+   * @param release the Java release the class files are for
    * @param nestMembers nested (incl. local/anonymous) classes of each top-level class
    */
-  public ClassGen(Types types, boolean debug, Map<ClassSymbol, List<ClassSymbol>> nestMembers) {
+  public ClassGen(
+      Types types, boolean debug, int release, Map<ClassSymbol, List<ClassSymbol>> nestMembers) {
     this.types = types;
     this.syms = types.syms();
     this.debug = debug;
+    this.classFileVersion = ClassFile.JAVA_1_VERSION + release - 1;
     this.nestMembers = nestMembers;
     this.cf = ClassFile.of(ClassFile.ClassHierarchyResolverOption.of(resolver()));
   }
@@ -127,7 +131,7 @@ public final class ClassGen {
 
   private void buildClass(ClassBuilder clb, BClass bc) {
     ClassSymbol c = bc.sym();
-    clb.withVersion(CLASS_FILE_VERSION, 0);
+    clb.withVersion(classFileVersion, 0);
     clb.withFlags(classFlags(c));
     Type.ClassType sup = c.superclass();
     if (c.isInterface()) {

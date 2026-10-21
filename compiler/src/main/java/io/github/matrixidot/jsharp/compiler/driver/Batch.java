@@ -24,6 +24,7 @@ public final class Batch {
     List<Path> cp = new ArrayList<>();
     Path out = null;
     List<Path> roots = new ArrayList<>();
+    int release = CompilerOptions.defaultRelease();
     for (int i = 0; i < args.length; i++) {
       switch (args[i]) {
         case "-cp" -> {
@@ -34,11 +35,12 @@ public final class Batch {
           }
         }
         case "-d" -> out = Path.of(args[++i]);
+        case "--release" -> release = Integer.parseInt(args[++i]);
         default -> roots.add(Path.of(args[i]));
       }
     }
     if (out == null || roots.isEmpty()) {
-      System.err.println("usage: Batch [-cp path] -d outDir srcDir...");
+      System.err.println("usage: Batch [-cp path] [--release n] -d outDir srcDir...");
       System.exit(2);
     }
     List<SourceFile> files = new ArrayList<>();
@@ -54,7 +56,9 @@ public final class Batch {
     }
     Compilation comp =
         new Compilation(
-            files, CompilerOptions.defaults().withClassPath(cp).withOutputDir(out), null);
+            files,
+            CompilerOptions.defaults().withClassPath(cp).withOutputDir(out).withRelease(release),
+            null);
     comp.compile();
     comp.close();
     var ds = comp.diagnostics().sorted();

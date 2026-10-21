@@ -4,6 +4,15 @@ description = "J# runtime support library (jsharp.* packages); partly written in
 
 val jsharpc by configurations.creating
 
+// Programs compiled for any supported Java release (--release, D108) load the runtime: it is built
+// for the oldest one.
+val minJava = providers.gradleProperty("minJavaVersion").get()
+tasks.withType<JavaCompile>().configureEach { options.release.set(minJava.toInt()) }
+
+// A fixed module name, for module-path loaders (NeoForge, ...): the jar's file name changes with
+// the version.
+tasks.jar { manifest { attributes("Automatic-Module-Name" to "io.github.matrixidot.jsharp.runtime") } }
+
 dependencies {
     jsharpc(project(":compiler"))
 }
@@ -25,6 +34,7 @@ val compileJSharp by tasks.registering(JavaExec::class) {
     argumentProviders.add(CommandLineArgumentProvider {
         listOf(
             "-cp", sourceSets.main.get().java.classesDirectory.get().asFile.absolutePath,
+            "--release", minJava,
             "-d", jsharpOut.get().asFile.absolutePath,
             file("src/main/jsharp").absolutePath,
         )

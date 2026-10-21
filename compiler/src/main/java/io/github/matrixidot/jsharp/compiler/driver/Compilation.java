@@ -83,11 +83,15 @@ public final class Compilation {
 
   /** Builds the class path: runtime library first, then the user's entries. */
   public static ClassPath openClassPath(CompilerOptions options) {
+    String problem = CompilerOptions.releaseProblem(options.release());
+    if (problem != null) {
+      throw new IllegalArgumentException(problem);
+    }
     List<Path> cp = new ArrayList<>();
     cp.addAll(RuntimeLocator.findAll());
     cp.addAll(options.classPath());
     try {
-      return ClassPath.of(cp);
+      return ClassPath.of(cp, options.release());
     } catch (IOException e) {
       throw new UncheckedIOException(e);
     }
@@ -135,7 +139,7 @@ public final class Compilation {
           if (recordTypes) {
             ctx.typeRefs = new IdentityHashMap<>();
           }
-          javaLoader = new JavaSourceLoader(ctx.syms, diags);
+          javaLoader = new JavaSourceLoader(ctx.syms, diags, options.release());
           javaClasses = javaLoader.load(javaSources());
           if (diags.hasErrors()) {
             return;
@@ -185,7 +189,7 @@ public final class Compilation {
               nests.computeIfAbsent(c.sym().outermost(), k -> new ArrayList<>()).add(c.sym());
             }
           }
-          var gen = new ClassGen(types, options.emitDebugInfo(), nests);
+          var gen = new ClassGen(types, options.emitDebugInfo(), options.release(), nests);
           for (BClass c : lowered) {
             currentFile =
                 c.sym().outermost().unit() != null ? c.sym().outermost().unit().file() : null;
@@ -316,6 +320,8 @@ public final class Compilation {
                   "-proc:none",
                   "-implicit:none",
                   "-parameters",
+                  "--release",
+                  String.valueOf(options.release()),
                   "-d",
                   javaOut.toString(),
                   "-cp",

@@ -6,8 +6,12 @@ tasks.processResources {
     val v = project.version.toString()
     inputs.property("version", v)
     val java = rootProject.extra["javaVersion"].toString()
+    val minJava = providers.gradleProperty("minJavaVersion").get()
     inputs.property("javaVersion", java)
-    filesMatching("**/jsharp-version.properties") { expand("version" to v, "javaVersion" to java) }
+    inputs.property("minJavaVersion", minJava)
+    filesMatching("**/jsharp-version.properties") {
+        expand("version" to v, "javaVersion" to java, "minJavaVersion" to minJava)
+    }
 }
 
 dependencies {
