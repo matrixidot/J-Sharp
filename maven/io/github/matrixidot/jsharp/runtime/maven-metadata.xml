@@ -3,12 +3,13 @@
   <groupId>io.github.matrixidot.jsharp</groupId>
   <artifactId>runtime</artifactId>
   <versioning>
-    <latest>0.2.1-beta</latest>
-    <release>0.2.1-beta</release>
+    <latest>0.2.2-beta</latest>
+    <release>0.2.2-beta</release>
     <versions>
       <version>0.2.0-beta</version>
       <version>0.2.1-beta</version>
+      <version>0.2.2-beta</version>
     </versions>
-    <lastUpdated>20261015034321</lastUpdated>
+    <lastUpdated>20261021155754</lastUpdated>
   </versioning>
 </metadata>
