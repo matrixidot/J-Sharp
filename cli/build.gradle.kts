@@ -15,7 +15,8 @@ application {
 
 // Fast startup: the Unix launcher uses a class-data-sharing archive that the JVM creates on the
 // first run in the user's cache directory (only if that directory is writable, since the JVM
-// aborts when it cannot write the archive). Set JSHARP_NO_CDS=1 to disable.
+// aborts when it cannot write the archive). Making one also removes archives older than 30 days,
+// so updates do not accumulate them. Set JSHARP_NO_CDS=1 to disable.
 tasks.named<CreateStartScripts>("startScripts") {
     val version = project.version.toString()
     val mainClassName = "io.github.matrixidot.jsharp.cli.Main"
@@ -36,6 +37,9 @@ tasks.named<CreateStartScripts>("startScripts") {
             |            -cp "${'$'}CLASSPATH" $mainClassName --cds-train >/dev/null 2>&1 \
             |            && mv -f "${'$'}JSHARP_CDS.${'$'}${'$'}" "${'$'}JSHARP_CDS" 2>/dev/null
             |        rm -f "${'$'}JSHARP_CDS.${'$'}${'$'}"
+            |        # Each update makes a new archive: drop ones not made for a month (other installs'
+            |        # archives that are still in use are simply made again on their next run).
+            |        find "${'$'}JSHARP_CACHE" -name 'jsharp-*.jsa' -mtime +30 -exec rm -f {} + 2>/dev/null
             |    fi
             |    if [ -f "${'$'}JSHARP_CDS" ]; then
             |        DEFAULT_JVM_OPTS="-XX:SharedArchiveFile=${'$'}JSHARP_CDS -Xlog:cds=off -Xlog:cds+dynamic=off"

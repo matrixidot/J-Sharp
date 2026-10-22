@@ -198,3 +198,12 @@ and the refactored checker. Ratio is J# / baseline.
     layout (its loop is compiled separately from the caller; J#'s is inlined into it), so neither
     number is a fixed property of the library. No change to J# is called for.
 - **`mapFilterCollect` is 1.05× in the 3-fork rerun**, within its earlier bimodal range.
+
+## Command line startup (2026-10-22)
+
+`jsharp check` on one file, a fresh JVM each time, with the launcher's class-data-sharing archive:
+290–330 ms for `examples/hello.jsharp`, 360–380 ms for a 150-line test case. The JVM itself starts
+in about 50 ms; the rest is the compiler running before the JIT has compiled it (for the larger
+file: parse 13 ms, enter 51 ms, check 154 ms). The target is 300 ms cold. The launcher kept every
+archive it ever made (one per J# version and Java, 284 MB on the development machine); it now
+removes ones older than 30 days when it makes a new one.
