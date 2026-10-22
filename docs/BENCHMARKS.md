@@ -176,9 +176,25 @@ and the refactored checker. Ratio is J# / baseline.
 - **No regression from this release.** `boxed` and `mapFilterCollect`, the two pairs above 1.05,
   measured the same on 0.2.2-beta in a 3-fork rerun (`boxed` 18.7 vs 13.8 µs then, 18.3 vs 14.1
   now; `mapFilterCollect` 56.8 vs 54.3 then, 57.2 vs 54.3 now).
-- **`boxed` is a real 1.33× gap, not noise** (M7 called it noise after one rerun). It reproduces
-  across forks and versions on this JDK. The lambdas compile to the same bytecode as javac's,
-  C2 inlines the whole loop (spliterator, filter and map sinks, both lambdas, the sum), and the
-  J# pipeline allocates nothing (0.1 B/op against the stream's 335 B/op). What is left is C2's
-  code for the sink chain itself; finding it needs the generated assembly (`-prof perfasm`).
+- **`boxed` (1.33×) is this benchmark's data layout, not a J# cost.** It reproduces across forks
+  and versions, so it was investigated to the end (2026-10-22):
+  - Not the compiler: the lambdas are the same bytecode as javac's, and javac-compiled lambdas
+    driving the J# library measure the same 18.9 µs.
+  - Not allocation or inlining: J# allocates 0.1 B/op (the stream 335 B/op); C2 inlines the whole
+    loop; every call in it is monomorphic; loop alignment changes nothing.
+  - Hardware counters: the same instructions per call (178k against 181k) at a lower IPC (5.0
+    against 6.5) with about 5,000 more, well-predicted branches.
+  - A Java copy of the J# pipeline (stages and sinks) measures the same as J# on the same list,
+    and the result depends on where the boxes are in memory. `PipelineBench` allocates its
+    Integers interleaved with strings. With the same pipeline over contiguously allocated
+    Integers:
+
+    | Data | J# | Streams |
+    | --- | ---: | ---: |
+    | `PipelineBench`'s list (boxes among strings) | 18.6 µs | 13.8 µs |
+    | Contiguous boxes | 14.3 µs | 25.6 µs |
+
+    J# is 1.8× faster there. Streams' time for one pipeline moves from 13.8 to 25.6 µs with the
+    layout (its loop is compiled separately from the caller; J#'s is inlined into it), so neither
+    number is a fixed property of the library. No change to J# is called for.
 - **`mapFilterCollect` is 1.05× in the 3-fork rerun**, within its earlier bimodal range.
